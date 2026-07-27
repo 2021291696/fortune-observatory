@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "hko-gregorian-lunar-boundaries-v1",
+  "source": {
+    "publisher": "Hong Kong Observatory",
+    "index_url": "https://www.hko.gov.hk/tc/gts/time/conversion1_text.htm",
+    "2005_url": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2005c.txt",
+    "2026_url": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2026c.txt",
+    "2100_url": "https://www.hko.gov.hk/tc/gts/time/calendar/text/files/T2100c.txt",
+    "coverage_claim": "Gregorian-lunar conversion table for 1901-2100",
+    "retrieved_on": "2026-07-21"
+  },
+  "scope": "Hong Kong civil-date lunar-calendar boundaries; this fixture does not assert a BaZi LiChun year boundary.",
+  "fixtures": [
+    {"civil_date": "2005-01-10", "lunar_year": 2004, "lunar_month": 12, "lunar_day": 1, "lunar_year_ganzhi": "甲申"},
+    {"civil_date": "2005-02-09", "lunar_year": 2005, "lunar_month": 1, "lunar_day": 1, "lunar_year_ganzhi": "乙酉"},
+    {"civil_date": "2005-03-10", "lunar_year": 2005, "lunar_month": 2, "lunar_day": 1, "lunar_year_ganzhi": "乙酉"},
+    {"civil_date": "2005-12-01", "lunar_year": 2005, "lunar_month": 11, "lunar_day": 1, "lunar_year_ganzhi": "乙酉"},
+    {"civil_date": "2005-12-31", "lunar_year": 2005, "lunar_month": 12, "lunar_day": 1, "lunar_year_ganzhi": "乙酉"},
+    {"civil_date": "2026-01-19", "lunar_year": 2025, "lunar_month": 12, "lunar_day": 1, "lunar_year_ganzhi": "乙巳"},
+    {"civil_date": "2026-02-17", "lunar_year": 2026, "lunar_month": 1, "lunar_day": 1, "lunar_year_ganzhi": "丙午"},
+    {"civil_date": "2026-04-17", "lunar_year": 2026, "lunar_month": 3, "lunar_day": 1, "lunar_year_ganzhi": "丙午"},
+    {"civil_date": "2026-08-13", "lunar_year": 2026, "lunar_month": 7, "lunar_day": 1, "lunar_year_ganzhi": "丙午"},
+    {"civil_date": "2026-12-09", "lunar_year": 2026, "lunar_month": 11, "lunar_day": 1, "lunar_year_ganzhi": "丙午"},
+    {"civil_date": "2100-01-10", "lunar_year": 2099, "lunar_month": 12, "lunar_day": 1, "lunar_year_ganzhi": "己未"},
+    {"civil_date": "2100-02-09", "lunar_year": 2100, "lunar_month": 1, "lunar_day": 1, "lunar_year_ganzhi": "庚申"},
+    {"civil_date": "2100-03-11", "lunar_year": 2100, "lunar_month": 2, "lunar_day": 1, "lunar_year_ganzhi": "庚申"},
+    {"civil_date": "2100-12-01", "lunar_year": 2100, "lunar_month": 11, "lunar_day": 1, "lunar_year_ganzhi": "庚申"},
+    {"civil_date": "2100-12-31", "lunar_year": 2100, "lunar_month": 12, "lunar_day": 1, "lunar_year_ganzhi": "庚申"}
+  ]
+}

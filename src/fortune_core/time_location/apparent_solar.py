@@ -1,0 +1,47 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime, timedelta
+from functools import lru_cache
+from pathlib import Path
+
+from skyfield.api import Loader
+
+
+EPHEMERIS_ID = "de440s"
+EPHEMERIS_SHA256 = "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2"
+EPHEMERIS_START_YEAR = 1849
+EPHEMERIS_END_YEAR = 2150
+
+
+@lru_cache(maxsize=1)
+def skyfield_resources():
+    root = Path(__file__).resolve().parents[3]
+    loader = Loader(root / "data" / "ephemeris")
+    return loader.timescale(), loader("de440s.bsp")
+
+
+def apparent_solar_datetime(civil_datetime: datetime, longitude: float) -> datetime:
+    """Convert an aware civil time to local apparent solar time with JPL DE440s.
+
+    The apparent solar clock is derived directly from the apparent solar hour
+    angle. Longitude is east-positive; latitude is intentionally not involved
+    because it affects altitude, not the local apparent solar clock.
+    """
+    if civil_datetime.tzinfo is None:
+        raise ValueError("civil_datetime must include an explicit UTC offset")
+    if not EPHEMERIS_START_YEAR <= civil_datetime.year <= EPHEMERIS_END_YEAR:
+        raise ValueError(
+            f"{EPHEMERIS_ID} supports civil years {EPHEMERIS_START_YEAR}-{EPHEMERIS_END_YEAR}"
+        )
+    timescale, ephemeris = skyfield_resources()
+    instant = timescale.from_datetime(civil_datetime.astimezone(UTC))
+    right_ascension, _, _ = ephemeris["earth"].at(instant).observe(ephemeris["sun"]).apparent().radec(epoch="date")
+    apparent_clock_hours = (12 + instant.gast + longitude / 15 - right_ascension.hours) % 24
+    civil_clock_hours = (
+        civil_datetime.hour
+        + civil_datetime.minute / 60
+        + civil_datetime.second / 3600
+        + civil_datetime.microsecond / 3_600_000_000
+    )
+    correction_hours = ((apparent_clock_hours - civil_clock_hours + 12) % 24) - 12
+    return civil_datetime + timedelta(hours=correction_hours)

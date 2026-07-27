@@ -1,0 +1,9 @@
+{
+  "name": "iztro-runtime-verification",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Isolated, lifecycle-disabled runtime verification for the frozen iztro 2.5.8 oracle.",
+  "dependencies": {
+    "iztro": "file:../../../data/vendor/iztro/2.5.8/iztro-2.5.8.tgz"
+  }
+}

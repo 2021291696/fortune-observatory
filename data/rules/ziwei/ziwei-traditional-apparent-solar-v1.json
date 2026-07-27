@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "ziwei-traditional-apparent-solar-v1",
+  "system": "ziwei",
+  "status": "provisional",
+  "display_name": "传统紫微·真太阳时 v1",
+  "input_time_basis": "apparent_solar_time",
+  "calendar_date_source": "lunar_date_derived_from_selected_time_basis",
+  "palace_rules": {
+    "life_palace": "yin_month_forward_then_birth_hour_reverse",
+    "body_palace": "yin_month_forward_then_birth_hour_forward",
+    "palace_order_from_life": [
+      "命宫",
+      "兄弟",
+      "夫妻",
+      "子女",
+      "财帛",
+      "疾厄",
+      "迁移",
+      "交友",
+      "官禄",
+      "田宅",
+      "福德",
+      "父母"
+    ],
+    "palace_order_direction": "reverse"
+  },
+  "birth_year_mutagens": {
+    "乙": {
+      "禄": "天机",
+      "权": "天梁",
+      "科": "紫微",
+      "忌": "太阴"
+    }
+  },
+  "options": {
+    "fix_leap": true,
+    "year_divide": "exact_lichun_instant",
+    "horoscope_divide": "exact_lichun_instant",
+    "age_divide": "virtual_age",
+    "early_late_zi": "explicit"
+  },
+  "tables_requiring_version": [
+    "five_element_bureau",
+    "fourteen_major_stars",
+    "auxiliary_and_malefic_stars",
+    "brightness",
+    "palace_stems",
+    "decadal_and_minor_limits",
+    "transit_stars"
+  ],
+  "differential_oracle": {
+    "name": "iztro",
+    "version": "2.5.8",
+    "role": "compatibility_oracle_only",
+    "execution_status": "pending_explicit_user_approval"
+  },
+  "verification": {
+    "release_status": "palace_mapping_only",
+    "stars_and_limits": "not_verified"
+  }
+}

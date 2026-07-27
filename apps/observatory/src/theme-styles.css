@@ -1,0 +1,87 @@
+[data-palette='phoebe'] { --ink: #191724; --paper: #fffdf8; --surface: #fff; --accent: #6848db; --accent-2: #ec709d; --wash: #d9d1ff; --muted: #615d70; --line: #24202d; --soft-line: rgba(36,32,45,.14); }
+[data-palette='ggbond'] { --ink: #111820; --paper: #fffaf0; --surface: #fff; --accent: #dd1825; --accent-2: #1257d7; --wash: #ffd400; --muted: #565049; --line: #111820; --soft-line: rgba(17,24,32,.15); }
+[data-palette='nailong'] { --ink: #101010; --paper: #fffef6; --surface: #fff; --accent: #0758f7; --accent-2: #ff3044; --wash: #ffe81a; --muted: #5c5a4f; --line: #111; --soft-line: rgba(17,17,17,.14); }
+[data-palette='kawaii'] { --ink: #292531; --paper: #fff9fc; --surface: #fff; --accent: #a81759; --accent-2: #5062da; --wash: #c9f1dd; --muted: #625966; --line: #312b34; --soft-line: rgba(49,43,52,.13); }
+
+[data-theme='nailong'] .site-header { background: rgba(255,255,255,.94); }
+[data-theme='nailong'] .launch-section {
+  background:
+    radial-gradient(circle at 45% 55%, rgba(255,255,255,.72) 0 5%, transparent 22%),
+    linear-gradient(103deg, #fffdf8 0 33%, #fff6a2 51%, #ffe20b 100%);
+}
+[data-theme='nailong'] .launch-section::before { content: '〰 〰 〰'; position: absolute; z-index: -1; left: 2%; bottom: 4%; color: rgba(7,88,247,.24); font-size: clamp(60px, 9vw, 140px); font-weight: 950; letter-spacing: -.15em; transform: rotate(-8deg); }
+[data-theme='nailong'] .main-meme { inset: -3% -1% -12% 13%; }
+[data-theme='nailong'] .main-meme > img { mix-blend-mode: multiply; }
+[data-theme='nailong'] .eyebrow { color: #111; background: #ffe20b; }
+[data-theme='nailong'] .submit-button { box-shadow: 0 5px 0 #0639a4; }
+
+[data-theme='phoebe'] .launch-section {
+  background:
+    radial-gradient(circle at 83% 17%, rgba(255,255,255,.72) 0 13%, transparent 13.4%),
+    radial-gradient(circle at 48% 83%, #bdeaff 0 8%, transparent 8.4%),
+    linear-gradient(135deg, #fffdf8 0 38%, #eee9ff 38% 100%);
+}
+[data-theme='phoebe'] .main-meme { inset: 2% 5% -3% 13%; overflow: hidden; border: 10px solid #fff; border-radius: 46% 46% 18px 18px; box-shadow: 18px 20px 0 rgba(104,72,219,.18); transform: rotate(1deg); }
+[data-theme='phoebe'] .main-meme > img { object-fit: contain; }
+[data-theme='phoebe'] .eyebrow { color: #5d42c6; background: #fff; }
+[data-theme='phoebe'] .birth-form { transform: rotate(-.35deg); }
+
+[data-theme='ggbond'] .site-header { color: #fff; background: rgba(207,20,32,.96); }
+[data-theme='ggbond'] .site-header nav a:hover { color: #ffd400; border-color: #ffd400; }
+[data-theme='ggbond'] .brand strong { color: #111820; background: #ffd400; padding: 2px 8px 5px; transform: skewX(-8deg); }
+[data-theme='ggbond'] .theme-remote { color: #111820; }
+[data-theme='ggbond'] .launch-section {
+  background:
+    repeating-linear-gradient(0deg, rgba(17,24,32,.04) 0 2px, transparent 2px 6px),
+    linear-gradient(112deg, #fffaf0 0 36%, #ffd400 36% 72%, #de1925 72% 100%);
+}
+[data-theme='ggbond'] .launch-copy h1 { color: #dd1825; font-family: 'Bahnschrift Condensed', Impact, 'Microsoft YaHei', sans-serif; font-style: italic; text-shadow: 3px 3px 0 #ffd400; }
+[data-theme='ggbond'] .main-meme { inset: 2% 4% -5% 12%; overflow: hidden; border: 7px solid #111820; border-radius: 6px; box-shadow: 15px 15px 0 #dd1825; transform: rotate(1.3deg); }
+[data-theme='ggbond'] .main-meme > img { object-fit: contain; }
+[data-theme='ggbond'] .eyebrow { border-radius: 3px; color: #111820; background: #ffd400; transform: skewX(-6deg); }
+[data-theme='ggbond'] .birth-form { border: 3px solid #111820; border-radius: 5px; box-shadow: 8px 8px 0 #dd1825; }
+
+[data-theme='kawaii'] .launch-section {
+  background-color: #fff8fb;
+  background-image: radial-gradient(#e75997 1.2px, transparent 1.2px), linear-gradient(115deg, transparent 0 38%, rgba(201,241,221,.76) 38% 100%);
+  background-size: 22px 22px, auto;
+}
+[data-theme='kawaii'] .launch-copy { padding: 26px; background: rgba(255,255,255,.86); box-shadow: 9px 10px 0 rgba(231,89,151,.18); transform: rotate(-.45deg); }
+[data-theme='kawaii'] .launch-copy h1 { color: #d84d8d; }
+[data-theme='kawaii'] .birth-form { margin-inline: -8px; transform: rotate(.45deg); }
+[data-theme='kawaii'] .main-meme { inset: 0 7% -2% 11%; overflow: hidden; border: 12px solid #fff; border-radius: 8px; box-shadow: 10px 12px 0 #302a33; transform: rotate(2deg); }
+[data-theme='kawaii'] .main-meme > img { object-fit: contain; }
+[data-theme='kawaii'] .meme-sticker { border-radius: 4px; }
+
+[data-theme='shuffle'] .launch-section {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--wash) 62%, #fff) 0 25%, transparent 25% 52%, color-mix(in srgb, var(--accent) 18%, #fff) 52% 78%, var(--paper) 78%),
+    var(--paper);
+}
+[data-theme='shuffle'] .brand strong { padding: 2px 8px 5px; color: #fff; background: #111; }
+[data-theme='shuffle'] .main-meme { inset: 1% 8% -2% 12%; overflow: hidden; border: 9px double #111; border-radius: 50% 50% 12% 12%; box-shadow: 14px 14px 0 var(--accent); transform: rotate(-2deg); }
+[data-theme='shuffle'] .main-meme > img { object-fit: contain; }
+[data-theme='shuffle'] .meme-sticker:nth-child(even) { border-radius: 50%; }
+
+[data-motion='float'] .stage-grid { animation: ring-drift 8s ease-in-out infinite alternate; }
+[data-motion='float'] .meme-sticker { animation: sticker-float calc(3.5s + var(--sticker-index) * .4s) ease-in-out infinite alternate; }
+[data-motion='hero'] .stage-grid { animation: ring-turn 16s linear infinite; }
+[data-motion='hero'] .meme-sticker { animation: sticker-pop calc(3s + var(--sticker-index) * .35s) steps(2, end) infinite; }
+[data-motion='squash'] .stage-grid { animation: ring-turn 20s linear infinite; }
+[data-motion='squash'] .meme-sticker { animation: sticker-squash calc(3.1s + var(--sticker-index) * .3s) ease-in-out infinite; }
+[data-motion='scatter'] .stage-grid { animation: ring-drift 6s ease-in-out infinite alternate; }
+[data-motion='scatter'] .meme-sticker { animation: sticker-scatter calc(4s + var(--sticker-index) * .38s) ease-in-out infinite alternate; }
+
+@keyframes ring-turn { to { transform: rotate(352deg); } }
+@keyframes ring-drift { to { translate: 14px -9px; rotate: -2deg; } }
+@keyframes sticker-float { to { translate: 0 -12px; rotate: 4deg; } }
+@keyframes sticker-pop { 50% { scale: 1.06; rotate: 3deg; } }
+@keyframes sticker-squash { 0%, 84%, 100% { scale: 1; } 90% { scale: 1.08 .92; } 95% { scale: .96 1.05; } }
+@keyframes sticker-scatter { to { translate: 9px -8px; rotate: -5deg; } }
+
+@media (max-width: 780px) {
+  [data-theme='phoebe'] .main-meme, [data-theme='ggbond'] .main-meme, [data-theme='kawaii'] .main-meme, [data-theme='shuffle'] .main-meme { inset: 2% 8% -5%; }
+  [data-theme='nailong'] .main-meme { inset: -2% -8% -13% 6%; }
+  [data-theme='kawaii'] .launch-copy { padding: 20px 16px; }
+  [data-theme='ggbond'] .site-header { color: #fff; }
+}

@@ -1,0 +1,51 @@
+# Python environments and caches
+.venv/
+.uv-cache/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node dependencies and build output
+**/node_modules/
+**/dist/
+**/build/
+*.tsbuildinfo
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local agent/session artifacts
+.Codex/
+
+# Editor and OS artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Private birth-chart fixtures and reports
+data/golden/candidates/
+data/vendor/
+docs/
+tests/verified/test_api_contract.py
+tests/verified/test_api_security.py
+tests/verified/test_apparent_solar.py
+tests/verified/test_current_user_bazi_stable.py
+tests/verified/test_great_luck_transit.py
+tests/verified/test_qizheng_physical.py
+tests/verified/test_signals.py
+tests/verified/test_time_trace.py
+tests/verified/test_ziwei_palaces.py
+tests/golden/test_current_user_bazi.py
+tests/differential/iztro_runtime/*current-user*
+
+# Local raw/duplicate assets and an unused Vite scaffold
+表情包/
+apps/web/

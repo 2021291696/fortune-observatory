@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_id": "hko-lichun-minute-boundaries-v1",
+  "source": {
+    "publisher": "Hong Kong Observatory",
+    "2013_url": "https://www.hko.gov.hk/en/gts/astron2013/Solar_Term_2013.htm",
+    "2016_url": "https://www.hko.gov.hk/en/gts/astron2016/Solar_Term_2016.htm",
+    "time_basis": "Hong Kong Time (UTC+08:00)",
+    "retrieved_on": "2026-07-21"
+  },
+  "precision_policy": "HKO publishes minute resolution. Assert one minute before and after the published minute, not an invented second-level instant.",
+  "fixtures": [
+    {
+      "term": "lichun",
+      "published_datetime": "2013-02-04T00:13:00+08:00",
+      "before_datetime": "2013-02-04T00:12:00+08:00",
+      "after_datetime": "2013-02-04T00:14:00+08:00",
+      "before_pillars": {"year": "壬辰", "month": "癸丑"},
+      "after_pillars": {"year": "癸巳", "month": "甲寅"}
+    },
+    {
+      "term": "lichun",
+      "published_datetime": "2016-02-04T17:46:00+08:00",
+      "before_datetime": "2016-02-04T17:45:00+08:00",
+      "after_datetime": "2016-02-04T17:47:00+08:00",
+      "before_pillars": {"year": "乙未", "month": "己丑"},
+      "after_pillars": {"year": "丙申", "month": "庚寅"}
+    }
+  ]
+}

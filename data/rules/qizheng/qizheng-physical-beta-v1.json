@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "qizheng-physical-beta-v1",
+  "system": "qizheng",
+  "status": "provisional_beta",
+  "display_name": "七政物理天体基线·传统派生关闭 v1",
+  "physical_instant": {
+    "source": "civil_time_to_utc",
+    "time_scales": ["UTC", "TT", "TDB"],
+    "forbid_apparent_solar_as_utc": true
+  },
+  "observer": {
+    "center": "geocenter",
+    "topocentric_candidate_preserved": true
+  },
+  "physical_bodies": [
+    "sun",
+    "moon",
+    "mercury",
+    "venus",
+    "mars",
+    "jupiter",
+    "saturn"
+  ],
+  "coordinates": {
+    "longitude": "apparent_ecliptic_of_date",
+    "latitude": "apparent_ecliptic_of_date",
+    "speed": "ecliptic_longitude_rate",
+    "frame_and_precession_model": "must_be_versioned"
+  },
+  "ephemeris": {
+    "default_adapter": "jpl_de440_or_de441",
+    "runtime_download": false,
+    "checksum_required": true,
+    "jpl_horizons_tolerance_arcsec": 1.0
+  },
+  "traditional_objects": {
+    "rahu_ketu": "unsupported_until_true_vs_mean_node_profile_frozen",
+    "lunar_apogee": "unsupported_until_true_vs_mean_profile_frozen",
+    "ziqi": "unsupported_until_formula_epoch_period_frozen"
+  },
+  "traditional_rules": {
+    "zodiac_basis": "unsupported",
+    "precession": "unsupported",
+    "twenty_eight_mansions": "unsupported",
+    "life_and_body_palaces": "unsupported",
+    "day_night": "unsupported",
+    "benefic_relations": "unsupported",
+    "major_minor_limits": "unsupported"
+  },
+  "feature_flags": {
+    "natal_physical_positions": false,
+    "traditional_chart": false,
+    "dynamic_fortune": false
+  },
+  "verification": {
+    "release_status": "not_verified",
+    "source_values_from_existing_notes": "rejected"
+  }
+}

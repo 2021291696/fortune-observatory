@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "bazi-zi-ping-apparent-solar-v1",
+  "system": "bazi",
+  "status": "provisional",
+  "display_name": "子平法·真太阳时·零点换日 v1",
+  "input_time_basis": "apparent_solar_time",
+  "boundaries": {
+    "year": {
+      "rule": "exact_lichun_instant",
+      "source": "computed_solar_longitude"
+    },
+    "month": {
+      "rule": "exact_12_jie_instants",
+      "source": "computed_solar_longitude"
+    },
+    "day": {
+      "rule": "00:00_apparent_solar_time",
+      "late_zi_changes_day": false
+    },
+    "hour": {
+      "zi_start": "23:00",
+      "split_early_late_zi": true
+    }
+  },
+  "great_luck": {
+    "direction_rule": "yang_year_male_or_yin_year_female_forward_else_reverse",
+    "start_age_method": "three_days_one_year_with_day_hour_fraction",
+    "sect": 1,
+    "must_return": [
+      "direction",
+      "reference_jie",
+      "duration_to_jie",
+      "start_age",
+      "start_instant",
+      "decades"
+    ]
+  },
+  "alternatives": [
+    "bazi-zi-ping-civil-v1",
+    "bazi-zi-ping-apparent-solar-late-zi-v1",
+    "bazi-zi-ping-apparent-solar-start-sect2-v1"
+  ],
+  "verification": {
+    "required": [
+      "manual_curated_fixtures",
+      "independent_calendar_implementation",
+      "boundary_property_tests"
+    ],
+    "release_status": "not_verified"
+  }
+}
