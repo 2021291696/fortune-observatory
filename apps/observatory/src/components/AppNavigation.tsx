@@ -9,12 +9,26 @@ const views = [
   { id: 'profile', label: '我的', icon: UserCircle },
 ] as const
 
+function hasStoredProfiles(): boolean {
+  try {
+    const raw = window.localStorage.getItem('fortune-users-v1')
+    if (!raw) return false
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) && parsed.length > 0
+  } catch {
+    return false
+  }
+}
+
 export function viewFromHash(hash = window.location.hash): AppView {
   const value = hash.replace(/^#/, '')
   if (value === 'ask' || value === 'analysis') return 'ask'
   if (value === 'chart') return 'chart'
   if (value === 'profile' || value === 'saved') return 'profile'
-  return 'fortune'
+  if (value === 'fortune') return 'fortune'
+  // No explicit hash: returning visitors land on their fortune, first-time
+  // visitors land on the chart page whose gate walks them into onboarding.
+  return hasStoredProfiles() ? 'fortune' : 'chart'
 }
 
 export function AppNavigation({ activeView, onNavigate }: {

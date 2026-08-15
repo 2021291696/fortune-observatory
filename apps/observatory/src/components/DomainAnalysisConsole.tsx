@@ -37,7 +37,7 @@ const domainConfig: Record<AnalysisDomain, {
   wealth: {
     palace: '财帛', label: '财运', icon: Coins,
     action: '先定义现金流、风险上限和不可承受损失，再讨论机会；命盘不能替代具体财务数据。',
-    question: '请基于我的财帛宫星情，用白话讲讲我的财务性格（不涉及任何具体投资建议），并给一条管钱的小原则。',
+    question: '请用白话讲讲我财帛宫星情反映的用钱习惯，并给一条管钱小原则。',
   },
 }
 

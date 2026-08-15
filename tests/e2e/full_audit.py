@@ -41,6 +41,10 @@ def main() -> None:
         page.goto(FRONTEND, wait_until="networkidle")
         page.evaluate("() => localStorage.clear()")
         page.reload(wait_until="networkidle")
+        # First visit lands on the chart gate; verify it, then walk into fortune.
+        check("落地页.无用户先进命盘页", page.locator("#chart .task-gate").count() == 1)
+        page.locator('#chart .task-gate a[href="#fortune"]').click()
+        page.locator("#birth-form").wait_for(timeout=10_000)
 
         # 1. submit -> chart board
         page.locator('input[name="displayName"]').fill("我")

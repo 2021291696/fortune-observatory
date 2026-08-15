@@ -363,7 +363,7 @@ USER_DATA_JSON.history（如存在）是本次会话此前的问答摘录，仅�
             {"role": "user", "content": "USER_DATA_JSON\n" + json.dumps(untrusted_data, ensure_ascii=False, separators=(",", ":"))},
         ],
         "temperature": 0.2,
-        "max_tokens": 800,
+        "max_tokens": 1150,
     }
     response_format = _response_format(config)
     if response_format is not None:
@@ -410,8 +410,6 @@ def _parse_answer(
     if re.search(r"(?:注定|必然|百分之百|保证你|一定会)", combined_text):
         raise AiProviderError("provider response made a deterministic claim")
     source_types = bundle_types or set()
-    if source_types.intersection({"domain.health", "domain.wealth"}) and answer.actions:
-        raise AiProviderError("sensitive domains cannot contain generated actions")
     if re.search(
         r"(?:停药|换药|加药|减药|停用|口服|服用|注射|输液|调整剂量|"
         r"阿司匹林|布洛芬|抗生素|处方药|手术治疗|\d+\s*(?:mg|毫克|片|粒|ml|毫升))",

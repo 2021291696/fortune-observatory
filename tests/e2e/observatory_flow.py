@@ -66,6 +66,9 @@ def desktop_flow(browser) -> dict[str, object]:
     page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="zh-CN")
     errors = capture_console(page)
     page.goto(FRONTEND_URL, wait_until="networkidle")
+    # Fresh visitors land on the chart gate; the form lives on the fortune page.
+    page.locator('.primary-nav a[href="#fortune"]').click()
+    page.locator("#birth-form").wait_for(timeout=10_000)
     page.screenshot(path=ARTIFACTS / "desktop-before.png", full_page=False)
     assert_no_overflow(page)
 
@@ -215,6 +218,8 @@ def mobile_flow(browser) -> dict[str, object]:
     page.goto(FRONTEND_URL, wait_until="networkidle")
     page.evaluate("() => localStorage.clear()")
     page.reload(wait_until="networkidle")
+    page.locator('.primary-nav a[href="#fortune"]').click()
+    page.locator("#birth-form").wait_for(timeout=10_000)
     page.screenshot(path=ARTIFACTS / "mobile-before.png", full_page=False)
     assert_no_overflow(page)
     assert_touch_targets(page)
