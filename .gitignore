@@ -50,3 +50,6 @@ tests/differential/iztro_runtime/*current-user*
 # Local raw/duplicate assets and an unused Vite scaffold
 表情包/
 apps/web/
+
+# Security scan artifacts
+apps/observatory/.mimosa/
