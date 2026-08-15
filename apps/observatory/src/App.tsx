@@ -416,7 +416,7 @@ export function App() {
   return <div className="app-shell" data-theme={theme.id} data-palette={theme.palette} data-layout={theme.layout} data-motion={theme.motion} data-motion-paused={motionPaused || undefined}>
     <a className="skip-link" href="#main-content">跳到主要内容</a>
     <header className="site-header">
-      <a className="brand" href="#today" onClick={() => navigate('today')}><strong>看运</strong><span>认真算，轻松看</span></a>
+      <a className="brand" href="#today" onClick={() => navigate('today')}><strong>看运</strong></a>
       <AppNavigation activeView={activeView} onNavigate={navigate} />
       <span className={`session-state ${chart ? 'is-ready' : ''}`}>
         {chart ? <CheckCircle size={17} weight="fill" /> : <ShieldCheck size={17} weight="bold" />}
@@ -425,11 +425,9 @@ export function App() {
     </header>
 
     <main id="main-content">
-      {activeView === 'today' && <section className={`task-view today-view ${chart ? 'is-ready' : ''}`} id="today" aria-labelledby="today-title">
+      {activeView === 'today' && <section className={`task-view today-view ${chart ? 'is-ready' : ''}`} id="today" aria-label="今日">
         <section className="launch-section" aria-label="填写出生资料">
           <div className="launch-copy">
-            <p className="eyebrow">今日 · {theme.navLabel}陪你看</p>
-            <h1 id="today-title">{chart ? '今天的重点，已经算好。' : '今天，该把力气放在哪？'}</h1>
             <BirthForm isSubmitting={isSubmitting} error={error} onSubmit={submit} onClear={clearSession} hasChart={Boolean(chart)} />
           </div>
           <MemeStage theme={theme} motionPaused={motionPaused} />
@@ -445,7 +443,7 @@ export function App() {
 
       {activeView === 'ask' && <section className="task-view ask-view" id="ask" aria-labelledby="ask-title">
         <header className="task-heading">
-          <span>问事</span><h1 id="ask-title">你想问什么？</h1>
+          <h1 id="ask-title">问事</h1>
         </header>
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <>
           <DomainAnalysisConsole chart={chart} onSave={saveReading} />
@@ -458,7 +456,7 @@ export function App() {
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
-        <header className="task-heading"><span>命盘</span><h1 id="chart-title">命盘摘要</h1></header>
+        <header className="task-heading"><h1 id="chart-title">命盘</h1></header>
         <div className="chart-output" aria-live="polite">
           {isSubmitting && chart && <div className="updating-status" role="status">正在按新资料更新，上一份有效命盘暂时保留。</div>}
           {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
@@ -473,7 +471,6 @@ export function App() {
     </main>
 
     <footer className="site-footer">
-      <div><strong>看运</strong><span>认真算，轻松看。</span></div>
       <p>传统命理解释框架，不构成医疗、法律或投资建议。</p>
     </footer>
 

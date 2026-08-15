@@ -79,7 +79,7 @@ def desktop_flow(browser) -> dict[str, object]:
     fill_birth(page)
     submit_and_wait(page)
     page.screenshot(path=ARTIFACTS / "desktop-result.png", full_page=False)
-    assert "今天，先做这一件事" in page.locator("#today").inner_text()
+    assert page.locator("#today-brief .daily-card").first.is_visible()
     assert "日柱" in page.locator("#today").inner_text()
 
     page.locator('.primary-nav a[href="#ask"]').click()

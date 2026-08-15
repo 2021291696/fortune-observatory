@@ -1,18 +1,10 @@
-import { CheckCircle, WarningCircle } from '@phosphor-icons/react'
-import type { ChartResponse, VerificationStatus } from '../types'
+import type { ChartResponse } from '../types'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
 
-function statusCopy(status: VerificationStatus) {
-  if (status === 'verified') return '计算已核验'
-  if (status === 'ambiguous') return '存在临界条件'
-  return '计算待核验'
-}
-
 export function Chart({ chart }: { chart: ChartResponse }) {
   const pillars = Object.values(chart.bazi.pillars)
-  const isVerified = chart.bazi.verification_status === 'verified'
   const starPalaces = chart.ziwei.palaces.filter((palace) => palace.major_stars.length)
   const minorPalaces = chart.ziwei.palaces.filter((palace) => palace.minor_stars.length)
 
@@ -22,10 +14,6 @@ export function Chart({ chart }: { chart: ChartResponse }) {
         <span>命盘摘要</span>
         <h2>{pillars.join(' · ')}</h2>
         <p>农历 {chart.bazi.lunar_date}，{chart.bazi.input_time_basis === 'apparent_solar' ? '真太阳时口径' : '民用时间口径'}</p>
-      </div>
-      <div className={`verification-badge ${isVerified ? 'is-verified' : ''}`}>
-        {isVerified ? <CheckCircle size={22} weight="fill" /> : <WarningCircle size={22} weight="fill" />}
-        {statusCopy(chart.bazi.verification_status)}
       </div>
     </header>
 
@@ -44,18 +32,18 @@ export function Chart({ chart }: { chart: ChartResponse }) {
       <div className="result-fact">
         <span>紫微定位</span>
         <strong>命宫 {chart.ziwei.life_branch} · 身宫 {chart.ziwei.body_branch}</strong>
-        <p>{chart.ziwei.five_elements_bureau} 局，{statusCopy(chart.ziwei.verification_status)}</p>
+        <p>{chart.ziwei.five_elements_bureau} 局</p>
       </div>
     </section>
 
     <details className="chart-full-details">
       <summary>查看完整命盘、十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
-      <div className="section-kicker"><span>可执行解读</span></div>
+      <div className="section-kicker"><span>解读</span></div>
       <div className="insight-list">
         {chart.natal_insights.map((insight, index) => <article key={insight.insight_id}>
           <b>{String(index + 1).padStart(2, '0')}</b>
-          <div><h3>{insight.title}</h3><p>{insight.summary}</p><strong>{insight.action}</strong><small>依据：{insight.fact_ids.join('、')}</small></div>
+          <div><h3>{insight.title}</h3><p>{insight.summary}</p><strong>{insight.action}</strong></div>
         </article>)}
       </div>
     </section>}

@@ -7,7 +7,6 @@ import { AiExplainPanel } from './AiExplainPanel'
 type DomainResult = {
   title: string
   lead: string
-  structure: string
   action: string
   evidence: string[]
   disclaimer?: string
@@ -44,7 +43,6 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
     return {
       title: `${config.label}分析暂不可用`,
       lead: `当前命盘没有返回${config.palace}宫，系统不会用其他宫位补写结论。`,
-      structure: '缺少领域定位事实，本次分析到此为止。',
       action: '可以先展开完整命盘检查数据；若仍缺失，请重新排盘或稍后再试。',
       evidence: ['未找到对应宫位'],
     }
@@ -63,7 +61,6 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
   return {
     title: `${config.label} · ${config.palace}宫在${palace.branch}`,
     lead: `主星：${majorStars}；辅星：${minorStars}${mutagenCopy}。`,
-    structure: `这是领域定位事实，不是吉凶评分。`,
     action: config.action,
     evidence: [
       `${config.palace}宫 · ${palace.branch}`, `大限 ${palace.decadal_range[0]} 至 ${palace.decadal_range[1]}`,
@@ -95,9 +92,6 @@ export function DomainAnalysisConsole({ chart, onSave }: {
   const activeConfig = active ? domainConfig[active] : null
 
   return <section className="analysis-section" id="analysis">
-    <header className="content-heading compact-heading">
-      <h2>你最想问哪件事？</h2>
-    </header>
     <div className={`domain-console ${chart ? 'is-ready' : ''}`}>
       <div className="domain-choices" role="group" aria-label="选择专项分析">
         {analysisDomains.map(([domain, label]) => {
@@ -120,16 +114,15 @@ export function DomainAnalysisConsole({ chart, onSave }: {
         {!chart && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>先完成排盘</strong></div></div>}
         {chart && !result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>选择一个领域开始</strong></div></div>}
         {result && activeConfig && active && chart && <article className="domain-reading">
-          <header><span>{activeConfig.label} / 命盘依据</span><h3>{result.title}</h3></header>
+          <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
-          <div className="domain-interpretation"><span>怎么读</span><p>{result.structure}</p></div>
-          <blockquote><span>你可以把握的是</span>{result.action}</blockquote>
+          <blockquote>{result.action}</blockquote>
           {result.disclaimer && <p className="domain-disclaimer">{result.disclaimer}</p>}
           <footer>
             <div className="evidence-list" aria-label="分析依据">{result.evidence.map((item) => <span key={item}>{item}</span>)}</div>
             <button type="button" onClick={() => onSave({
               kind: 'domain', title: result.title, summary: result.lead,
-              details: [result.structure, result.action, ...result.evidence],
+              details: [result.action, ...result.evidence],
             })}><FloppyDisk size={18} weight="bold" /> 保存这项分析</button>
           </footer>
           {(active === 'relationship' || active === 'career') && <AiExplainPanel

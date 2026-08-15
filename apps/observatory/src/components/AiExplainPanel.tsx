@@ -141,9 +141,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION }: {
   return <section className="ai-explain-panel" aria-label="可选 AI 讲解">
     <div className="ai-explain-intro">
       <div>
-        <span><ChatCircleDots size={18} weight="fill" /> 可选 AI 讲解</span>
-        <strong>想把这段讲得更明白？</strong>
-        <p>AI 只解释上方已算出的 {source.facts.length} 条事实，不参与排盘。</p>
+        <span><ChatCircleDots size={18} weight="fill" /> AI 讲解（可选）</span>
       </div>
       <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={openPanel}>
         {expanded ? '收起' : 'AI 帮我讲人话'}
@@ -151,7 +149,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION }: {
     </div>
 
     {expanded && <div className="ai-explain-body" id={panelId}>
-      <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击“生成讲解”才会调用模型。当前问题会发送；如果你主动输入个人信息，也会一并发送。系统不会自动附带出生日期、时间、城市或经纬度。</p>
+      <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击“生成讲解”才会调用模型；系统不会自动附带出生资料。</p>
 
       {availability === 'checking' && <div className="ai-status-skeleton" role="status" aria-label="正在检查 AI 讲解状态"><span /><span /><span /></div>}
       {availability === 'unavailable' && <div className="ai-unavailable"><Info size={20} weight="bold" /><div><strong>{source.contextTokens.length ? 'AI 讲解暂未配置' : '这份结果还没有核验上下文'}</strong><p>{source.contextTokens.length ? '规则排盘、专项分析和时间运势不受影响。' : '重新排盘即可准备；当前规则结果仍可正常使用。'}</p></div></div>}
@@ -166,13 +164,13 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION }: {
           {isLoading ? <><SpinnerGap className="spin" size={19} /> 正在根据事实整理</> : answer ? '重新生成（会再次调用）' : '生成讲解'}
         </button>
 
-        {isLoading && <div className="ai-answer-skeleton" role="status"><span /><span /><span /><small>规则结果保持可用，AI 只在这里补充解释。</small></div>}
+        {isLoading && <div className="ai-answer-skeleton" role="status"><span /><span /><span /></div>}
         {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {answer && !isLoading && <article className="ai-answer">
-          <header><CheckCircle size={21} weight="fill" /><div><span>基于现有事实</span><strong>讲人话版本</strong></div></header>
+          <header><CheckCircle size={21} weight="fill" /><div><strong>AI 讲解</strong></div></header>
           <p>{answer.summary.text}</p>
           {answer.actions.length > 0 && <div><strong>可以先做</strong><ul>{answer.actions.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
-          {answer.caveats.length > 0 && <div className="ai-caveats"><strong>需要保留的边界</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
+          {answer.caveats.length > 0 && <div className="ai-caveats"><strong>注意</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
           <details><summary>查看 AI 使用的 {citedFacts.length} 条依据</summary><ul>{citedFacts.map((fact, index) => <li key={fact.id}><b>依据 {index + 1}</b>{fact.text}</li>)}</ul></details>
         </article>}
       </>}
