@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import LiquidGlass from 'liquid-glass-react'
 import { ArrowRight, CheckCircle, ShieldCheck, WarningCircle } from '@phosphor-icons/react'
 import { AppNavigation, viewFromHash, type AppView } from './components/AppNavigation'
 import { BirthForm, UserBar, type BirthInitial, type StoredUser } from './components/BirthForm'
@@ -573,25 +572,14 @@ export function App() {
               onSwitch={switchUser} onStartAdd={startAddUser}
             />
             <div className="launch-copy">
-              <LiquidGlass
-                displacementScale={58}
-                blurAmount={0.05}
-                saturation={140}
-                elasticity={0.12}
-                cornerRadius={16}
-                mode="standard"
-                overLight
-                style={{ position: 'relative' }}
-              >
-                <BirthForm
-                  key={editingUserId ?? 'new-user'}
-                  isSubmitting={isSubmitting}
-                  error={error}
-                  onSubmit={submit}
-                  onClear={() => { setError(null); return true }}
-                  initial={editingUser ? deriveInitial(editingUser) : undefined}
-                />
-              </LiquidGlass>
+              <BirthForm
+                key={editingUserId ?? 'new-user'}
+                isSubmitting={isSubmitting}
+                error={error}
+                onSubmit={submit}
+                onClear={() => { setError(null); return true }}
+                initial={editingUser ? deriveInitial(editingUser) : undefined}
+              />
             </div>
             <MemeStage theme={theme} motionPaused={motionPaused} />
           </section>
