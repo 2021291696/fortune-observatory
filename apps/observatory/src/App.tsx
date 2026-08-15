@@ -263,6 +263,17 @@ export function App() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', color)
   }, [theme.palette])
 
+  // Browser-tab favicon follows the active theme's mascot.
+  useEffect(() => {
+    let link = document.querySelector<HTMLLinkElement>("link[rel~='icon']")
+    if (!link) {
+      link = document.createElement('link')
+      link.rel = 'icon'
+      document.head.appendChild(link)
+    }
+    link.href = theme.thumbnail
+  }, [theme.thumbnail])
+
   useEffect(() => {
     const syncView = () => setActiveView(viewFromHash())
     window.addEventListener('hashchange', syncView)
