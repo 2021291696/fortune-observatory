@@ -104,6 +104,7 @@ app.add_middleware(
     request_body_timeout_seconds=5.0,
     max_concurrent_calculations=8,
     calculation_timeout_seconds=12.0,
+    ai_timeout_seconds=14.0,
 )
 
 
