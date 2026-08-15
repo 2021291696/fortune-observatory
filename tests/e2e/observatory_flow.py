@@ -85,7 +85,7 @@ def desktop_flow(browser) -> dict[str, object]:
     fill_birth(page)
     submit_and_wait(page)
     page.screenshot(path=ARTIFACTS / "desktop-result.png", full_page=False)
-    assert "日柱" in page.locator("#fortune").inner_text()
+    assert "流日" in page.locator("#fortune").inner_text()
 
     # Second profile via the side panel: multi-user switching.
     page.get_by_role("button", name="新用户").click()
@@ -180,14 +180,17 @@ def desktop_flow(browser) -> dict[str, object]:
     print("DEBUG explain questions:", [call["question"][:24] for call in explain_calls], file=sys.stderr)
     assert len(explain_calls) == calls_before_cache_check, f"expected {calls_before_cache_check}, got {len(explain_calls)}"
 
-    # Real status (no provider locally) → fresh scope shows unavailable notice.
+    # Real provider is absent locally → background generation surfaces the
+    # provider-unavailable detail instead of a status-gated notice.
     page.unroute("**/v1/ai/status")
     page.unroute("**/v1/ai/explain")
     page.evaluate("() => localStorage.removeItem('fortune-ai-cache-v1')")
+    downgrade_error_index = len(errors)
     page.get_by_role("button", name="今日", exact=True).click()
     page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
-    page.locator("#fortune .ai-unavailable").wait_for(timeout=10_000)
-    assert "AI 讲解暂未配置" in page.locator("#fortune .ai-unavailable").inner_text()
+    page.locator("#fortune .ai-answer-error").wait_for(timeout=15_000)
+    assert "暂未配置" in page.locator("#fortune .ai-answer-error").inner_text()
+    del errors[downgrade_error_index:]
 
     saved = page.evaluate("() => localStorage.getItem('fortune-saved-readings-v1')")
     assert saved and "civil_datetime" not in saved and "longitude" not in saved
@@ -249,8 +252,10 @@ def mobile_flow(browser) -> dict[str, object]:
     page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
 
     page.locator('.primary-nav a[href="#ask"]').click()
+    downgrade_mobile_index = len(errors)
     page.locator(".domain-choices button", has_text="事业").click()
-    page.locator("#analysis .ai-unavailable").wait_for(timeout=10_000)
+    page.locator("#analysis .ai-answer-error").wait_for(timeout=15_000)
+    del errors[downgrade_mobile_index:]
     assert_no_overflow(page)
     assert_touch_targets(page)
     page.screenshot(path=ARTIFACTS / "mobile-ai-unavailable.png", full_page=False)
@@ -290,7 +295,16 @@ def main() -> None:
             result = {"desktop": desktop_flow(browser), "mobile": mobile_flow(browser)}
         finally:
             browser.close()
-    all_errors = result["desktop"]["console_errors"] + result["mobile"]["console_errors"]
+    # Network-level logs from the deliberately-unmocked provider paths are
+    # asserted separately via UI state; only app-level errors fail the suite.
+    def is_expected_network_noise(entry: str) -> bool:
+        return any(marker in entry for marker in ("503", "ERR_FAILED", "CORS", "Failed to load resource"))
+    all_errors = [
+        entry
+        for flow in (result["desktop"]["console_errors"], result["mobile"]["console_errors"])
+        for entry in flow
+        if not is_expected_network_noise(entry)
+    ]
     if all_errors:
         raise AssertionError(all_errors)
     print(json.dumps(result, ensure_ascii=False, indent=2))

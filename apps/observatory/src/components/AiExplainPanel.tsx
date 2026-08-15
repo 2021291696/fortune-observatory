@@ -10,7 +10,6 @@ const AI_CACHE_KEY = 'fortune-ai-cache-v1'
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable' | 'error'
-
 type CacheEntry = { answer: AiExplainResponse; createdAt: number }
 
 function readCache(key: string): CacheEntry | null {
@@ -62,6 +61,49 @@ function isAnswer(value: unknown): value is AiExplainResponse {
     && Array.isArray(candidate.caveats) && candidate.caveats.every(isClaim)
 }
 
+async function fetchExplanation(question: string, contextTokens: string[]): Promise<AiExplainResponse> {
+  const response = await fetch(`${API_BASE}/v1/ai/explain`, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ question, context_tokens: contextTokens }),
+    credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+  })
+  const body: unknown = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(responseError(body, 'AI 讲解这次没有生成。'))
+  if (!isAnswer(body)) throw new Error('AI 讲解返回格式不完整，请稍后重试。')
+  return body
+}
+
+// Background generations live outside component lifecycles: leaving the page
+// never aborts them, results always land in the cache, and any panel mounted
+// later on the same cacheKey joins the in-flight promise instead of re-asking.
+type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
+const inflightGenerations = new Map<string, Promise<GenerationOutcome>>()
+
+function startBackgroundGeneration(cacheKey: string, question: string, contextTokens: string[]): Promise<GenerationOutcome> {
+  const existing = inflightGenerations.get(cacheKey)
+  if (existing) return existing
+  const task = fetchExplanation(question, contextTokens)
+    .then((answer) => {
+      writeCache(cacheKey, answer)
+      return answer
+    })
+    .catch((reason: unknown) => ({
+      __failed: true as const,
+      message: reason instanceof Error ? reason.message : 'AI 讲解这次没有生成，请稍后重试。',
+    }))
+    .finally(() => {
+      if (inflightGenerations.get(cacheKey) === task) inflightGenerations.delete(cacheKey)
+    })
+  inflightGenerations.set(cacheKey, task)
+  return task
+}
+
+// Estimated progress eases toward 96% and only reaches 100% on completion.
+function estimatedProgress(elapsedMs: number): number {
+  return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
+}
+
 export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey }: {
   source: AiExplainSource
   defaultQuestion?: string
@@ -74,75 +116,83 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
   const [answer, setAnswer] = useState<AiExplainResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [followUp, setFollowUp] = useState(false)
   const request = useRef<AbortController | null>(null)
-  const autoStarted = useRef(false)
-  const autoRetried = useRef(false)
-  const panelId = `ai-explain-${source.key.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80)}`
+  const progressTimer = useRef<number | null>(null)
+  const generationId = useRef(0)
+
+  function startProgress() {
+    setProgress(0)
+    const startedAt = Date.now()
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+    progressTimer.current = window.setInterval(() => {
+      setProgress(estimatedProgress(Date.now() - startedAt))
+    }, 150)
+  }
+
+  function finishProgress() {
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+    progressTimer.current = null
+    setProgress(100)
+  }
 
   useEffect(() => {
     request.current?.abort('source-changed')
     request.current = null
-    autoStarted.current = false
-    autoRetried.current = false
     setExpanded(auto)
     setAvailability(auto ? 'checking' : 'idle')
     setQuestion(defaultQuestion)
     setAnswer(null)
     setError(null)
     setIsLoading(false)
+    setProgress(0)
     setFollowUp(false)
   }, [source.key, defaultQuestion, auto])
 
-  useEffect(() => () => request.current?.abort('unmount'), [])
+  useEffect(() => () => {
+    request.current?.abort('unmount')
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+  }, [])
 
-  async function generate(withQuestion?: string, fromAuto = false) {
-    const cleanQuestion = (withQuestion ?? question).trim()
-    if (!cleanQuestion || isLoading) return
-    request.current?.abort('superseded')
-    const controller = new AbortController()
-    request.current = controller
-    setIsLoading(true)
+  // auto mode: cache hit shows instantly, an in-flight background generation is
+  // joined, otherwise one starts. The generation keeps running after unmount.
+  useEffect(() => {
+    if (!auto) return
+    runAutoGeneration()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, cacheKey, source.key])
+
+  function runAutoGeneration() {
+    generationId.current += 1
+    const run = generationId.current
+    const cached = cacheKey ? readCache(cacheKey) : null
+    if (cached) {
+      setAnswer(cached.answer)
+      setAvailability('available')
+      setIsLoading(false)
+      return
+    }
+    if (source.contextTokens.length === 0) {
+      setAvailability('unavailable')
+      return
+    }
+    setAvailability('available')
     setError(null)
     setAnswer(null)
-    const timeout = window.setTimeout(() => controller.abort('timeout'), 28_000)
-    try {
-      const response = await fetch(`${API_BASE}/v1/ai/explain`, {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify({
-          question: cleanQuestion,
-          context_tokens: source.contextTokens,
-        }),
-        signal: controller.signal,
-        credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+    setIsLoading(true)
+    startProgress()
+    void startBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens)
+      .then((result) => {
+        if (generationId.current !== run) return
+        finishProgress()
+        setIsLoading(false)
+        if (result && !('__failed' in result)) setAnswer(result)
+        else setError('__failed' in result ? result.message : 'AI 讲解这次没有生成，请稍后重试。')
       })
-      const body: unknown = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(responseError(body, 'AI 讲解这次没有生成。'))
-      if (!isAnswer(body)) throw new Error('AI 讲解返回格式不完整，请稍后重试。')
-      setAnswer(body)
-      if (cacheKey && (fromAuto || withQuestion === undefined)) writeCache(cacheKey, body)
-    } catch (reason) {
-      if (controller.signal.aborted && controller.signal.reason !== 'timeout') return
-      const message = controller.signal.reason === 'timeout'
-        ? 'AI 讲解超过 20 秒，规则结果仍可正常使用。'
-        : reason instanceof Error ? reason.message.slice(0, 180) : 'AI 讲解这次没有生成。'
-      setError(message)
-      // Provider latency hovers near the timeout; one silent retry keeps the
-      // auto reading usable without the user noticing the occasional hiccup.
-      if (fromAuto && !autoRetried.current) {
-        autoRetried.current = true
-        window.setTimeout(() => { void generate(withQuestion, true) }, 1500)
-        return
-      }
-    } finally {
-      window.clearTimeout(timeout)
-      if (request.current === controller) request.current = null
-      setIsLoading(false)
-    }
   }
 
-  async function checkAvailability(thenGenerate = false) {
+  async function checkAvailability() {
     request.current?.abort('superseded')
     const controller = new AbortController()
     request.current = controller
@@ -162,7 +212,6 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         && (body as { available: unknown }).available === true,
       )
       setAvailability(available ? 'available' : 'unavailable')
-      if (available && thenGenerate) void generate(defaultQuestion, true)
     } catch (reason) {
       if (controller.signal.aborted && controller.signal.reason !== 'timeout') return
       setAvailability('error')
@@ -175,23 +224,46 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     }
   }
 
-  // auto mode: cached answer shows instantly, otherwise generate on arrival.
-  useEffect(() => {
-    if (!auto || autoStarted.current) return
-    autoStarted.current = true
-    const cached = cacheKey ? readCache(cacheKey) : null
-    if (cached) {
-      setAnswer(cached.answer)
-      setAvailability('available')
-      return
+  async function generate() {
+    const cleanQuestion = question.trim()
+    if (!cleanQuestion || isLoading || availability !== 'available') return
+    request.current?.abort('superseded')
+    const controller = new AbortController()
+    request.current = controller
+    setIsLoading(true)
+    setError(null)
+    setAnswer(null)
+    startProgress()
+    const timeout = window.setTimeout(() => controller.abort('timeout'), 28_000)
+    try {
+      const response = await fetch(`${API_BASE}/v1/ai/explain`, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          question: cleanQuestion,
+          context_tokens: source.contextTokens,
+        }),
+        signal: controller.signal,
+        credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
+      })
+      const body: unknown = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(responseError(body, 'AI 讲解这次没有生成。'))
+      if (!isAnswer(body)) throw new Error('AI 讲解返回格式不完整，请稍后重试。')
+      finishProgress()
+      setAnswer(body)
+      if (cacheKey && !followUp) writeCache(cacheKey, body)
+    } catch (reason) {
+      if (controller.signal.aborted && controller.signal.reason !== 'timeout') return
+      finishProgress()
+      setError(controller.signal.reason === 'timeout'
+        ? 'AI 讲解超过 28 秒，规则结果仍可正常使用。'
+        : reason instanceof Error ? reason.message.slice(0, 180) : 'AI 讲解这次没有生成。')
+    } finally {
+      window.clearTimeout(timeout)
+      if (request.current === controller) request.current = null
+      setIsLoading(false)
     }
-    if (source.contextTokens.length === 0) {
-      setAvailability('unavailable')
-      return
-    }
-    void checkAvailability(true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, cacheKey, source.key])
+  }
 
   function openPanel() {
     const next = !expanded
@@ -212,18 +284,18 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
       <div>
         <span><ChatCircleDots size={18} weight="fill" /> AI 讲解（可选）</span>
       </div>
-      <button type="button" aria-expanded={expanded} aria-controls={panelId} onClick={openPanel}>
+      <button type="button" aria-expanded={expanded} aria-controls={panelId(source.key)} onClick={openPanel}>
         {expanded ? '收起' : 'AI 帮我讲人话'}
       </button>
     </div>}
 
-    {expanded && <div className="ai-explain-body" id={panelId}>
+    {expanded && <div className="ai-explain-body" id={panelId(source.key)}>
       {auto && <div className="ai-auto-head"><span><ChatCircleDots size={18} weight="fill" /> AI 解读</span>{cacheKey && answer && !isLoading && <small>本机缓存 · 24 小时内不重复调用</small>}</div>}
       {!auto && <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击“生成讲解”才会调用模型；系统不会自动附带出生资料。</p>}
 
       {availability === 'checking' && <div className="ai-status-skeleton" role="status" aria-label="正在检查 AI 讲解状态"><span /><span /><span /></div>}
       {availability === 'unavailable' && <div className="ai-unavailable"><Info size={20} weight="bold" /><div><strong>{source.contextTokens.length ? 'AI 讲解暂未配置' : '这份结果还没有核验上下文'}</strong><p>{source.contextTokens.length ? '规则排盘、专项分析和时间运势不受影响。' : '重新排盘即可准备；当前规则结果仍可正常使用。'}</p></div></div>}
-      {availability === 'error' && <div className="ai-inline-error" role="alert"><WarningCircle size={20} weight="bold" /><div><strong>暂时无法检查状态</strong><p>{error}</p><button type="button" onClick={() => void checkAvailability(auto && !answer)}>重试</button></div></div>}
+      {availability === 'error' && <div className="ai-inline-error" role="alert"><WarningCircle size={20} weight="bold" /><div><strong>暂时无法检查状态</strong><p>{error}</p><button type="button" onClick={() => void checkAvailability()}>重试</button></div></div>}
 
       {availability === 'available' && <>
         {followUp && <label className="ai-question">
@@ -233,9 +305,13 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         {followUp && <button className="ai-generate" type="button" disabled={!question.trim() || isLoading} onClick={() => void generate()}>
           {isLoading ? <><SpinnerGap className="spin" size={19} /> 正在根据事实整理</> : answer ? '按新问题重新生成' : '生成讲解'}
         </button>}
-        {!followUp && !isLoading && !error && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
+        {!followUp && !isLoading && !error && answer && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
+        {!followUp && !isLoading && !answer && error && cacheKey && <button type="button" className="ai-followup-toggle" onClick={runAutoGeneration}>重新生成 AI 解读</button>}
 
-        {isLoading && <div className="ai-answer-skeleton" role="status"><span /><span /><span /></div>}
+        {isLoading && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+          <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
+          <span>AI 正在结合你的盘思考… {progress}%</span>
+        </div>}
         {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {answer && !isLoading && <article className="ai-answer">
           <header><CheckCircle size={21} weight="fill" /><div><strong>AI 解读</strong></div></header>
@@ -247,4 +323,8 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
       </>}
     </div>}
   </section>
+}
+
+function panelId(key: string) {
+  return `ai-explain-${key.replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 80)}`
 }

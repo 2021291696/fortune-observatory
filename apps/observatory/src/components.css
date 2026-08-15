@@ -349,3 +349,10 @@
 .chat-input button:disabled { opacity: .5; }
 .domain-choices button.is-chat { border-style: dashed; }
 .domain-choices button.is-chat.is-active { border-style: solid; }
+
+/* AI thinking progress (estimated, eases to 96% until done) */
+.ai-progress { display: grid; gap: 8px; margin-top: 14px; }
+.ai-progress > span { color: var(--accent); font-size: 11px; font-weight: 800; }
+.ai-progress-line { position: relative; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 12%, #fff); overflow: hidden; }
+.ai-progress-line > i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--wash))); transition: width 160ms linear; }
+.is-typing .ai-progress-line { height: 5px; margin-top: 4px; width: 100%; }

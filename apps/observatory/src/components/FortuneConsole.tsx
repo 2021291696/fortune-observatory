@@ -70,7 +70,7 @@ export function FortuneConsole(props: FortuneProps) {
   const dailyAi: AiExplainSource | null = daily ? {
     key: `daily-${daily.trace_id}-${scope}`,
     kind: 'fortune',
-    title: `${selectedLabel}运势 · 日柱 ${daily.transit.day_pillar}`,
+    title: `${selectedLabel}运势 · 流日 ${daily.transit.day_pillar}`,
     summary: dailyRead,
     facts: daily.ai_context?.facts ?? [],
     // Single token keeps the prompt compact; the period facts stay folded under
@@ -84,7 +84,7 @@ export function FortuneConsole(props: FortuneProps) {
       const layerDetails = periods?.transit.layers.map((layer) => `${periodLabels[layer.period]} ${layer.pillar}${layer.facts.length ? ` · ${layer.facts.map((fact) => relationLabels[fact.relation]).join('、')}` : ''}`) ?? []
       const insightDetails = periods?.transit.insights.map((insight) => `${insight.title}：${insight.action}`) ?? []
       onSave({
-        kind: 'fortune', title: `${selectedLabel}运势 · 日柱 ${daily.transit.day_pillar}`,
+        kind: 'fortune', title: `${selectedLabel}运势 · 流日 ${daily.transit.day_pillar}`,
         summary: dailyRead, details: [...layerDetails, ...insightDetails],
       })
     } else if (windowTransit) {
@@ -119,13 +119,13 @@ export function FortuneConsole(props: FortuneProps) {
           {error && <div className="fortune-error"><strong>{error.includes('已生成') ? '部分结果已生成' : `${requestedLabel}这次没算出来`}</strong><p>{error}</p><button type="button" disabled={isLoading} onClick={() => onRequest(requestedScope)}>重试{requestedLabel}</button></div>}
 
           {daily && plain && <div className="fortune-reading">
-            <header><div><span>{daily.transit.transit_date}</span><h3>日柱 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
+            <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
             {dailyAi && <AiExplainPanel
               auto
               cacheKey={`ai-${aiOwner}-${daily.transit.transit_date}`}
               source={dailyAi}
-              defaultQuestion={`请把我的${selectedLabel}运势（${daily.transit.transit_date}，日柱${daily.transit.day_pillar}）讲成一段直白的白话解读，告诉我今天最值得注意的一件事和一件适合先做的小事。`}
+              defaultQuestion={`请把我的${selectedLabel}运势（${daily.transit.transit_date}，流日${daily.transit.day_pillar}）讲成一段直白的白话解读，告诉我今天最值得注意的一件事和一件适合先做的小事。`}
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>

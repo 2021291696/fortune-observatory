@@ -213,13 +213,34 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadChat(aiOwner))
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
+  const progressTimer = useRef<number | null>(null)
   const hasAnyToken = Object.values(chart.ai_contexts).some((bundle) => bundle.token)
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, isLoading])
+
+  useEffect(() => () => {
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+  }, [])
+
+  function startChatProgress() {
+    setProgress(0)
+    const startedAt = Date.now()
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+    progressTimer.current = window.setInterval(() => {
+      setProgress(Math.min(96, Math.round(100 * (1 - Math.exp(-(Date.now() - startedAt) / 7000)))))
+    }, 150)
+  }
+
+  function finishChatProgress() {
+    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+    progressTimer.current = null
+    setProgress(100)
+  }
 
   async function send(question: string) {
     const clean = question.trim().slice(0, 300)
@@ -231,6 +252,7 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
     const history = [...messages, userMessage].slice(-12).map((item) => ({ role: item.role, text: item.text.slice(0, 600) }))
     setMessages((current) => [...current, userMessage])
     setIsLoading(true)
+    startChatProgress()
     try {
       const response = await fetch(`${import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD ? 'https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny' : 'http://127.0.0.1:8000')}/v1/ai/explain`, {
         method: 'POST',
@@ -260,6 +282,7 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
       setError(reason instanceof Error ? reason.message : 'AI 这次没有回复。')
       setMessages((current) => current.filter((item) => item.ts !== userMessage.ts))
     } finally {
+      finishChatProgress()
       setIsLoading(false)
     }
   }
@@ -286,7 +309,11 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
             <p>{message.text}</p>
             {message.actions && message.actions.length > 0 && <ul>{message.actions.map((action) => <li key={action}>{action}</li>)}</ul>}
           </div>)}
-      {isLoading && <div className="chat-msg is-assistant is-typing" role="status"><SpinnerGap className="spin" size={18} /> AI 正在结合你的盘思考…</div>}
+      {isLoading && <div className="chat-msg is-assistant is-typing" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        <SpinnerGap className="spin" size={18} />
+        <span>AI 正在结合你的盘思考… {progress}%</span>
+        <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
+      </div>}
       {error && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
     </div>
     <form className="chat-input" onSubmit={submit}>
