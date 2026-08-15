@@ -33,7 +33,7 @@
 .today-view.is-ready { max-width: 1420px; min-height: calc(100vh - 64px); display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(340px, .72fr); align-items: start; gap: 24px; margin: 0 auto; padding: 30px 24px 44px; }
 .today-view.is-ready .today-results { grid-column: 1; grid-row: 1; }
 .today-view.is-ready .launch-section { grid-column: 2; grid-row: 1; min-height: 0; display: block; position: sticky; top: 86px; padding: 20px; border: 1.5px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
-.today-view.is-ready .birth-form { max-width: none; margin-top: 12px; padding: 12px; box-shadow: 0 5px 0 rgba(17,17,17,.1); }
+.today-view.is-ready .launch-copy .birth-form { max-width: none; margin-top: 10px; padding: 10px 6px; border: 0; background: transparent; box-shadow: none; }
 .today-view.is-ready .meme-stage { min-height: 190px; margin-top: 12px; }
 .today-view.is-ready .main-meme { inset: -2% 11% -18%; }
 .today-view.is-ready .meme-sticker { width: 64px; border-width: 3px; }

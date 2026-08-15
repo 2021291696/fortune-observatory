@@ -77,26 +77,39 @@ async function fetchExplanation(question: string, contextTokens: string[]): Prom
 // Background generations live outside component lifecycles: leaving the page
 // never aborts them, results always land in the cache, and any panel mounted
 // later on the same cacheKey joins the in-flight promise instead of re-asking.
+// startedAt keeps the progress bar continuous across page switches.
 type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
-const inflightGenerations = new Map<string, Promise<GenerationOutcome>>()
+type InflightGeneration = { task: Promise<GenerationOutcome>; startedAt: number }
+const inflightGenerations = new Map<string, InflightGeneration>()
 
-function startBackgroundGeneration(cacheKey: string, question: string, contextTokens: string[]): Promise<GenerationOutcome> {
+function joinBackgroundGeneration(cacheKey: string, question: string, contextTokens: string[]): InflightGeneration {
   const existing = inflightGenerations.get(cacheKey)
   if (existing) return existing
-  const task = fetchExplanation(question, contextTokens)
-    .then((answer) => {
-      writeCache(cacheKey, answer)
-      return answer
-    })
-    .catch((reason: unknown) => ({
-      __failed: true as const,
-      message: reason instanceof Error ? reason.message : 'AI 讲解这次没有生成，请稍后重试。',
-    }))
-    .finally(() => {
-      if (inflightGenerations.get(cacheKey) === task) inflightGenerations.delete(cacheKey)
-    })
-  inflightGenerations.set(cacheKey, task)
-  return task
+  const attempt = () => fetchExplanation(question, contextTokens).then((answer) => {
+    writeCache(cacheKey, answer)
+    return answer
+  })
+  const entry: InflightGeneration = {
+    // One silent retry after 2.5s absorbs the provider's occasional timeouts
+    // that hover near the configured ceiling.
+    task: attempt()
+      .catch(() => new Promise<GenerationOutcome>((resolve) => {
+        window.setTimeout(() => {
+          attempt()
+            .catch((reason: unknown) => ({
+              __failed: true as const,
+              message: reason instanceof Error ? reason.message : 'AI 讲解这次没有生成，请稍后重试。',
+            }))
+            .then(resolve)
+        }, 2_500)
+      }))
+      .finally(() => {
+        if (inflightGenerations.get(cacheKey) === entry) inflightGenerations.delete(cacheKey)
+      }),
+    startedAt: Date.now(),
+  }
+  inflightGenerations.set(cacheKey, entry)
+  return entry
 }
 
 // Estimated progress eases toward 96% and only reaches 100% on completion.
@@ -122,9 +135,9 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
 
-  function startProgress() {
-    setProgress(0)
-    const startedAt = Date.now()
+  function startProgress(fromTimestamp?: number) {
+    const startedAt = fromTimestamp ?? Date.now()
+    setProgress(estimatedProgress(Date.now() - startedAt))
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = window.setInterval(() => {
       setProgress(estimatedProgress(Date.now() - startedAt))
@@ -181,8 +194,9 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     setError(null)
     setAnswer(null)
     setIsLoading(true)
-    startProgress()
-    void startBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens)
+    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens)
+    startProgress(generation.startedAt)
+    void generation.task
       .then((result) => {
         if (generationId.current !== run) return
         finishProgress()

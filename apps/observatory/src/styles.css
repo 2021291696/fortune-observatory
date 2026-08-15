@@ -31,7 +31,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   outline-offset: 3px;
 }
 
-.app-shell { min-height: 100vh; overflow: clip; color: var(--ink); background: var(--paper); transition: background-color 220ms ease, color 220ms ease; }
+.app-shell { min-height: 100vh; overflow: clip; color: var(--ink); background:
+  radial-gradient(560px 380px at 12% -6%, color-mix(in srgb, var(--wash) 52%, transparent), transparent 70%),
+  radial-gradient(640px 460px at 96% 12%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
+  radial-gradient(720px 520px at 42% 108%, color-mix(in srgb, var(--wash) 30%, transparent), transparent 76%),
+  var(--paper); transition: background-color 220ms ease, color 220ms ease; }
 .skip-link { position: fixed; z-index: 200; top: 8px; left: 8px; min-width: 44px; min-height: 44px; display: grid; place-items: center; padding: 10px 14px; color: #fff; background: #111; transform: translateY(-150%); }
 .skip-link:focus { transform: translateY(0); }
 
@@ -244,3 +248,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 [data-motion-paused='true'] .meme-sticker, [data-motion-paused='true'] .stage-grid { animation: none !important; }
+
+/* liquid-glass-react ships Tailwind class names; this project has no Tailwind,
+   so restore the critical ones locally (the dim layer must never catch clicks). */
+.launch-copy [class*="pointer-events-none"] { pointer-events: none !important; }
+.launch-copy [class*="bg-black"] { background: transparent !important; }
