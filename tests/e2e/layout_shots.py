@@ -13,9 +13,11 @@ def shoot(page, name, full=True):
 
 
 def fill(page, name, city="beijing", date="2000-01-01"):
+    province = {"beijing": "北京", "shanghai": "上海"}[city]
     page.locator('input[name="displayName"]').fill(name)
     page.locator('input[name="civilDate"]').fill(date)
     page.locator('input[name="civilTime"]').fill("08:30")
+    page.locator('select[name="province"]').select_option(province)
     page.locator('select[name="placePreset"]').select_option(city)
 
 

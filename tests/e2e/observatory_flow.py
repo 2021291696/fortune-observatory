@@ -37,9 +37,11 @@ def assert_touch_targets(page: Page) -> None:
 
 
 def fill_birth(page: Page, name: str = "我", city: str = "beijing", date: str = "2000-01-01", time: str = "08:30") -> None:
+    province = {"beijing": "北京", "shanghai": "上海"}[city]
     page.locator('input[name="displayName"]').fill(name)
     page.locator('input[name="civilDate"]').fill(date)
     page.locator('input[name="civilTime"]').fill(time)
+    page.locator('select[name="province"]').select_option(province)
     page.locator('select[name="placePreset"]').select_option(city)
 
 
@@ -90,6 +92,8 @@ def desktop_flow(browser) -> dict[str, object]:
     page.locator(".header-users .user-pick", has_text="我").first.click()
     page.get_by_text("我的盘已就绪", exact=True).wait_for(timeout=20_000)
     page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
+    assert page.locator('select[name="province"]').input_value() == "北京"
+    assert page.locator('select[name="placePreset"]').input_value() == "beijing"
 
     page.locator('.primary-nav a[href="#ask"]').click()
     page.locator(".domain-choices button", has_text="事业").click()

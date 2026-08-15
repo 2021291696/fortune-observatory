@@ -1,8 +1,9 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { ArrowRight, LockKey, MapPin, PencilSimple, SpinnerGap, UserPlus, X } from '@phosphor-icons/react'
-import { birthPlaces, type BirthPlace } from '../birthPlaces'
+import { birthPlaces, birthPlaceProvinces } from '../birthPlaces'
 
 const defaultPlace = birthPlaces[0]
+const MANUAL = 'manual'
 
 export type BirthInitial = {
   name: string
@@ -14,6 +15,12 @@ export type BirthInitial = {
   latitude: string
 }
 
+function initialProvince(initial?: BirthInitial): string {
+  if (!initial) return defaultPlace.province
+  if (initial.placeId === MANUAL) return MANUAL
+  return birthPlaces.find((place) => place.id === initial.placeId)?.province ?? defaultPlace.province
+}
+
 export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
   isSubmitting: boolean
   error: string | null
@@ -21,31 +28,33 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
   onClear: () => boolean
   initial?: BirthInitial
 }) {
+  const [province, setProvince] = useState(() => initialProvince(initial))
+  const provincePlaces = useMemo(() => birthPlaces.filter((place) => place.province === province), [province])
   const [placeId, setPlaceId] = useState(initial?.placeId ?? defaultPlace.id)
   const [longitude, setLongitude] = useState(initial?.longitude ?? '')
   const [latitude, setLatitude] = useState(initial?.latitude ?? '')
-  const isManual = placeId === 'manual'
+  const isManual = province === MANUAL
 
-  const grouped = useMemo(() => {
-    const groups: { province: string; places: BirthPlace[] }[] = []
-    for (const place of birthPlaces) {
-      const last = groups[groups.length - 1]
-      if (last && last.province === place.province) last.places.push(place)
-      else groups.push({ province: place.province, places: [place] })
+  function selectProvince(next: string) {
+    setProvince(next)
+    setLongitude('')
+    setLatitude('')
+    if (next === MANUAL) {
+      setPlaceId(MANUAL)
+      return
     }
-    return groups
-  }, [])
+    setPlaceId(birthPlaces.find((place) => place.province === next)?.id ?? MANUAL)
+  }
 
   function selectPlace(id: string) {
     setPlaceId(id)
-    if (id !== 'manual') {
-      setLongitude('')
-      setLatitude('')
-    }
+    setLongitude('')
+    setLatitude('')
   }
 
   function clearForm(form: HTMLFormElement | null) {
     if (!onClear()) return
+    setProvince(defaultPlace.province)
     setPlaceId(defaultPlace.id)
     setLongitude('')
     setLatitude('')
@@ -69,14 +78,20 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
         </div>
         <label>出生日期<input name="civilDate" type="date" min="1901-01-01" max="2100-12-31" required defaultValue={initial?.civilDate} /></label>
         <label>出生时间<input name="civilTime" type="time" required defaultValue={initial?.civilTime} /></label>
-        <label className="place-field">出生地
-          <span className="select-wrap"><MapPin size={17} weight="fill" /><select name="placePreset" value={placeId} onChange={(event) => selectPlace(event.target.value)}>
-            {grouped.map((group) => <optgroup key={group.province} label={group.province}>
-              {group.places.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
-            </optgroup>)}
-            <option value="manual">自定义经纬度</option>
-          </select></span>
-        </label>
+        <div className="place-field" role="group" aria-label="出生地">
+          <label>省 / 直辖市
+            <span className="select-wrap"><MapPin size={17} weight="fill" /><select name="province" value={province} onChange={(event) => selectProvince(event.target.value)}>
+              {birthPlaceProvinces.map((name) => <option key={name} value={name}>{name}</option>)}
+              <option value={MANUAL}>自定义经纬度</option>
+            </select></span>
+          </label>
+          <label>市 / 县
+            <select name="placePreset" value={isManual ? '' : placeId} disabled={isManual} onChange={(event) => selectPlace(event.target.value)}>
+              {isManual && <option value="">已选自定义经纬度</option>}
+              {provincePlaces.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+            </select>
+          </label>
+        </div>
       </div>
       {isManual && <div className="form-grid two coordinate-grid">
         <label>经度<input name="longitude" type="number" inputMode="decimal" step="0.00001" min="-180" max="180" value={longitude} onChange={(event) => setLongitude(event.target.value)} required autoFocus /></label>
