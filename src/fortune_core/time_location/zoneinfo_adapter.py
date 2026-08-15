@@ -1,7 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+# datetime.UTC needs Python 3.11+; the SCF runtime is 3.10.
+UTC = timezone.utc
 
 
 class CivilTimeError(ValueError):

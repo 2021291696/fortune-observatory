@@ -12,7 +12,7 @@ import { dateKey, fortuneWindow } from './dates'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
 
-const API_BASE = import.meta.env.PROD ? '/api' : (import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8000')
+const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD ? '/api' : 'http://127.0.0.1:8000')
 const REQUEST_TIMEOUT_MS = 15_000
 const validThemes: ThemeId[] = ['phoebe', 'ggbond', 'nailong', 'kawaii', 'shuffle']
 const SAVED_READINGS_KEY = 'fortune-saved-readings-v1'

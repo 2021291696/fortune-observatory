@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fortune_core.models import QizhengBodySnapshot, QizhengSnapshot
 from fortune_core.time_location import (
@@ -11,6 +11,9 @@ from fortune_core.time_location import (
     EPHEMERIS_START_YEAR,
     skyfield_resources,
 )
+
+# datetime.UTC needs Python 3.11+; the SCF runtime is 3.10.
+UTC = timezone.utc
 
 PROFILE_ID = "qizheng-physical-beta-v1"
 _BODY_KEYS = (

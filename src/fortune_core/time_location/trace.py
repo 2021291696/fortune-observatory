@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, timedelta
+from datetime import timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import tzdata
 
 from fortune_core.models import BaziSnapshot, BirthInput, TimeTraceSnapshot
 from fortune_core.time_location.apparent_solar import EPHEMERIS_ID, EPHEMERIS_SHA256
+
+# datetime.UTC needs Python 3.11+; the SCF runtime is 3.10.
+UTC = timezone.utc
 
 
 def build_time_trace(birth: BirthInput, bazi: BaziSnapshot) -> TimeTraceSnapshot:

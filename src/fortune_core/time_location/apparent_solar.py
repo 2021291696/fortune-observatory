@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from pathlib import Path
 
 from skyfield.api import Loader, load_file
+
+# datetime.UTC and hashlib.file_digest need Python 3.11+; the SCF runtime is 3.10.
+UTC = timezone.utc
 
 
 EPHEMERIS_ID = "de440s"
@@ -19,8 +22,11 @@ EPHEMERIS_PATH = Path(__file__).resolve().parents[3] / "data" / "ephemeris" / "d
 def _verify_ephemeris(path: Path, expected_sha256: str = EPHEMERIS_SHA256) -> str:
     if not path.is_file():
         raise RuntimeError("Pinned ephemeris file is missing")
+    digest = hashlib.sha256()
     with path.open("rb") as stream:
-        actual_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+        while chunk := stream.read(1 << 20):
+            digest.update(chunk)
+    actual_sha256 = digest.hexdigest()
     if not hmac.compare_digest(actual_sha256, expected_sha256):
         raise RuntimeError("Pinned ephemeris integrity check failed")
     return actual_sha256
