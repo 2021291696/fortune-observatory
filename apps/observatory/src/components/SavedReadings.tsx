@@ -25,11 +25,11 @@ export function SavedReadings({ items, onRemove, onClear }: {
       </div>
       {items.length === 0 ? <div className="saved-empty">
         <Archive size={42} weight="bold" />
-        <div><strong>保存区还是空的</strong><p>专项分析和运势结果中都有独立的“保存”按钮。</p></div>
+        <div><strong>保存区还是空的</strong><p>问事分析和运势结果中都有独立的“保存”按钮。</p></div>
       </div> : <div className="saved-grid">
         {items.map((item) => <article key={item.id}>
           <header>
-            <span className={`saved-kind is-${item.kind}`}>{item.kind === 'domain' ? <Briefcase size={14} /> : <CalendarDots size={14} />}{item.kind === 'domain' ? '专项分析' : '时间运势'}</span>
+            <span className={`saved-kind is-${item.kind}`}>{item.kind === 'domain' ? <Briefcase size={14} /> : <CalendarDots size={14} />}{item.userName ? `${item.userName} · ` : ''}{item.kind === 'domain' ? '问事' : '运势'}</span>
             <button type="button" aria-label={`删除${item.title}`} onClick={() => onRemove(item.id)}><Trash size={17} /></button>
           </header>
           <h3>{item.title}</h3>

@@ -33,22 +33,34 @@
 .today-view.is-ready { max-width: 1420px; min-height: calc(100vh - 64px); display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(340px, .72fr); align-items: start; gap: 24px; margin: 0 auto; padding: 30px 24px 44px; }
 .today-view.is-ready .today-results { grid-column: 1; grid-row: 1; }
 .today-view.is-ready .launch-section { grid-column: 2; grid-row: 1; min-height: 0; display: block; position: sticky; top: 86px; padding: 20px; border: 1.5px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
-.today-view.is-ready .launch-copy h1 { max-width: none; min-height: 0; font-size: 32px; line-height: 1.03; }
-.today-view.is-ready .birth-form { max-width: none; margin-top: 14px; padding: 12px; box-shadow: 0 5px 0 rgba(17,17,17,.1); }
+.today-view.is-ready .birth-form { max-width: none; margin-top: 12px; padding: 12px; box-shadow: 0 5px 0 rgba(17,17,17,.1); }
 .today-view.is-ready .meme-stage { min-height: 190px; margin-top: 12px; }
 .today-view.is-ready .main-meme { inset: -2% 11% -18%; }
 .today-view.is-ready .meme-sticker { width: 64px; border-width: 3px; }
 .today-view.is-ready .stage-callout { top: 4%; left: 2%; }
 .today-view.is-ready .stage-stamp { display: none; }
-.today-view.is-ready .daily-brief { padding: 28px; border: 1.5px solid #111; border-radius: 16px; box-shadow: 0 8px 0 rgba(17,17,17,.13); }
-.today-view.is-ready .daily-brief-heading { align-items: start; }
-.today-view.is-ready .daily-brief-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.today-view.is-ready .daily-card-primary { grid-column: 1 / -1; min-height: 160px; }
-.today-view.is-ready .daily-card.daily-card-primary { color: #fff; background: #0758f7; }
-.today-view.is-ready .daily-card-primary > strong { max-width: 760px; font-size: clamp(20px, 2.4vw, 30px); }
-.today-view.is-ready .daily-card-primary > p { max-width: 720px; margin-top: 12px; color: rgba(255,255,255,.82); font-size: 13px; }
-.daily-brief-note { margin: 16px 2px 0; color: #5e5843; font-size: 10px; line-height: 1.55; }
+.today-view.is-ready .user-bar { margin: 0 0 12px; }
 .task-gate a { flex: 0 0 auto; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border-radius: 9px; color: #fff; background: var(--accent); text-decoration: none; font-size: 12px; font-weight: 900; }
+
+/* Multi-user chips: switch / rename / remove profiles. */
+.user-bar { display: flex; flex-wrap: wrap; gap: 7px; }
+.user-chip { display: inline-flex; align-items: stretch; border: 1.5px solid var(--line); border-radius: 999px; background: #fff; box-shadow: 0 3px 0 rgba(17,17,17,.12); overflow: hidden; }
+.user-pick { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; color: var(--ink); background: transparent; font-size: 12px; font-weight: 850; white-space: nowrap; }
+.user-chip.is-current .user-pick { color: #fff; background: var(--accent); }
+.user-chip.is-editing { outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent); outline-offset: 1px; }
+.user-default { color: #d99a00; font-size: 12px; }
+.user-chip.is-current .user-default { color: var(--wash); }
+.user-act { width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-left: 1px solid var(--soft-line); color: var(--muted); background: transparent; }
+.user-act:hover { color: var(--ink); background: var(--paper); }
+.user-act.user-remove:hover { color: #fff; background: #a1242e; }
+.user-rename { width: 96px; min-height: 44px; padding: 0 12px; border: 0; font-size: 12px; font-weight: 850; }
+.user-chip-add { min-height: 47px; display: inline-flex; align-items: center; gap: 6px; padding: 0 15px; border: 1.5px dashed var(--line); border-radius: 999px; color: var(--ink); background: rgba(255,255,255,.7); font-size: 12px; font-weight: 850; }
+.user-chip-add:hover { border-style: solid; background: #fff; }
+.header-users { display: flex; align-items: center; justify-self: end; }
+.header-users .user-bar { flex-wrap: nowrap; }
+.header-users .user-chip { border-width: 1px; box-shadow: none; }
+.header-users .user-pick { min-height: 38px; padding: 0 11px; font-size: 11px; }
+.chart-view .user-bar { margin-bottom: 18px; }
 
 .ask-view, .chart-view, .profile-view { padding: 0 max(20px, calc((100vw - 1180px) / 2)) 64px; }
 .ask-view .task-heading, .chart-view .task-heading, .profile-view .task-heading { max-width: none; }
@@ -108,18 +120,15 @@
   .task-view { min-height: calc(100vh - 128px); }
   .task-heading { padding: 30px 0 20px; }
   .task-heading h1 { font-size: 38px; }
+  .header-users { display: none; }
   .today-view.is-ready { display: flex; flex-direction: column; gap: 18px; padding: 0 0 34px; }
   .today-view.is-ready .today-results { order: 1; width: 100%; }
   .today-view.is-ready .launch-section { order: 2; width: calc(100% - 28px); position: relative; top: auto; margin: 0 14px; padding: 18px; }
-  .today-view.is-ready .launch-copy h1 { max-width: none; font-size: 29px; }
-  
+
   .today-view.is-ready .meme-stage { display: none; }
-  .today-view.is-ready .daily-brief { padding: 26px 14px 32px; border-width: 0 0 2px; border-radius: 0; box-shadow: none; }
-  .today-view.is-ready .daily-brief-grid { grid-template-columns: 1fr; }
-  .today-view.is-ready .daily-card-primary, .today-view.is-ready .daily-card:last-child { grid-column: auto; }
+  .today-view.is-ready .user-bar { margin-bottom: 10px; }
 
   .ask-view, .chart-view, .profile-view { padding: 0 14px 44px; }
-  .ask-view .fortune-section { margin-top: 42px; }
   .task-gate { min-height: 250px; grid-template-columns: auto 1fr; padding: 22px 18px; }
   .task-gate a { grid-column: 1 / -1; width: 100%; }
   .profile-grid { grid-template-columns: 1fr; margin-bottom: 40px; }

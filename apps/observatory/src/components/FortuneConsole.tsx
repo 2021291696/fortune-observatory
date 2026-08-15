@@ -91,11 +91,11 @@ export function FortuneConsole(props: FortuneProps) {
     }
   }
 
-  return <section className="fortune-section" id="fortune" aria-label="时间范围">
+  return <section className="fortune-section" aria-label="时间范围">
     <div className={`fortune-console ${chartReady ? 'is-ready' : ''}`} aria-live="polite">
       {!chartReady ? <div className="fortune-empty">
         <div className="reaction-frame"><MemeMedia source={theme.stickers[0] ?? theme.mainMedia} /></div>
-        <div><span>WAITING FOR CHART</span><h3>先完成排盘</h3><a href="#birth-form">去填写资料 <ArrowRight size={18} /></a></div>
+        <div><h3>命盘还没就绪</h3><a href="#birth-form">填写资料开始 <ArrowRight size={18} /></a></div>
       </div> : <>
         <div className="fortune-toolbar">
           <div className="fortune-scopes" role="group" aria-label="选择运势周期">

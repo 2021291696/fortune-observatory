@@ -154,6 +154,7 @@ export type SaveDraft = {
   title: string
   summary: string
   details: string[]
+  userName?: string
 }
 
 export type SavedReading = SaveDraft & {

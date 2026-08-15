@@ -1,9 +1,9 @@
-import { ChatCircleDots, StarFour, Sun, UserCircle } from '@phosphor-icons/react'
+import { ChartLine, ChatCircleDots, StarFour, UserCircle } from '@phosphor-icons/react'
 
-export type AppView = 'today' | 'ask' | 'chart' | 'profile'
+export type AppView = 'fortune' | 'ask' | 'chart' | 'profile'
 
 const views = [
-  { id: 'today', label: '今日', icon: Sun },
+  { id: 'fortune', label: '运势', icon: ChartLine },
   { id: 'ask', label: '问事', icon: ChatCircleDots },
   { id: 'chart', label: '命盘', icon: StarFour },
   { id: 'profile', label: '我的', icon: UserCircle },
@@ -11,10 +11,10 @@ const views = [
 
 export function viewFromHash(hash = window.location.hash): AppView {
   const value = hash.replace(/^#/, '')
-  if (value === 'ask' || value === 'analysis' || value === 'fortune') return 'ask'
+  if (value === 'ask' || value === 'analysis') return 'ask'
   if (value === 'chart') return 'chart'
   if (value === 'profile' || value === 'saved') return 'profile'
-  return 'today'
+  return 'fortune'
 }
 
 export function AppNavigation({ activeView, onNavigate }: {

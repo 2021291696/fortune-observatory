@@ -36,16 +36,17 @@ def assert_touch_targets(page: Page) -> None:
     assert not too_small, too_small
 
 
-def fill_birth(page: Page, city: str = "beijing") -> None:
-    page.locator('input[name="civilDate"]').fill("2000-01-01")
-    page.locator('input[name="civilTime"]').fill("08:30")
+def fill_birth(page: Page, name: str = "我", city: str = "beijing", date: str = "2000-01-01", time: str = "08:30") -> None:
+    page.locator('input[name="displayName"]').fill(name)
+    page.locator('input[name="civilDate"]').fill(date)
+    page.locator('input[name="civilTime"]').fill(time)
     page.locator('select[name="placePreset"]').select_option(city)
 
 
-def submit_and_wait(page: Page) -> None:
-    page.get_by_role("button", name="查看今天重点").click()
-    page.locator("#today-brief .daily-brief-grid").wait_for(timeout=20_000)
-    page.get_by_text("今日已就绪", exact=True).wait_for(timeout=20_000)
+def submit_and_wait(page: Page, name: str = "我") -> None:
+    page.get_by_role("button", name="排盘并看运势").click()
+    page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
+    page.get_by_text(f"{name}的盘已就绪", exact=True).wait_for(timeout=20_000)
     page.wait_for_timeout(700)
 
 
@@ -75,12 +76,20 @@ def desktop_flow(browser) -> dict[str, object]:
         }
         route.fulfill(status=response.status, content_type="application/json", body=json.dumps(body, ensure_ascii=False))
 
-    page.route("**/v1/charts", attach_test_context, times=1)
+    page.route("**/v1/charts", attach_test_context)
     fill_birth(page)
     submit_and_wait(page)
     page.screenshot(path=ARTIFACTS / "desktop-result.png", full_page=False)
-    assert page.locator("#today-brief .daily-card").first.is_visible()
-    assert "日柱" in page.locator("#today").inner_text()
+    assert "日柱" in page.locator("#fortune").inner_text()
+
+    # Second profile via the side panel: multi-user switching.
+    page.get_by_role("button", name="新用户").click()
+    fill_birth(page, name="妈妈", date="1965-03-08", time="06:10", city="shanghai")
+    submit_and_wait(page, "妈妈")
+    assert page.locator(".header-users .user-chip").count() == 2
+    page.locator(".header-users .user-pick", has_text="我").first.click()
+    page.get_by_text("我的盘已就绪", exact=True).wait_for(timeout=20_000)
+    page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
 
     page.locator('.primary-nav a[href="#ask"]').click()
     page.locator(".domain-choices button", has_text="事业").click()
@@ -114,9 +123,9 @@ def desktop_flow(browser) -> dict[str, object]:
     page.get_by_role("button", name="保存这项分析").click()
     page.locator(".save-toast").wait_for()
 
-    page.locator("#fortune").scroll_into_view_if_needed()
-    page.get_by_role("button", name="明日").click()
-    page.locator(".fortune-reading").wait_for(timeout=20_000)
+    page.locator('.primary-nav a[href="#fortune"]').click()
+    page.get_by_role("button", name="明日", exact=True).click()
+    page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
     page.get_by_role("button", name="保存明日运势").click()
     page.locator(".save-toast").wait_for()
     page.locator("#fortune").get_by_role("button", name="AI 帮我讲人话").click()
@@ -126,18 +135,30 @@ def desktop_flow(browser) -> dict[str, object]:
     saved = page.evaluate("() => localStorage.getItem('fortune-saved-readings-v1')")
     assert saved and "civil_datetime" not in saved and "longitude" not in saved
     assert len(json.loads(saved)) == 2
+    assert any(item.get("userName") == "我" for item in json.loads(saved))
+    users = json.loads(page.evaluate("() => localStorage.getItem('fortune-users-v1')"))
+    assert len(users) == 2 and {user["name"] for user in users} == {"我", "妈妈"}
+
+    # Chart view: rename a profile through the manage bar.
+    page.locator('.primary-nav a[href="#chart"]').click()
+    page.locator(".chart-result").wait_for()
+    page.get_by_label("重命名 妈妈").click()
+    page.get_by_label("重命名 妈妈").fill("老妈")
+    page.get_by_label("重命名 妈妈").press("Enter")
+    page.locator(".chart-view .user-pick", has_text="老妈").wait_for()
 
     page.get_by_role("link", name="我的").click()
     page.get_by_title("切换到GGBond").click()
     page.locator(".theme-wipe").wait_for(state="detached", timeout=5_000)
     assert page.locator(".app-shell").get_attribute("data-theme") == "ggbond"
     page.close()
-    return {"console_errors": errors, "saved_items": 2}
+    return {"console_errors": errors, "saved_items": 2, "users": 2}
 
 
 def mobile_flow(browser) -> dict[str, object]:
     context = browser.new_context(viewport={"width": 390, "height": 844}, locale="zh-CN")
     page = context.new_page()
+    page.on("dialog", lambda dialog: dialog.accept())
     errors = capture_console(page)
     page.goto(FRONTEND_URL, wait_until="networkidle")
     page.evaluate("() => localStorage.clear()")
@@ -149,36 +170,26 @@ def mobile_flow(browser) -> dict[str, object]:
     assert nav_position == "fixed"
     assert page.locator(".primary-nav a").count() == 4
 
-    fill_birth(page, "shanghai")
-    submit_and_wait(page)
+    fill_birth(page, "小明", "shanghai")
+    submit_and_wait(page, "小明")
     page.screenshot(path=ARTIFACTS / "mobile-result.png", full_page=False)
     assert_no_overflow(page)
     assert_touch_targets(page)
-    assert page.locator("#today").is_visible()
-    first_card_position = page.locator("#today-brief .daily-card").first.evaluate(
-        "node => { const rect = node.getBoundingClientRect(); return {top: rect.top, bottom: rect.bottom, viewport: innerHeight}; }"
-    )
-    assert first_card_position["top"] >= 0, first_card_position
-    assert first_card_position["bottom"] <= first_card_position["viewport"] - 68, first_card_position
-
-    page.on("dialog", lambda dialog: dialog.accept())
-    page.get_by_role("button", name="清除当前资料").click()
-    page.locator(".today-view:not(.is-ready)").wait_for()
+    page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
 
     partial_error_index = len(errors)
 
-    def fail_periods(route) -> None:
+    def fail_window(route) -> None:
         route.fulfill(status=503, content_type="application/json", body='{"detail":"测试用时间层繁忙"}')
 
-    page.route("http://127.0.0.1:8000/v1/transits", fail_periods, times=1)
-    fill_birth(page)
-    submit_and_wait(page)
-    page.locator(".daily-brief-partial").wait_for()
-    assert "详细时间层暂不可用" in page.locator(".daily-brief-partial").inner_text()
-    assert "日柱" in page.locator("#today-brief").inner_text()
-    assert "按既定节奏推进" not in page.locator("#today-brief").inner_text()
-    page.screenshot(path=ARTIFACTS / "mobile-partial.png", full_page=False)
+    page.route("**/v1/transits/daily", fail_window, times=1)
+    page.get_by_role("button", name="明日", exact=True).click()
+    page.locator("#fortune .fortune-error").wait_for(timeout=20_000)
+    assert "测试用时间层繁忙" in page.locator("#fortune .fortune-error").inner_text()
+    page.screenshot(path=ARTIFACTS / "mobile-fortune-error.png", full_page=False)
     del errors[partial_error_index:]
+    page.get_by_role("button", name="今日", exact=True).click()
+    page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
 
     page.locator('.primary-nav a[href="#ask"]').click()
     page.locator(".domain-choices button", has_text="事业").click()
@@ -188,17 +199,20 @@ def mobile_flow(browser) -> dict[str, object]:
     assert_touch_targets(page)
     page.screenshot(path=ARTIFACTS / "mobile-ai-unavailable.png", full_page=False)
 
-    page.locator('.primary-nav a[href="#today"]').click()
-    page.get_by_role("button", name="清除当前资料").click()
-    page.locator(".today-view:not(.is-ready)").wait_for()
+    # Delete the only profile, then retry a chart through the fresh empty state.
     expected_error_index = len(errors)
 
     def fail_chart(route) -> None:
         route.fulfill(status=503, content_type="application/json", body='{"detail":"测试用服务繁忙"}')
 
     page.route("**/v1/charts", fail_chart, times=1)
+    page.locator('.primary-nav a[href="#chart"]').click()
+    page.get_by_label("删除 小明").click()
+    page.locator(".task-gate").first.wait_for(timeout=5_000)
+    page.locator('.primary-nav a[href="#fortune"]').click()
+    page.locator("#birth-form").wait_for()
     fill_birth(page)
-    page.get_by_role("button", name="查看今天重点").click()
+    page.get_by_role("button", name="排盘并看运势").click()
     page.locator("#birth-form-error").wait_for()
     assert "测试用服务繁忙" in page.locator("#birth-form-error").inner_text()
     del errors[expected_error_index:]

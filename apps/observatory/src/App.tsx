@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, CheckCircle, ShieldCheck, WarningCircle } from '@phosphor-icons/react'
 import { AppNavigation, viewFromHash, type AppView } from './components/AppNavigation'
-import { BirthForm } from './components/BirthForm'
+import { BirthForm, UserBar, type BirthInitial, type StoredUser } from './components/BirthForm'
 import { Chart } from './components/Chart'
-import { DailyBrief } from './components/DailyBrief'
 import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
@@ -19,6 +18,10 @@ const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD
 const REQUEST_TIMEOUT_MS = 20_000
 const validThemes: ThemeId[] = ['phoebe', 'ggbond', 'nailong', 'kawaii', 'shuffle']
 const SAVED_READINGS_KEY = 'fortune-saved-readings-v1'
+const USERS_KEY = 'fortune-users-v1'
+const CURRENT_USER_KEY = 'fortune-current-user-v1'
+
+type BirthPayload = StoredUser['birth']
 
 function readLocalStorage(key: string) {
   try {
@@ -58,13 +61,44 @@ function shanghaiCivilCandidates(date: string, time: string) {
   }).filter((candidate) => candidate.roundTrip === expected)
 }
 
-type BirthPayload = {
-  civil_datetime: string
-  timezone_id: 'Asia/Shanghai'
-  longitude: number
-  latitude: number
-  sex_for_rule: string
-  use_apparent_solar_time: true
+function isStoredUser(value: unknown): value is StoredUser {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as StoredUser
+  return typeof candidate.id === 'string'
+    && typeof candidate.name === 'string'
+    && typeof candidate.createdAt === 'string'
+    && Boolean(candidate.birth)
+    && typeof candidate.birth.civil_datetime === 'string'
+    && candidate.birth.timezone_id === 'Asia/Shanghai'
+    && Number.isFinite(candidate.birth.longitude) && Math.abs(candidate.birth.longitude) <= 180
+    && Number.isFinite(candidate.birth.latitude) && Math.abs(candidate.birth.latitude) <= 90
+    && (candidate.birth.sex_for_rule === 'male' || candidate.birth.sex_for_rule === 'female')
+    && candidate.birth.use_apparent_solar_time === true
+}
+
+function loadUsers(): StoredUser[] {
+  try {
+    const raw = readLocalStorage(USERS_KEY) ?? '[]'
+    if (raw.length > 80_000) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const users = parsed.filter(isStoredUser).slice(0, 8).map((user) => ({
+      id: user.id.slice(0, 64),
+      name: user.name.trim().slice(0, 12) || '我',
+      createdAt: user.createdAt,
+      birth: user.birth,
+    }))
+    const seen = new Set<string>()
+    return users.filter((user) => (seen.has(user.id) ? false : seen.add(user.id)))
+  } catch {
+    return []
+  }
+}
+
+function loadCurrentUserId(users: StoredUser[]): string | null {
+  const stored = readLocalStorage(CURRENT_USER_KEY)
+  if (stored && users.some((user) => user.id === stored)) return stored
+  return users[0]?.id ?? null
 }
 
 function initialTheme(): ThemeId {
@@ -92,7 +126,8 @@ function initialSavedReadings(): SavedReading[] {
     )).slice(0, 24).map((item) => ({
       id: item.id, savedAt: item.savedAt, kind: item.kind,
       title: item.title.slice(0, 120), summary: item.summary.slice(0, 600),
-      details: item.details.slice(0, 12).map((detail) => detail.slice(0, 500)),
+      details: item.details.slice(0, 12).map((detail: unknown) => String(detail).slice(0, 500)),
+      userName: typeof item.userName === 'string' ? item.userName.slice(0, 12) : undefined,
     }))
     try {
       writeLocalStorage(SAVED_READINGS_KEY, JSON.stringify(sanitized))
@@ -102,6 +137,21 @@ function initialSavedReadings(): SavedReading[] {
     return sanitized
   } catch {
     return []
+  }
+}
+
+function deriveInitial(user: StoredUser): BirthInitial {
+  const [date, rest] = user.birth.civil_datetime.split('T')
+  const time = rest.slice(0, 5)
+  const place = birthPlaces.find((item) => item.longitude === user.birth.longitude && item.latitude === user.birth.latitude)
+  return {
+    name: user.name,
+    civilDate: date,
+    civilTime: time,
+    sexForRule: user.birth.sex_for_rule,
+    placeId: place?.id ?? 'manual',
+    longitude: place ? '' : String(user.birth.longitude),
+    latitude: place ? '' : String(user.birth.latitude),
   }
 }
 
@@ -133,7 +183,7 @@ async function postJson<T>(path: string, payload: unknown, controller: AbortCont
 
 function requestError(reason: unknown, controller: AbortController, fallback: string) {
   if (controller.signal.aborted) {
-    return controller.signal.reason === 'timeout' ? '请求超过 15 秒，请检查服务后重试。' : null
+    return controller.signal.reason === 'timeout' ? '请求超过 20 秒，请检查服务后重试。' : null
   }
   if (reason instanceof Error && reason.message && !/failed to fetch|load failed|networkerror/i.test(reason.message)) {
     return reason.message.slice(0, 180)
@@ -153,8 +203,10 @@ export function App() {
   const [shuffleSeed, setShuffleSeed] = useState(initialSeed)
   const [isThemeChanging, setIsThemeChanging] = useState(false)
   const [motionPaused, setMotionPaused] = useState(() => readLocalStorage('fortune-motion-paused') === 'true')
+  const [users, setUsers] = useState<StoredUser[]>(loadUsers)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(() => null)
+  const [editingUserId, setEditingUserId] = useState<string | null>(() => null)
   const [chart, setChart] = useState<ChartResponse | null>(null)
-  const [birthPayload, setBirthPayload] = useState<BirthPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [daily, setDaily] = useState<DailyTransitResponse | null>(null)
@@ -171,7 +223,19 @@ export function App() {
   const fortuneRequest = useRef<AbortController | null>(null)
   const themeTimer = useRef<number | null>(null)
   const noticeTimer = useRef<number | null>(null)
-  const autoScrolledChart = useRef<string | null>(null)
+
+  useEffect(() => {
+    const initial = loadUsers()
+    const initialId = loadCurrentUserId(initial)
+    setUsers(initial)
+    setCurrentUserId(initialId)
+    setEditingUserId(initialId)
+    const current = initial.find((user) => user.id === initialId)
+    if (current) void requestChart(current)
+  }, [])
+
+  const currentUser = users.find((user) => user.id === currentUserId) ?? null
+  const editingUser = users.find((user) => user.id === editingUserId) ?? null
 
   useEffect(() => {
     const color = theme.palette === 'nailong' ? '#fff200' : theme.palette === 'ggbond' ? '#e31b23' : '#fffaf7'
@@ -199,21 +263,14 @@ export function App() {
     if (noticeTimer.current !== null) window.clearTimeout(noticeTimer.current)
   }, [])
 
-  useEffect(() => {
-    if (activeView !== 'today' || !chart || (!daily && !fortuneError) || autoScrolledChart.current === chart.trace_id) return
-    autoScrolledChart.current = chart.trace_id
-    window.requestAnimationFrame(() => {
-      const section = document.getElementById('today-brief')
-      if (!section) return
-      section.focus({ preventScroll: true })
-      const headerHeight = document.querySelector<HTMLElement>('.site-header')?.offsetHeight ?? 0
-      const top = section.getBoundingClientRect().top + window.scrollY - headerHeight
-      window.scrollTo({
-        top,
-        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
-      })
-    })
-  }, [activeView, chart, daily, fortuneError])
+  function persistUsers(next: StoredUser[]) {
+    if (writeLocalStorage(USERS_KEY, JSON.stringify(next))) {
+      setUsers(next)
+      return true
+    }
+    setError('本机存储不可用，未能保存这位用户。')
+    return false
+  }
 
   function persistSaved(next: SavedReading[]) {
     if (writeLocalStorage(SAVED_READINGS_KEY, JSON.stringify(next))) {
@@ -233,6 +290,7 @@ export function App() {
   function saveReading(draft: SaveDraft) {
     const record: SavedReading = {
       ...draft,
+      userName: currentUser?.name,
       id: crypto.randomUUID(),
       savedAt: new Date().toISOString(),
     }
@@ -272,29 +330,87 @@ export function App() {
     })
   }
 
-  function clearSession() {
-    if (chart && !window.confirm('将清除当前表单、命盘和未保存结果；保存区不受影响。确定继续吗？')) return false
-    chartRequest.current?.abort('cleared')
-    fortuneRequest.current?.abort('cleared')
-    chartRequest.current = null
-    fortuneRequest.current = null
-    setChart(null)
-    setBirthPayload(null)
+  async function requestChart(user: StoredUser) {
+    chartRequest.current?.abort('superseded')
+    fortuneRequest.current?.abort('superseded')
+    const controller = new AbortController()
+    chartRequest.current = controller
+    setIsSubmitting(true)
+    setError(null)
+    setFortuneError(null)
     setDaily(null)
     setPeriods(null)
     setWindowTransit(null)
     setFortuneScope('today')
     setRequestedFortuneScope('today')
+    try {
+      const result = await postJson<ChartResponse>('/v1/charts', user.birth, controller, '排盘服务暂时不可用。')
+      if (chartRequest.current !== controller) return
+      setChart(result)
+      void loadFortune('today', user.birth)
+    } catch (reason) {
+      if (chartRequest.current !== controller) return
+      const message = requestError(reason, controller, '无法连接排盘服务。')
+      if (message) setError(message)
+    } finally {
+      if (chartRequest.current === controller) {
+        chartRequest.current = null
+        setIsSubmitting(false)
+      }
+    }
+  }
+
+  function switchUser(id: string) {
+    const user = users.find((item) => item.id === id)
+    if (!user) return
+    setEditingUserId(id)
+    if (id !== currentUserId || !chart) {
+      setCurrentUserId(id)
+      writeLocalStorage(CURRENT_USER_KEY, id)
+      void requestChart(user)
+    }
+  }
+
+  function startAddUser() {
+    setEditingUserId(null)
     setError(null)
-    setFortuneError(null)
-    setIsSubmitting(false)
-    setIsLoadingFortune(false)
-    return true
+  }
+
+  function renameUser(id: string, name: string) {
+    if (users.some((user) => user.id !== id && user.name === name)) return
+    persistUsers(users.map((user) => (user.id === id ? { ...user, name } : user)))
+  }
+
+  function removeUser(id: string) {
+    const target = users.find((user) => user.id === id)
+    if (!target) return
+    if (!window.confirm(`删除「${target.name}」的命盘与本机资料？已保存的结论不受影响。`)) return
+    const next = users.filter((user) => user.id !== id)
+    if (!persistUsers(next)) return
+    const nextCurrentId = next[0]?.id ?? null
+    setCurrentUserId(nextCurrentId)
+    setEditingUserId(nextCurrentId)
+    writeLocalStorage(CURRENT_USER_KEY, nextCurrentId ?? '')
+    if (nextCurrentId) {
+      void requestChart(next[0])
+    } else {
+      chartRequest.current?.abort('cleared')
+      fortuneRequest.current?.abort('cleared')
+      setChart(null)
+      setDaily(null)
+      setPeriods(null)
+      setWindowTransit(null)
+      setError(null)
+      setFortuneError(null)
+      setIsSubmitting(false)
+      setIsLoadingFortune(false)
+    }
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const fields = new FormData(event.currentTarget)
+    const displayName = String(fields.get('displayName') ?? '').trim().slice(0, 12) || '我'
     const civilDate = String(fields.get('civilDate') ?? '')
     const civilTime = String(fields.get('civilTime') ?? '')
     const placeId = String(fields.get('placePreset') ?? '')
@@ -324,48 +440,30 @@ export function App() {
         : '这个当地时间处于历史夏令时回拨的重叠段，当前系统不会替你猜测具体时刻。')
       return
     }
-    const civilCandidate = civilCandidates[0]
     const payload: BirthPayload = {
-      civil_datetime: civilCandidate.timestamp,
+      civil_datetime: civilCandidates[0].timestamp,
       timezone_id: 'Asia/Shanghai',
       longitude,
       latitude,
       sex_for_rule: String(fields.get('sexForRule')),
       use_apparent_solar_time: true,
     }
-
-    chartRequest.current?.abort('superseded')
-    fortuneRequest.current?.abort('superseded')
-    const controller = new AbortController()
-    chartRequest.current = controller
-    setIsSubmitting(true)
-    setError(null)
-    setFortuneError(null)
-    try {
-      const result = await postJson<ChartResponse>('/v1/charts', payload, controller, '排盘服务暂时不可用。')
-      if (chartRequest.current !== controller) return
-      setChart(result)
-      setBirthPayload(payload)
-      setDaily(null)
-      setPeriods(null)
-      setWindowTransit(null)
-      setFortuneScope('today')
-      setRequestedFortuneScope('today')
-      void loadFortune('today', payload)
-    } catch (reason) {
-      if (chartRequest.current !== controller) return
-      const message = requestError(reason, controller, '无法连接排盘服务。')
-      if (message) setError(message)
-    } finally {
-      if (chartRequest.current === controller) {
-        chartRequest.current = null
-        setIsSubmitting(false)
-      }
-    }
+    const editing = editingUser
+    const updated: StoredUser = editing
+      ? { ...editing, name: displayName, birth: payload }
+      : { id: crypto.randomUUID(), name: displayName, createdAt: new Date().toISOString(), birth: payload }
+    const nextUsers = editing
+      ? users.map((user) => (user.id === editing.id ? updated : user))
+      : [...users, updated]
+    if (!persistUsers(nextUsers)) return
+    setCurrentUserId(updated.id)
+    setEditingUserId(updated.id)
+    writeLocalStorage(CURRENT_USER_KEY, updated.id)
+    void requestChart(updated)
   }
 
   async function loadFortune(scope: FortuneScope, payloadOverride?: BirthPayload) {
-    const payload = payloadOverride ?? birthPayload
+    const payload = payloadOverride ?? currentUser?.birth
     if (!payload) return
     const period = fortuneWindow(scope)
     const startDate = dateKey(period.start)
@@ -415,54 +513,93 @@ export function App() {
     setActiveView(view)
   }
 
+  const sessionState = chart
+    ? `${currentUser?.name ?? ''}的盘已就绪`
+    : users.length
+      ? `正在读取${currentUser?.name ?? ''}的盘`
+      : '资料只存本机'
+
   return <div className="app-shell" data-theme={theme.id} data-palette={theme.palette} data-layout={theme.layout} data-motion={theme.motion} data-motion-paused={motionPaused || undefined}>
     <a className="skip-link" href="#main-content">跳到主要内容</a>
     <header className="site-header">
-      <a className="brand" href="#today" onClick={() => navigate('today')}><strong>看运</strong></a>
+      <a className="brand" href="#fortune" onClick={() => navigate('fortune')}><strong>看运</strong></a>
       <AppNavigation activeView={activeView} onNavigate={navigate} />
+      {users.length > 1 && <div className="header-users">
+        <UserBar users={users} currentId={currentUserId} editingId={editingUserId} onSwitch={switchUser} />
+      </div>}
       <span className={`session-state ${chart ? 'is-ready' : ''}`}>
         {chart ? <CheckCircle size={17} weight="fill" /> : <ShieldCheck size={17} weight="bold" />}
-        {chart ? '今日已就绪' : '资料不默认保存'}
+        {sessionState}
       </span>
     </header>
 
     <main id="main-content">
-      {activeView === 'today' && <section className={`task-view today-view ${chart ? 'is-ready' : ''}`} id="today" aria-label="今日">
-        <section className="launch-section" aria-label="填写出生资料">
+      {activeView === 'fortune' && <section className={`task-view today-view ${currentUser ? 'is-ready' : ''}`} id="fortune" aria-label="运势">
+        {!currentUser ? <section className="launch-section" aria-label="填写出生资料">
           <div className="launch-copy">
-            <BirthForm isSubmitting={isSubmitting} error={error} onSubmit={submit} onClear={clearSession} hasChart={Boolean(chart)} />
+            <BirthForm
+              key="first-user"
+              isSubmitting={isSubmitting}
+              error={error}
+              onSubmit={submit}
+              onClear={() => { setError(null); return true }}
+            />
           </div>
           <MemeStage theme={theme} motionPaused={motionPaused} />
-        </section>
-
-        <div className="today-results">
-          <DailyBrief
-            chartReady={Boolean(chart)} daily={daily} periods={periods} error={fortuneError}
-            isLoading={isLoadingFortune} onRetry={() => void loadFortune('today')}
-          />
-        </div>
+        </section> : <>
+          <div className="today-results">
+            <FortuneConsole
+              chartReady={Boolean(chart || isSubmitting)}
+              daily={daily} periods={periods} windowTransit={windowTransit}
+              scope={fortuneScope} requestedScope={requestedFortuneScope} error={fortuneError}
+              isLoading={isLoadingFortune || (isSubmitting && !chart)} theme={theme}
+              onRequest={(scope) => void loadFortune(scope)} onSave={saveReading}
+            />
+          </div>
+          <section className="launch-section" aria-label="用户与出生资料">
+            <UserBar
+              users={users} currentId={currentUserId} editingId={editingUserId}
+              onSwitch={switchUser} onStartAdd={startAddUser}
+            />
+            <div className="launch-copy">
+              <BirthForm
+                key={editingUserId ?? 'new-user'}
+                isSubmitting={isSubmitting}
+                error={error}
+                onSubmit={submit}
+                onClear={() => { setError(null); return true }}
+                initial={editingUser ? deriveInitial(editingUser) : undefined}
+              />
+            </div>
+            <MemeStage theme={theme} motionPaused={motionPaused} />
+          </section>
+        </>}
       </section>}
 
       {activeView === 'ask' && <section className="task-view ask-view" id="ask" aria-labelledby="ask-title">
         <header className="task-heading">
           <h1 id="ask-title">问事</h1>
         </header>
-        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <>
-          <DomainAnalysisConsole chart={chart} onSave={saveReading} />
-          <FortuneConsole
-            chartReady daily={daily} periods={periods} windowTransit={windowTransit}
-            scope={fortuneScope} requestedScope={requestedFortuneScope} error={fortuneError} isLoading={isLoadingFortune} theme={theme}
-            onRequest={(scope) => void loadFortune(scope)} onSave={saveReading}
-          />
-        </>}
+        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
+          : <DomainAnalysisConsole chart={chart} onSave={saveReading} />}
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
         <header className="task-heading"><h1 id="chart-title">命盘</h1></header>
-        <div className="chart-output" aria-live="polite">
-          {isSubmitting && chart && <div className="updating-status" role="status">正在按新资料更新，上一份有效命盘暂时保留。</div>}
-          {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
-        </div>
+        {!users.length ? <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>建第一张盘 <ArrowRight size={18} /></a></div> : <>
+          <UserBar
+            manage
+            users={users} currentId={currentUserId} editingId={editingUserId}
+            onSwitch={switchUser}
+            onStartAdd={() => { startAddUser(); navigate('fortune') }}
+            onRename={renameUser}
+            onRemove={removeUser}
+          />
+          <div className="chart-output" aria-live="polite">
+            {isSubmitting && chart && <div className="updating-status" role="status">正在读取{currentUser?.name}的新命盘，上一份暂时保留。</div>}
+            {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>盘面还没就绪</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>回运势页排盘 <ArrowRight size={18} /></a></div>}
+          </div>
+        </>}
       </section>}
 
       {activeView === 'profile' && <ProfileView
