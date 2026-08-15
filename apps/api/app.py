@@ -95,6 +95,18 @@ app = FastAPI(
     openapi_url=None,
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+# When the hosting gateway already injects CORS headers (CloudBase does for
+# HTTP functions), a second copy here duplicates Access-Control-Allow-Origin
+# and browsers reject the response. Leave CORS to the gateway unless the
+# deployment explicitly lists browser origins (local dev does).
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["accept", "content-type"],
+    )
 app.add_middleware(
     RequestGuardMiddleware,
     max_body_bytes=16_384,
@@ -272,13 +284,6 @@ async def unexpected_error_handler(request: Request, error: Exception) -> JSONRe
         content={"detail": "Internal server error", "trace_id": trace_id},
         headers=ERROR_SECURITY_HEADERS,
     )
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["content-type"],
-)
 
 
 @app.get("/health")
