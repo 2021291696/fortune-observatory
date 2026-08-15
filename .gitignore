@@ -56,3 +56,4 @@ apps/observatory/.mimosa/
 
 # Deployment staging
 .deploy-stage/
+.mimosa/
