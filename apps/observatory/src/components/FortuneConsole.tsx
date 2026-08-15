@@ -1,4 +1,4 @@
-import { FloppyDisk, SpinnerGap } from '@phosphor-icons/react'
+import { ArrowRight, FloppyDisk, SpinnerGap } from '@phosphor-icons/react'
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
@@ -10,6 +10,7 @@ const relationLabels = { branch_clash: '地支冲', branch_combination: '地支�
 const periodLabels = { great_luck: '大运', year: '流年', month: '流月', day: '流日' }
 
 type FortuneProps = {
+  chartReady: boolean
   daily: DailyTransitResponse | null
   periods: TransitResponse | null
   windowTransit: TransitWindowResponse | null
@@ -23,7 +24,7 @@ type FortuneProps = {
 }
 
 export function FortuneConsole(props: FortuneProps) {
-  const { daily, periods, windowTransit, scope, requestedScope, error, isLoading, theme, onRequest, onSave } = props
+  const { chartReady, daily, periods, windowTransit, scope, requestedScope, error, isLoading, theme, onRequest, onSave } = props
   const selectedLabel = fortuneScopes.find(([key]) => key === scope)?.[1] ?? '今日'
   const requestedLabel = fortuneScopes.find(([key]) => key === requestedScope)?.[1] ?? '今日'
   const windowDays = windowTransit?.transit.daily ?? []
@@ -91,9 +92,12 @@ export function FortuneConsole(props: FortuneProps) {
   }
 
   return <section className="fortune-section" id="fortune" aria-label="时间范围">
-    <div className="fortune-console is-ready" aria-live="polite">
-      <div className="console-sticker" aria-hidden="true"><MemeMedia source={theme.stickers[0] ?? theme.mainMedia} /></div>
-      <div className="fortune-toolbar">
+    <div className={`fortune-console ${chartReady ? 'is-ready' : ''}`} aria-live="polite">
+      {!chartReady ? <div className="fortune-empty">
+        <div className="reaction-frame"><MemeMedia source={theme.stickers[0] ?? theme.mainMedia} /></div>
+        <div><span>WAITING FOR CHART</span><h3>先完成排盘</h3><a href="#birth-form">去填写资料 <ArrowRight size={18} /></a></div>
+      </div> : <>
+        <div className="fortune-toolbar">
           <div className="fortune-scopes" role="group" aria-label="选择运势周期">
             {fortuneScopes.map(([key, label]) => <button
               key={key}
@@ -125,6 +129,7 @@ export function FortuneConsole(props: FortuneProps) {
             {aiSource && <AiExplainPanel source={aiSource} defaultQuestion={`请把${selectedLabel}时间窗口讲得更直白，并指出最值得安排的一件事。`} />}
           </div>}
         </div>
+      </>}
     </div>
   </section>
 }

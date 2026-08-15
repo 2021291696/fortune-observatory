@@ -2,9 +2,7 @@ import { Briefcase, Coins, FloppyDisk, Heart, Heartbeat, ShieldCheck } from '@ph
 import { useEffect, useState, type ComponentType } from 'react'
 import type { AnalysisDomain, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
-import type { ThemeConfig } from '../themes'
 import { AiExplainPanel } from './AiExplainPanel'
-import { MemeMedia } from './MemeMedia'
 
 type DomainResult = {
   title: string
@@ -72,9 +70,8 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
   }
 }
 
-export function DomainAnalysisConsole({ chart, theme, onSave }: {
-  chart: ChartResponse
-  theme: ThemeConfig
+export function DomainAnalysisConsole({ chart, onSave }: {
+  chart: ChartResponse | null
   onSave: (draft: SaveDraft) => void
 }) {
   const [active, setActive] = useState<AnalysisDomain | null>(null)
@@ -95,8 +92,7 @@ export function DomainAnalysisConsole({ chart, theme, onSave }: {
   const activeConfig = active ? domainConfig[active] : null
 
   return <section className="analysis-section" id="analysis">
-    <div className="domain-console is-ready">
-      <div className="console-sticker" aria-hidden="true"><MemeMedia source={theme.stickers[1] ?? theme.mainMedia} /></div>
+    <div className={`domain-console ${chart ? 'is-ready' : ''}`}>
       <div className="domain-choices" role="group" aria-label="选择专项分析">
         {analysisDomains.map(([domain, label]) => {
           const Icon = domainConfig[domain].icon
@@ -105,17 +101,19 @@ export function DomainAnalysisConsole({ chart, theme, onSave }: {
             type="button"
             className={active === domain ? 'is-active' : ''}
             aria-pressed={active === domain}
+            disabled={!chart}
             onClick={() => request(domain)}
           >
-            <Icon size={20} weight={active === domain ? 'fill' : 'bold'} />
+            <Icon size={25} weight={active === domain ? 'fill' : 'bold'} />
             <span>{label}</span>
           </button>
         })}
       </div>
 
       <div className="domain-output" aria-live="polite">
-        {!result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>选择一个领域开始</strong></div></div>}
-        {result && activeConfig && active && <article className="domain-reading">
+        {!chart && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>先完成排盘</strong></div></div>}
+        {chart && !result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>选择一个领域开始</strong></div></div>}
+        {result && activeConfig && active && chart && <article className="domain-reading">
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
           <blockquote>{result.action}</blockquote>

@@ -18,5 +18,6 @@ export function MemeStage({ theme, motionPaused }: { theme: ThemeConfig; motionP
         <MemeMedia source={source} animate={index === 0 && !motionPaused} />
       </figure>)}
     </div>
+    <span className="stage-stamp">高清主角 · 动态贴纸</span>
   </div>
 }

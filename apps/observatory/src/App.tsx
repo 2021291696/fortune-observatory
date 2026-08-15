@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { ArrowRight, CheckCircle, ShieldCheck, WarningCircle } from '@phosphor-icons/react'
 import { AppNavigation, viewFromHash, type AppView } from './components/AppNavigation'
-import { BirthForm, BirthSummary, type BirthInitial } from './components/BirthForm'
+import { BirthForm } from './components/BirthForm'
 import { Chart } from './components/Chart'
 import { DailyBrief } from './components/DailyBrief'
 import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { FortuneConsole } from './components/FortuneConsole'
-import { MemeMedia } from './components/MemeMedia'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
 import { birthPlaces } from './birthPlaces'
@@ -148,28 +147,6 @@ async function readResponse<T>(response: Response, fallback: string) {
   return body as T
 }
 
-function birthRecap(payload: BirthPayload) {
-  const [date, rest] = payload.civil_datetime.split('T')
-  const time = rest.slice(0, 5)
-  const place = birthPlaces.find((item) => item.longitude === payload.longitude && item.latitude === payload.latitude)
-  return {
-    summary: {
-      date,
-      time,
-      place: place ? place.name : `${payload.longitude.toFixed(2)}°, ${payload.latitude.toFixed(2)}°`,
-      sex: payload.sex_for_rule === 'female' ? '女' : '男',
-    },
-    initial: {
-      civilDate: date,
-      civilTime: time,
-      sexForRule: payload.sex_for_rule,
-      placeId: place?.id ?? 'manual',
-      longitude: place ? '' : String(payload.longitude),
-      latitude: place ? '' : String(payload.latitude),
-    } satisfies BirthInitial,
-  }
-}
-
 export function App() {
   const [activeView, setActiveView] = useState<AppView>(viewFromHash)
   const [themeId, setThemeId] = useState<ThemeId>(initialTheme)
@@ -178,7 +155,6 @@ export function App() {
   const [motionPaused, setMotionPaused] = useState(() => readLocalStorage('fortune-motion-paused') === 'true')
   const [chart, setChart] = useState<ChartResponse | null>(null)
   const [birthPayload, setBirthPayload] = useState<BirthPayload | null>(null)
-  const [isEditing, setIsEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [daily, setDaily] = useState<DailyTransitResponse | null>(null)
@@ -231,8 +207,7 @@ export function App() {
       if (!section) return
       section.focus({ preventScroll: true })
       const headerHeight = document.querySelector<HTMLElement>('.site-header')?.offsetHeight ?? 0
-      const summaryHeight = document.querySelector<HTMLElement>('.birth-summary')?.offsetHeight ?? 0
-      const top = section.getBoundingClientRect().top + window.scrollY - headerHeight - summaryHeight - 12
+      const top = section.getBoundingClientRect().top + window.scrollY - headerHeight
       window.scrollTo({
         top,
         behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
@@ -317,22 +292,6 @@ export function App() {
     return true
   }
 
-  function handleClear() {
-    const ok = clearSession()
-    if (ok) setIsEditing(false)
-    return ok
-  }
-
-  function startEdit() {
-    setIsEditing(true)
-    window.scrollTo({ top: 0, behavior: 'auto' })
-  }
-
-  function cancelEdit() {
-    setIsEditing(false)
-    setError(null)
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const fields = new FormData(event.currentTarget)
@@ -387,7 +346,6 @@ export function App() {
       if (chartRequest.current !== controller) return
       setChart(result)
       setBirthPayload(payload)
-      setIsEditing(false)
       setDaily(null)
       setPeriods(null)
       setWindowTransit(null)
@@ -470,50 +428,40 @@ export function App() {
 
     <main id="main-content">
       {activeView === 'today' && <section className={`task-view today-view ${chart ? 'is-ready' : ''}`} id="today" aria-label="今日">
-        {(!chart || isEditing) ? <section className="launch-section" aria-label="填写出生资料">
-          <MemeStage theme={theme} motionPaused={motionPaused} />
+        <section className="launch-section" aria-label="填写出生资料">
           <div className="launch-copy">
-            <BirthForm
-              isSubmitting={isSubmitting}
-              error={error}
-              onSubmit={submit}
-              onClear={handleClear}
-              onCancel={chart ? cancelEdit : undefined}
-              hasChart={Boolean(chart)}
-              initial={chart && birthPayload ? birthRecap(birthPayload).initial : undefined}
-            />
+            <BirthForm isSubmitting={isSubmitting} error={error} onSubmit={submit} onClear={clearSession} hasChart={Boolean(chart)} />
           </div>
-        </section> : chart && birthPayload && <div className="today-ready">
-          <BirthSummary summary={birthRecap(birthPayload).summary} theme={theme} onEdit={startEdit} onClear={handleClear} />
-          <div className="today-results">
-            <div className="console-sticker" aria-hidden="true"><MemeMedia source={theme.stickers[2] ?? theme.mainMedia} /></div>
-            <DailyBrief
-              daily={daily} periods={periods} error={fortuneError}
-              isLoading={isLoadingFortune} onRetry={() => void loadFortune('today')}
-            />
-          </div>
-        </div>}
+          <MemeStage theme={theme} motionPaused={motionPaused} />
+        </section>
+
+        <div className="today-results">
+          <DailyBrief
+            chartReady={Boolean(chart)} daily={daily} periods={periods} error={fortuneError}
+            isLoading={isLoadingFortune} onRetry={() => void loadFortune('today')}
+          />
+        </div>
       </section>}
 
       {activeView === 'ask' && <section className="task-view ask-view" id="ask" aria-labelledby="ask-title">
         <header className="task-heading">
           <h1 id="ask-title">问事</h1>
         </header>
-        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <div className="ask-stack">
-          <DomainAnalysisConsole chart={chart} theme={theme} onSave={saveReading} />
+        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <>
+          <DomainAnalysisConsole chart={chart} onSave={saveReading} />
           <FortuneConsole
-            daily={daily} periods={periods} windowTransit={windowTransit}
+            chartReady daily={daily} periods={periods} windowTransit={windowTransit}
             scope={fortuneScope} requestedScope={requestedFortuneScope} error={fortuneError} isLoading={isLoadingFortune} theme={theme}
             onRequest={(scope) => void loadFortune(scope)} onSave={saveReading}
           />
-        </div>}
+        </>}
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
         <header className="task-heading"><h1 id="chart-title">命盘</h1></header>
         <div className="chart-output" aria-live="polite">
           {isSubmitting && chart && <div className="updating-status" role="status">正在按新资料更新，上一份有效命盘暂时保留。</div>}
-          {chart ? <Chart chart={chart} theme={theme} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
+          {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
         </div>
       </section>}
 

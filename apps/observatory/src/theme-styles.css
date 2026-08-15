@@ -6,34 +6,39 @@
 [data-theme='nailong'] .site-header { background: rgba(255,255,255,.94); }
 [data-theme='nailong'] .launch-section {
   background:
-    radial-gradient(circle at 68% 50%, rgba(255,255,255,.72) 0 5%, transparent 22%),
+    radial-gradient(circle at 45% 55%, rgba(255,255,255,.72) 0 5%, transparent 22%),
     linear-gradient(103deg, #fffdf8 0 33%, #fff6a2 51%, #ffe20b 100%);
 }
-[data-theme='nailong'] .launch-section::before { content: '〰 〰 〰'; position: absolute; z-index: -1; left: 46%; bottom: 4%; color: rgba(7,88,247,.24); font-size: clamp(60px, 9vw, 140px); font-weight: 950; letter-spacing: -.15em; transform: rotate(-8deg); }
-[data-theme='nailong'] .main-meme { inset: 2% -3% -8% 33%; }
+[data-theme='nailong'] .launch-section::before { content: '〰 〰 〰'; position: absolute; z-index: -1; left: 2%; bottom: 4%; color: rgba(7,88,247,.24); font-size: clamp(60px, 9vw, 140px); font-weight: 950; letter-spacing: -.15em; transform: rotate(-8deg); }
+[data-theme='nailong'] .main-meme { inset: -3% -1% -12% 13%; }
 [data-theme='nailong'] .main-meme > img { mix-blend-mode: multiply; }
+[data-theme='nailong'] .eyebrow { color: #111; background: #ffe20b; }
 [data-theme='nailong'] .submit-button { box-shadow: 0 5px 0 #0639a4; }
 
 [data-theme='phoebe'] .launch-section {
   background:
-    radial-gradient(circle at 78% 14%, rgba(255,255,255,.72) 0 11%, transparent 11.4%),
-    radial-gradient(circle at 62% 82%, #bdeaff 0 7%, transparent 7.4%),
+    radial-gradient(circle at 83% 17%, rgba(255,255,255,.72) 0 13%, transparent 13.4%),
+    radial-gradient(circle at 48% 83%, #bdeaff 0 8%, transparent 8.4%),
     linear-gradient(135deg, #fffdf8 0 38%, #eee9ff 38% 100%);
 }
-[data-theme='phoebe'] .main-meme { inset: 10% 4% 5% 40%; overflow: hidden; border: 10px solid #fff; border-radius: 46% 46% 18px 18px; box-shadow: 18px 20px 0 rgba(104,72,219,.18); transform: rotate(1deg); }
+[data-theme='phoebe'] .main-meme { inset: 2% 5% -3% 13%; overflow: hidden; border: 10px solid #fff; border-radius: 46% 46% 18px 18px; box-shadow: 18px 20px 0 rgba(104,72,219,.18); transform: rotate(1deg); }
 [data-theme='phoebe'] .main-meme > img { object-fit: contain; }
+[data-theme='phoebe'] .eyebrow { color: #5d42c6; background: #fff; }
 [data-theme='phoebe'] .birth-form { transform: rotate(-.35deg); }
 
 [data-theme='ggbond'] .site-header { color: #fff; background: rgba(207,20,32,.96); }
 [data-theme='ggbond'] .site-header nav a:hover { color: #ffd400; border-color: #ffd400; }
 [data-theme='ggbond'] .brand strong { color: #111820; background: #ffd400; padding: 2px 8px 5px; transform: skewX(-8deg); }
+[data-theme='ggbond'] .theme-remote { color: #111820; }
 [data-theme='ggbond'] .launch-section {
   background:
     radial-gradient(circle at 63% 18%, rgba(255,255,255,.34) 0 8%, transparent 8.5%),
     linear-gradient(112deg, #fffaf0 0 36%, #ffd400 36% 72%, #de1925 72% 100%);
 }
-[data-theme='ggbond'] .main-meme { inset: 9% 5% 3% 40%; overflow: hidden; border: 7px solid #111820; border-radius: 6px; box-shadow: 15px 15px 0 #dd1825; transform: rotate(1.3deg); }
+[data-theme='ggbond'] .launch-copy h1 { color: #dd1825; font-family: 'Bahnschrift Condensed', Impact, 'Microsoft YaHei', sans-serif; font-style: italic; text-shadow: 3px 3px 0 #ffd400; }
+[data-theme='ggbond'] .main-meme { inset: 2% 4% -5% 12%; overflow: hidden; border: 7px solid #111820; border-radius: 6px; box-shadow: 15px 15px 0 #dd1825; transform: rotate(1.3deg); }
 [data-theme='ggbond'] .main-meme > img { object-fit: contain; }
+[data-theme='ggbond'] .eyebrow { border-radius: 3px; color: #111820; background: #ffd400; transform: skewX(-6deg); }
 [data-theme='ggbond'] .birth-form { border: 3px solid #111820; border-radius: 5px; box-shadow: 8px 8px 0 #dd1825; }
 
 [data-theme='kawaii'] .launch-section {
@@ -42,8 +47,9 @@
   background-size: 22px 22px, auto;
 }
 [data-theme='kawaii'] .launch-copy { padding: 26px; background: rgba(255,255,255,.86); box-shadow: 9px 10px 0 rgba(231,89,151,.18); transform: rotate(-.45deg); }
+[data-theme='kawaii'] .launch-copy h1 { color: #d84d8d; }
 [data-theme='kawaii'] .birth-form { margin-inline: -8px; transform: rotate(.45deg); }
-[data-theme='kawaii'] .main-meme { inset: 7% 6% 1% 41%; overflow: hidden; border: 12px solid #fff; border-radius: 8px; box-shadow: 10px 12px 0 #302a33; transform: rotate(2deg); }
+[data-theme='kawaii'] .main-meme { inset: 0 7% -2% 11%; overflow: hidden; border: 12px solid #fff; border-radius: 8px; box-shadow: 10px 12px 0 #302a33; transform: rotate(2deg); }
 [data-theme='kawaii'] .main-meme > img { object-fit: contain; }
 [data-theme='kawaii'] .meme-sticker { border-radius: 4px; }
 
@@ -53,7 +59,7 @@
     var(--paper);
 }
 [data-theme='shuffle'] .brand strong { padding: 2px 8px 5px; color: #fff; background: #111; }
-[data-theme='shuffle'] .main-meme { inset: 9% 6% 3% 41%; overflow: hidden; border: 9px double #111; border-radius: 50% 50% 12% 12%; box-shadow: 14px 14px 0 var(--accent); transform: rotate(-2deg); }
+[data-theme='shuffle'] .main-meme { inset: 1% 8% -2% 12%; overflow: hidden; border: 9px double #111; border-radius: 50% 50% 12% 12%; box-shadow: 14px 14px 0 var(--accent); transform: rotate(-2deg); }
 [data-theme='shuffle'] .main-meme > img { object-fit: contain; }
 [data-theme='shuffle'] .meme-sticker:nth-child(even) { border-radius: 50%; }
 
@@ -74,8 +80,8 @@
 @keyframes sticker-scatter { to { translate: 9px -8px; rotate: -5deg; } }
 
 @media (max-width: 820px) {
-  [data-theme='phoebe'] .main-meme, [data-theme='ggbond'] .main-meme, [data-theme='kawaii'] .main-meme, [data-theme='shuffle'] .main-meme { inset: 2% 14% -2%; border-width: 5px; box-shadow: 6px 6px 0 color-mix(in srgb, var(--accent) 45%, transparent); }
-  [data-theme='nailong'] .main-meme { inset: 0 10% -3%; }
+  [data-theme='phoebe'] .main-meme, [data-theme='ggbond'] .main-meme, [data-theme='kawaii'] .main-meme, [data-theme='shuffle'] .main-meme { inset: 2% 0 -5%; border-width: 5px; box-shadow: 6px 6px 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  [data-theme='nailong'] .main-meme { inset: -2% -12% -13% 0; }
   [data-theme='kawaii'] .launch-copy { padding: 0; background: transparent; box-shadow: none; transform: none; }
   [data-theme='kawaii'] .birth-form { margin-inline: 0; }
   [data-theme='phoebe'] .birth-form, [data-theme='ggbond'] .birth-form, [data-theme='kawaii'] .birth-form { transform: none; }

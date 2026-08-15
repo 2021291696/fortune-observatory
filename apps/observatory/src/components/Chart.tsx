@@ -1,17 +1,14 @@
 import type { ChartResponse } from '../types'
-import type { ThemeConfig } from '../themes'
-import { MemeMedia } from './MemeMedia'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
 
-export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConfig }) {
+export function Chart({ chart }: { chart: ChartResponse }) {
   const pillars = Object.values(chart.bazi.pillars)
   const starPalaces = chart.ziwei.palaces.filter((palace) => palace.major_stars.length)
   const minorPalaces = chart.ziwei.palaces.filter((palace) => palace.minor_stars.length)
 
   return <article className="chart-result">
-    <div className="console-sticker" aria-hidden="true"><MemeMedia source={theme.stickers[1] ?? theme.mainMedia} /></div>
     <header className="result-header">
       <div>
         <span>命盘摘要</span>
