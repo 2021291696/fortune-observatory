@@ -1,23 +1,36 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
 
-from skyfield.api import Loader
+from skyfield.api import Loader, load_file
 
 
 EPHEMERIS_ID = "de440s"
 EPHEMERIS_SHA256 = "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2"
 EPHEMERIS_START_YEAR = 1849
 EPHEMERIS_END_YEAR = 2150
+EPHEMERIS_PATH = Path(__file__).resolve().parents[3] / "data" / "ephemeris" / "de440s.bsp"
+
+
+def _verify_ephemeris(path: Path, expected_sha256: str = EPHEMERIS_SHA256) -> str:
+    if not path.is_file():
+        raise RuntimeError("Pinned ephemeris file is missing")
+    with path.open("rb") as stream:
+        actual_sha256 = hashlib.file_digest(stream, "sha256").hexdigest()
+    if not hmac.compare_digest(actual_sha256, expected_sha256):
+        raise RuntimeError("Pinned ephemeris integrity check failed")
+    return actual_sha256
 
 
 @lru_cache(maxsize=1)
 def skyfield_resources():
-    root = Path(__file__).resolve().parents[3]
-    loader = Loader(root / "data" / "ephemeris")
-    return loader.timescale(), loader("de440s.bsp")
+    _verify_ephemeris(EPHEMERIS_PATH)
+    loader = Loader(EPHEMERIS_PATH.parent)
+    return loader.timescale(), load_file(EPHEMERIS_PATH)
 
 
 def apparent_solar_datetime(civil_datetime: datetime, longitude: float) -> datetime:

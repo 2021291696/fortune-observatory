@@ -279,5 +279,9 @@ def calculate_palaces(birth: BirthInput) -> ZiweiPalaceSnapshot:
         year_stem=year_stem,
         birth_mutagens=birth_mutagens,
         palaces=palaces,
-        verification_status="verified" if birth.use_apparent_solar_time else "ambiguous",
+        verification_status=(
+            "verified"
+            if birth.use_apparent_solar_time and birth.apparent_solar_datetime is None
+            else "ambiguous"
+        ),
     )

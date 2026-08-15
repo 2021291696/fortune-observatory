@@ -104,6 +104,12 @@ def calculate_bazi(birth: BirthInput) -> BaziSnapshot:
             first_pillar=first_decade.getGanZhi(),
         ),
         great_luck_periods=great_luck_periods,
-        warnings=[],
-        verification_status="verified" if basis == "apparent_solar" else "ambiguous",
+        warnings=(
+            ["user-provided apparent solar time was not cross-verified"]
+            if apparent_source == "provided"
+            else []
+        ),
+        verification_status=(
+            "verified" if basis == "apparent_solar" and apparent_source == "jpl_de440s" else "ambiguous"
+        ),
     )
