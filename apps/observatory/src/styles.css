@@ -84,7 +84,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .remote-options button.is-active { border: 2px solid var(--accent); background: #fff; box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 26%, transparent); }
 .remote-options img, .remote-shuffle { width: 25px; height: 25px; border-radius: 6px; object-fit: cover; }
 .remote-shuffle { display: grid; place-items: center; color: #111; background: #fff200; }
-.motion-toggle { flex: 0 0 44px; min-height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; color: var(--ink); background: var(--surface); }
+.motion-toggle { flex: 0 0 auto; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: var(--surface); font-size: 11px; font-weight: 850; }
+.motion-toggle span { display: inline-block; white-space: nowrap; }
 
 .launch-section {
   position: relative;

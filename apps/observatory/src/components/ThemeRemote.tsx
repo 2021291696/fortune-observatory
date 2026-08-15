@@ -33,6 +33,7 @@ export function ThemeRemote({ activeTheme, motionPaused, onSelect, onToggleMotio
       onClick={onToggleMotion}
     >
       {motionPaused ? <Play size={19} weight="fill" /> : <Pause size={19} weight="fill" />}
+      <span>{motionPaused ? '播放动效' : '暂停动效'}</span>
     </button>
   </aside>
 }
