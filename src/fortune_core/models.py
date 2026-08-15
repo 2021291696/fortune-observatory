@@ -59,6 +59,20 @@ class Pillars(BaseModel):
     hour: str
 
 
+class HiddenStem(BaseModel):
+    stem: str
+    ten_god: str
+
+
+class PillarDetail(BaseModel):
+    """Per-pillar Zi Ping detail: ten god, hidden stems, nayin."""
+
+    pillar: str
+    ten_god: str
+    hidden_stems: tuple[HiddenStem, ...]
+    nayin: str
+
+
 class GreatLuckStart(BaseModel):
     years: int
     months: int
@@ -71,6 +85,8 @@ class GreatLuckPeriod(BaseModel):
     pillar: str
     start_datetime: datetime
     end_datetime: datetime
+    start_age: int
+    end_age: int
 
 
 class BaziSnapshot(BaseModel):
@@ -80,6 +96,7 @@ class BaziSnapshot(BaseModel):
     apparent_solar_source: Literal["provided", "jpl_de440s", "civil"]
     calculation_datetime: datetime
     pillars: Pillars
+    pillar_details: tuple[PillarDetail, ...] = ()
     lunar_date: str
     great_luck_start: GreatLuckStart
     great_luck_periods: tuple[GreatLuckPeriod, ...]

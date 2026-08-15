@@ -3,29 +3,87 @@ import type { ChartResponse } from '../types'
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
 
+const STEM_ELEMENTS: Record<string, string> = {
+  甲: 'wood', 乙: 'wood', 丙: 'fire', 丁: 'fire', 戊: 'earth',
+  己: 'earth', 庚: 'metal', 辛: 'metal', 壬: 'water', 癸: 'water',
+}
+const BRANCH_ELEMENTS: Record<string, string> = {
+  子: 'water', 丑: 'earth', 寅: 'wood', 卯: 'wood', 辰: 'earth',
+  巳: 'fire', 午: 'fire', 未: 'earth', 申: 'metal', 酉: 'metal',
+  戌: 'earth', 亥: 'water',
+}
+
+export function stemClass(stem: string) {
+  return `el-${STEM_ELEMENTS[stem] ?? 'earth'}`
+}
+
+export function branchClass(branch: string) {
+  return `el-${BRANCH_ELEMENTS[branch] ?? 'earth'}`
+}
+
 export function Chart({ chart }: { chart: ChartResponse }) {
   const pillars = Object.values(chart.bazi.pillars)
+  const details = chart.bazi.pillar_details.length === 4
+    ? chart.bazi.pillar_details
+    : pillars.map((pillar) => ({ pillar, ten_god: '', hidden_stems: [] as { stem: string; ten_god: string }[], nayin: '' }))
+  const dayun = chart.bazi.great_luck_periods.slice(0, 8)
   const starPalaces = chart.ziwei.palaces.filter((palace) => palace.major_stars.length)
   const minorPalaces = chart.ziwei.palaces.filter((palace) => palace.minor_stars.length)
 
   return <article className="chart-result">
     <header className="result-header">
       <div>
-        <span>命盘摘要</span>
+        <span>命盘</span>
         <h2>{pillars.join(' · ')}</h2>
         <p>农历 {chart.bazi.lunar_date}，{chart.bazi.input_time_basis === 'apparent_solar' ? '真太阳时口径' : '民用时间口径'}</p>
       </div>
     </header>
 
-    <div className="pillar-row" aria-label="八字四柱">
-      {pillars.map((pillar, index) => <div key={pillarLabels[index]}>
-        <small>{pillarLabels[index]}</small><strong>{pillar}</strong>
-      </div>)}
+    <div className="pillars-board" aria-label="四柱八字">
+      <div className="board-row board-head">
+        <span className="row-label" />
+        {pillarLabels.map((label) => <b key={label}>{label}</b>)}
+      </div>
+      <div className="board-row">
+        <span className="row-label">十神</span>
+        {details.map((detail) => <b key={detail.pillar} className={detail.ten_god === '日主' ? 'is-daymaster' : ''}>{detail.ten_god || '—'}</b>)}
+      </div>
+      <div className="board-row board-gan">
+        <span className="row-label">天干</span>
+        {details.map((detail) => <b key={detail.pillar} className={`gan-zhi ${stemClass(detail.pillar[0])}`}>{detail.pillar[0]}</b>)}
+      </div>
+      <div className="board-row board-zhi">
+        <span className="row-label">地支</span>
+        {details.map((detail) => <b key={detail.pillar} className={`gan-zhi ${branchClass(detail.pillar[1])}`}>{detail.pillar[1]}</b>)}
+      </div>
+      <div className="board-row board-hidden">
+        <span className="row-label">藏干</span>
+        {details.map((detail) => <div className="hidden-stack" key={detail.pillar}>
+          {detail.hidden_stems.length ? detail.hidden_stems.map((hidden) => (
+            <i key={hidden.stem} className={stemClass(hidden.stem)} title={`${hidden.stem}·${hidden.ten_god}`}>
+              {hidden.stem}<em>{hidden.ten_god}</em>
+            </i>
+          )) : <i className="hidden-empty">—</i>}
+        </div>)}
+      </div>
+      <div className="board-row board-nayin">
+        <span className="row-label">纳音</span>
+        {details.map((detail) => <small key={detail.pillar}>{detail.nayin || '—'}</small>)}
+      </div>
     </div>
+
+    {dayun.length > 0 && <div className="dayun-strip" aria-label="大运">
+      <span className="dayun-label">大运<br />{chart.bazi.great_luck_start.direction === 'forward' ? '顺行' : '逆行'}</span>
+      {dayun.map((period) => <div className="dayun-cell" key={period.pillar + period.start_age}>
+        <small>{period.start_age}岁</small>
+        <b><span className={stemClass(period.pillar[0])}>{period.pillar[0]}</span><span className={branchClass(period.pillar[1])}>{period.pillar[1]}</span></b>
+        <small>{period.end_age}</small>
+      </div>)}
+    </div>}
 
     <section className="result-summary">
       <div className="result-fact">
-        <span>大运起点</span>
+        <span>起运</span>
         <strong>{chart.bazi.great_luck_start.direction === 'forward' ? '顺排' : '逆排'} · {chart.bazi.great_luck_start.first_pillar}</strong>
         <p>{chart.bazi.great_luck_start.years} 年 {chart.bazi.great_luck_start.months} 月 {chart.bazi.great_luck_start.days} 日后起运</p>
       </div>
@@ -37,7 +95,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
     </section>
 
     <details className="chart-full-details">
-      <summary>查看完整命盘、十二宫与计算依据</summary>
+      <summary>解读、紫微十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
       <div className="section-kicker"><span>解读</span></div>
       <div className="insight-list">

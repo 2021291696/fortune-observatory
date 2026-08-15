@@ -261,7 +261,7 @@ def test_chart_issues_server_signed_domain_context_without_birth_data(
     })
     assert response.status_code == 200
     contexts: dict[str, dict[str, Any]] = response.json()["ai_contexts"]
-    assert set(contexts) == {"relationship", "career"}
+    assert set(contexts) == {"health", "relationship", "career", "wealth"}
     serialized = json.dumps(contexts, ensure_ascii=False)
     assert "2005-12-24" not in serialized
     assert "102.0" not in serialized

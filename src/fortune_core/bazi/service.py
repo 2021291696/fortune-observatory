@@ -9,6 +9,8 @@ from fortune_core.models import (
     BirthInput,
     GreatLuckPeriod,
     GreatLuckStart,
+    HiddenStem,
+    PillarDetail,
     Pillars,
 )
 from fortune_core.time_location import apparent_solar_datetime
@@ -30,7 +32,7 @@ def _direction(year_pillar: str, sex: str) -> str:
     return "forward" if (sex == "male") == is_yang_year else "reverse"
 
 
-def _great_luck_periods(yun, timezone) -> tuple[GreatLuckPeriod, ...]:
+def _great_luck_periods(yun, timezone, birth_year: int) -> tuple[GreatLuckPeriod, ...]:
     start_solar = yun.getStartSolar()
     start_template = datetime(
         start_solar.getYear(),
@@ -45,14 +47,67 @@ def _great_luck_periods(yun, timezone) -> tuple[GreatLuckPeriod, ...]:
     for decade in yun.getDaYun(10)[1:]:
         start = start_template.replace(year=decade.getStartYear())
         next_start = start_template.replace(year=decade.getStartYear() + 10)
+        start_age = decade.getStartYear() - birth_year + 1
         periods.append(
             GreatLuckPeriod(
                 pillar=decade.getGanZhi(),
                 start_datetime=start,
                 end_datetime=next_start,
+                start_age=start_age,
+                end_age=start_age + 9,
             )
         )
     return tuple(periods)
+
+
+def _pillar_details(eight_char) -> tuple[PillarDetail, ...]:
+    def detail(
+        gan_zhi: str,
+        ten_god: str,
+        hidden: list[str],
+        hidden_gods: list[str],
+        nayin: str,
+    ) -> PillarDetail:
+        return PillarDetail(
+            pillar=gan_zhi,
+            ten_god=ten_god,
+            hidden_stems=tuple(
+                HiddenStem(stem=stem, ten_god=god)
+                for stem, god in zip(hidden, hidden_gods)
+            ),
+            nayin=nayin,
+        )
+
+    return (
+        detail(
+            eight_char.getYear(),
+            eight_char.getYearShiShenGan(),
+            eight_char.getYearHideGan(),
+            eight_char.getYearShiShenZhi(),
+            eight_char.getYearNaYin(),
+        ),
+        detail(
+            eight_char.getMonth(),
+            eight_char.getMonthShiShenGan(),
+            eight_char.getMonthHideGan(),
+            eight_char.getMonthShiShenZhi(),
+            eight_char.getMonthNaYin(),
+        ),
+        detail(
+            eight_char.getDay(),
+            "日主",
+            eight_char.getDayHideGan(),
+            eight_char.getDayShiShenZhi(),
+            eight_char.getDayNaYin(),
+        ),
+        detail(
+            eight_char.getTime(),
+            eight_char.getTimeShiShenGan(),
+            eight_char.getTimeHideGan(),
+            eight_char.getTimeShiShenZhi(),
+            eight_char.getTimeNaYin(),
+        ),
+    )
 
 
 def calculate_bazi(birth: BirthInput) -> BaziSnapshot:
@@ -88,13 +143,14 @@ def calculate_bazi(birth: BirthInput) -> BaziSnapshot:
     yun = eight_char.getYun(gender_code)
     # Index zero is the pre-luck interval; index one starts the first decade.
     first_decade = yun.getDaYun(2)[1]
-    great_luck_periods = _great_luck_periods(yun, calculation_datetime.tzinfo)
+    great_luck_periods = _great_luck_periods(yun, calculation_datetime.tzinfo, calculation_datetime.year)
     return BaziSnapshot(
         profile_id=PROFILE_ID,
         input_time_basis=basis,
         apparent_solar_source=apparent_source,
         calculation_datetime=calculation_datetime,
         pillars=pillars,
+        pillar_details=_pillar_details(eight_char),
         lunar_date=lunar.toString(),
         great_luck_start=GreatLuckStart(
             years=yun.getStartYear(),

@@ -331,7 +331,7 @@ export function App() {
     })
   }
 
-  async function requestChart(user: StoredUser) {
+  async function requestChart(user: StoredUser): Promise<boolean> {
     chartRequest.current?.abort('superseded')
     fortuneRequest.current?.abort('superseded')
     const controller = new AbortController()
@@ -346,11 +346,12 @@ export function App() {
     setRequestedFortuneScope('today')
     try {
       const result = await postJson<ChartResponse>('/v1/charts', user.birth, controller, '排盘服务暂时不可用。')
-      if (chartRequest.current !== controller) return
+      if (chartRequest.current !== controller) return false
       setChart(result)
       void loadFortune('today', user.birth)
+      return true
     } catch (reason) {
-      if (chartRequest.current !== controller) return
+      if (chartRequest.current !== controller) return false
       const message = requestError(reason, controller, '无法连接排盘服务。')
       if (message) setError(message)
     } finally {
@@ -359,6 +360,7 @@ export function App() {
         setIsSubmitting(false)
       }
     }
+    return false
   }
 
   function switchUser(id: string) {
@@ -461,7 +463,12 @@ export function App() {
     setCurrentUserId(updated.id)
     setEditingUserId(updated.id)
     writeLocalStorage(CURRENT_USER_KEY, updated.id)
-    void requestChart(updated)
+    const chartLoaded = await requestChart(updated)
+    // 排盘成功后直接看命盘：四柱、十神、藏干、大运；失败时留在表单页显示错误。
+    if (chartLoaded) {
+      window.location.hash = '#chart'
+      setActiveView('chart')
+    }
   }
 
   async function loadFortune(scope: FortuneScope, payloadOverride?: BirthPayload) {
@@ -552,6 +559,7 @@ export function App() {
           <div className="today-results">
             <FortuneConsole
               chartReady={Boolean(chart || isSubmitting)}
+              aiOwner={currentUserId ?? 'anon'}
               daily={daily} periods={periods} windowTransit={windowTransit}
               scope={fortuneScope} requestedScope={requestedFortuneScope} error={fortuneError}
               isLoading={isLoadingFortune || (isSubmitting && !chart)} theme={theme}
@@ -583,7 +591,7 @@ export function App() {
           <h1 id="ask-title">问事</h1>
         </header>
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
-          : <DomainAnalysisConsole chart={chart} onSave={saveReading} />}
+          : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} onSave={saveReading} />}
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">

@@ -18,7 +18,14 @@ export type ChartResponse = {
     calculation_datetime: string
     lunar_date: string
     pillars: Pillars
+    pillar_details: Array<{
+      pillar: string
+      ten_god: string
+      hidden_stems: Array<{ stem: string; ten_god: string }>
+      nayin: string
+    }>
     great_luck_start: { years: number; months: number; days: number; direction: string; first_pillar: string }
+    great_luck_periods: Array<{ pillar: string; start_datetime: string; end_datetime: string; start_age: number; end_age: number }>
     verification_status: VerificationStatus
   }
   ziwei: {

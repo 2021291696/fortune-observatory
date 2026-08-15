@@ -116,7 +116,7 @@ app.add_middleware(
     request_body_timeout_seconds=5.0,
     max_concurrent_calculations=8,
     calculation_timeout_seconds=12.0,
-    ai_timeout_seconds=14.0,
+    ai_timeout_seconds=24.0,
 )
 
 
@@ -141,9 +141,10 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
     # ambiguity must not suppress an otherwise verified palace context.
     if chart.ziwei.verification_status != "verified":
         return {}
-    # Health and wealth stay deterministic-only: an explanation model adds
-    # less value than the medical/financial instruction risk it introduces.
-    domain_palaces = {"relationship": "夫妻", "career": "官禄"}
+    # All four domains share AI context; the provider prompt already blocks
+    # medical diagnosis and investment instructions, so facts stay on star
+    # placements and lifestyle framing only.
+    domain_palaces = {"health": "疾厄", "relationship": "夫妻", "career": "官禄", "wealth": "财帛"}
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
