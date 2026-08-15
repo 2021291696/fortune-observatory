@@ -70,14 +70,14 @@
 .ask-view .domain-output, .ask-view .feature-empty { min-height: 190px; }
 .ask-view .content-heading { margin-bottom: 18px; }
 .ask-view .content-heading h2 { font-size: clamp(30px, 4vw, 48px); }
-.ask-view .domain-console, .ask-view .fortune-console { box-shadow: 0 7px 0 color-mix(in srgb, var(--accent) 16%, transparent); }
+.ask-view .domain-console, .ask-view .fortune-console { box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(17,17,17,.05), 0 2px 5px rgba(17,17,17,.06), 0 18px 38px -14px rgba(17,17,17,.25); }
 
 .task-gate { min-height: 270px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px; padding: 28px; border: 1.5px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--wash) 22%, #fff); box-shadow: var(--shadow); }
 .task-gate > svg { color: var(--accent); }
 .task-gate > div { display: grid; gap: 5px; }
 .task-gate strong { font-size: 22px; }
 .task-gate p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
-.chart-view .chart-result { box-shadow: 0 8px 0 color-mix(in srgb, var(--accent) 18%, transparent); }
+.chart-view .chart-result { box-shadow: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(17,17,17,.05), 0 2px 5px rgba(17,17,17,.06), 0 18px 38px -14px rgba(17,17,17,.25); }
 
 .profile-grid { display: grid; grid-template-columns: 1.15fr .85fr; gap: 16px; margin-bottom: 46px; }
 .preference-card, .privacy-card { min-width: 0; padding: 22px; border: 1px solid var(--soft-line); border-radius: 14px; background: var(--surface); box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 12%, transparent); }

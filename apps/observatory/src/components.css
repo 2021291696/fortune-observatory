@@ -1,25 +1,36 @@
 /* Glass cards: layered translucency, top highlight, floating shadow. */
 .chart-result, .domain-console, .fortune-console, .saved-panel {
   position: relative;
-  border: 1px solid rgba(255,255,255,.7);
+  border: 1px solid rgba(255,255,255,.75);
   border-radius: 18px;
-  background: linear-gradient(165deg, rgba(255,255,255,.82) 0%, rgba(255,255,255,.55) 100%);
-  backdrop-filter: blur(14px) saturate(1.35);
+  background: linear-gradient(165deg, rgba(255,255,255,.62) 0%, rgba(255,255,255,.34) 100%);
+  backdrop-filter: blur(16px) saturate(1.5);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 0 0 1px rgba(255,255,255,.28),
     inset 0 -1px 0 rgba(17,17,17,.05),
-    0 2px 5px rgba(17,17,17,.06),
-    0 18px 38px -14px rgba(17,17,17,.25);
+    0 2px 5px rgba(17,17,17,.07),
+    0 20px 44px -14px rgba(17,17,17,.28);
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.chart-result::before, .domain-console::before, .fortune-console::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 42%;
+  background: linear-gradient(180deg, rgba(255,255,255,.5), transparent);
+  border-radius: 18px 18px 0 0;
+  pointer-events: none;
 }
 .chart-result:hover, .domain-console:hover, .fortune-console:hover {
   transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 0 0 1px rgba(255,255,255,.28),
     inset 0 -1px 0 rgba(17,17,17,.05),
-    0 3px 6px rgba(17,17,17,.07),
-    0 24px 46px -14px rgba(17,17,17,.3);
+    0 3px 6px rgba(17,17,17,.08),
+    0 26px 52px -14px rgba(17,17,17,.33);
 }
 
 .result-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 26px 30px; border-bottom: 1px solid var(--soft-line); }
@@ -41,11 +52,11 @@
 .board-row:last-child { border-bottom: 0; }
 .board-row .row-label { padding: 10px 0 10px 18px; color: var(--muted); font-size: 11px; font-weight: 850; text-align: left; }
 .board-row > b, .board-row > small, .board-row > .hidden-stack { min-width: 0; padding: 10px 6px; text-align: center; }
-.board-head { background: color-mix(in srgb, var(--paper) 60%, var(--surface)); }
+.board-head { background: color-mix(in srgb, var(--wash) 22%, rgba(255,255,255,.4)); }
 .board-head b { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .05em; }
 .board-row > b { font-size: 13px; font-weight: 800; }
 .board-row > b.is-daymaster { color: #fff; background: var(--ink); border-radius: 8px; padding: 4px 8px; width: max-content; margin: 0 auto; }
-.gan-zhi { display: inline-grid; place-items: center; width: clamp(44px, 4.6vw, 58px); height: clamp(44px, 4.6vw, 58px); border: 2px solid currentColor; border-radius: 12px; background: color-mix(in srgb, currentColor 9%, #fff); font-family: 'STKaiti', 'KaiTi', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 700; }
+.gan-zhi { display: inline-grid; place-items: center; justify-self: center; width: clamp(44px, 4.6vw, 58px); height: clamp(44px, 4.6vw, 58px); border: 2px solid currentColor; border-radius: 12px; background: color-mix(in srgb, currentColor 9%, #fff); font-family: 'STKaiti', 'KaiTi', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 700; }
 .board-zhi .gan-zhi { border-radius: 50% 46% 50% 46%; }
 .hidden-stack { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .hidden-stack i { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 7px; background: color-mix(in srgb, currentColor 9%, #fff); font-size: 13px; font-style: normal; font-weight: 750; }
@@ -55,8 +66,8 @@
 
 /* Dayun strip: one cell per decade with virtual ages. */
 .dayun-strip { display: grid; grid-template-columns: 74px repeat(auto-fit, minmax(64px, 1fr)); align-items: stretch; gap: 1px; padding: 14px 18px; border-bottom: 1px solid var(--soft-line); background: var(--soft-line); }
-.dayun-label { display: grid; place-content: center; text-align: center; color: var(--accent); font-size: 12px; font-weight: 900; line-height: 1.5; background: var(--surface); }
-.dayun-cell { display: grid; justify-items: center; gap: 2px; padding: 8px 2px; background: var(--surface); }
+.dayun-label { display: grid; place-content: center; text-align: center; color: var(--accent); font-size: 12px; font-weight: 900; line-height: 1.5; background: rgba(255,255,255,.5); }
+.dayun-cell { display: grid; justify-items: center; gap: 2px; padding: 8px 2px; background: rgba(255,255,255,.42); }
 .dayun-cell small { color: var(--muted); font-size: 9px; font-weight: 750; }
 .dayun-cell b { font-family: 'STKaiti', 'KaiTi', serif; font-size: 21px; font-weight: 700; letter-spacing: .04em; }
 .dayun-cell b > span + span { margin-left: 2px; }
