@@ -81,6 +81,14 @@ def desktop_flow(browser) -> dict[str, object]:
     page.screenshot(path=ARTIFACTS / "desktop-result.png", full_page=False)
     assert page.locator("#today-brief .daily-card").first.is_visible()
     assert "日柱" in page.locator("#today").inner_text()
+    summary_text = page.locator(".birth-summary").inner_text()
+    assert "2000-01-01" in summary_text and "08:30" in summary_text
+    page.get_by_role("button", name="修改").click()
+    page.locator("#birth-form").wait_for()
+    assert page.locator('input[name="civilDate"]').input_value() == "2000-01-01"
+    assert page.locator('select[name="placePreset"]').input_value() == "beijing"
+    page.get_by_role("button", name="返回结果").click()
+    page.locator(".birth-summary").wait_for()
 
     page.locator('.primary-nav a[href="#ask"]').click()
     page.locator(".domain-choices button", has_text="事业").click()

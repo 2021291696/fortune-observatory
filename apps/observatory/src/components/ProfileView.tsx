@@ -23,7 +23,6 @@ export function ProfileView({
 }) {
   return <section className="task-view profile-view" id="profile" aria-labelledby="profile-title">
     <header className="task-heading">
-      <span>我的</span>
       <h1 id="profile-title">保存、外观与隐私</h1>
     </header>
 
