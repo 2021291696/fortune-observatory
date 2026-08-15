@@ -34,7 +34,6 @@
 .today-view.is-ready .today-results { grid-column: 1; grid-row: 1; }
 .today-view.is-ready .launch-section { grid-column: 2; grid-row: 1; min-height: 0; display: block; position: sticky; top: 86px; padding: 20px; border: 1.5px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
 .today-view.is-ready .launch-copy h1 { max-width: none; min-height: 0; font-size: 32px; line-height: 1.03; }
-.today-view.is-ready .launch-deck { max-width: none; font-size: 12px; }
 .today-view.is-ready .birth-form { max-width: none; margin-top: 14px; padding: 12px; box-shadow: 0 5px 0 rgba(17,17,17,.1); }
 .today-view.is-ready .meme-stage { min-height: 190px; margin-top: 12px; }
 .today-view.is-ready .main-meme { inset: -2% 11% -18%; }
@@ -49,12 +48,7 @@
 .today-view.is-ready .daily-card-primary > strong { max-width: 760px; font-size: clamp(20px, 2.4vw, 30px); }
 .today-view.is-ready .daily-card-primary > p { max-width: 720px; margin-top: 12px; color: rgba(255,255,255,.82); font-size: 13px; }
 .daily-brief-note { margin: 16px 2px 0; color: #5e5843; font-size: 10px; line-height: 1.55; }
-.next-task-card { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 18px; padding: 22px 24px; border: 1px solid var(--soft-line); border-radius: 14px; background: var(--surface); }
-.next-task-card > div { display: grid; gap: 5px; }
-.next-task-card span { color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: .06em; }
-.next-task-card strong { font-size: 20px; }
-.next-task-card p { max-width: 620px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
-.next-task-card a, .task-gate a { flex: 0 0 auto; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border-radius: 9px; color: #fff; background: var(--accent); text-decoration: none; font-size: 12px; font-weight: 900; }
+.task-gate a { flex: 0 0 auto; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 0 15px; border-radius: 9px; color: #fff; background: var(--accent); text-decoration: none; font-size: 12px; font-weight: 900; }
 
 .ask-view, .chart-view, .profile-view { padding: 0 max(20px, calc((100vw - 1180px) / 2)) 64px; }
 .ask-view .task-heading, .chart-view .task-heading, .profile-view .task-heading { max-width: none; }
@@ -118,13 +112,11 @@
   .today-view.is-ready .today-results { order: 1; width: 100%; }
   .today-view.is-ready .launch-section { order: 2; width: calc(100% - 28px); position: relative; top: auto; margin: 0 14px; padding: 18px; }
   .today-view.is-ready .launch-copy h1 { max-width: none; font-size: 29px; }
-  .today-view.is-ready .launch-deck { max-width: none; }
+  
   .today-view.is-ready .meme-stage { display: none; }
   .today-view.is-ready .daily-brief { padding: 26px 14px 32px; border-width: 0 0 2px; border-radius: 0; box-shadow: none; }
   .today-view.is-ready .daily-brief-grid { grid-template-columns: 1fr; }
   .today-view.is-ready .daily-card-primary, .today-view.is-ready .daily-card:last-child { grid-column: auto; }
-  .next-task-card { align-items: stretch; flex-direction: column; margin: 14px; padding: 19px; }
-  .next-task-card a { width: 100%; }
 
   .ask-view, .chart-view, .profile-view { padding: 0 14px 44px; }
   .ask-view .fortune-section { margin-top: 42px; }
@@ -140,7 +132,7 @@
 @media (max-width: 440px) {
   .session-state { font-size: 9px; }
   .today-view:not(.is-ready) .launch-copy h1 { max-width: calc(100% - 130px); font-size: 40px; }
-  .today-view:not(.is-ready) .launch-deck { max-width: calc(100% - 122px); }
+  
   .profile-view .remote-options { grid-template-columns: repeat(2, 1fr); }
   .profile-view .remote-options button, .profile-view .remote-options button:nth-child(n) { min-width: 0; grid-template-columns: 25px auto; }
 }

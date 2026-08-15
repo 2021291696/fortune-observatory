@@ -8,6 +8,7 @@ import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
+import { birthPlaces } from './birthPlaces'
 import { dateKey, fortuneWindow } from './dates'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
@@ -294,10 +295,24 @@ export function App() {
     const fields = new FormData(event.currentTarget)
     const civilDate = String(fields.get('civilDate') ?? '')
     const civilTime = String(fields.get('civilTime') ?? '')
-    const longitude = Number(fields.get('longitude'))
-    const latitude = Number(fields.get('latitude'))
-    if (!civilDate || !civilTime || !Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-      setError('请完整填写有效的出生日期、时间与经纬度。')
+    const placeId = String(fields.get('placePreset') ?? '')
+    let longitude: number
+    let latitude: number
+    if (placeId === 'manual') {
+      longitude = Number(fields.get('longitude'))
+      latitude = Number(fields.get('latitude'))
+    } else {
+      const place = birthPlaces.find((item) => item.id === placeId)
+      longitude = place?.longitude ?? Number.NaN
+      latitude = place?.latitude ?? Number.NaN
+    }
+    if (!civilDate || !civilTime) {
+      setError('请完整填写出生日期与时间。')
+      return
+    }
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)
+      || longitude < -180 || longitude > 180 || latitude < -90 || latitude > 90) {
+      setError(placeId === 'manual' ? '请填写有效的经度（-180~180）与纬度（-90~90）。' : '请选择一个出生地。')
       return
     }
     const civilCandidates = shanghaiCivilCandidates(civilDate, civilTime)
@@ -415,7 +430,6 @@ export function App() {
           <div className="launch-copy">
             <p className="eyebrow">今日 · {theme.navLabel}陪你看</p>
             <h1 id="today-title">{chart ? '今天的重点，已经算好。' : '今天，该把力气放在哪？'}</h1>
-            <p className="launch-deck">{chart ? '结果按固定规则生成；需要时可以在这里更新出生资料。' : '填日期、时间、城市和性别，先拿到今天的重点，再决定要不要继续问。'}</p>
             <BirthForm isSubmitting={isSubmitting} error={error} onSubmit={submit} onClear={clearSession} hasChart={Boolean(chart)} />
           </div>
           <MemeStage theme={theme} motionPaused={motionPaused} />
@@ -426,19 +440,14 @@ export function App() {
             chartReady={Boolean(chart)} daily={daily} periods={periods} error={fortuneError}
             isLoading={isLoadingFortune} onRetry={() => void loadFortune('today')}
           />
-          {chart && <div className="next-task-card">
-            <div><span>下一步 · 可选</span><strong>有一件具体的事想问？</strong><p>去“问事”选择健康、感情、事业、财运，或查看明日到下月的时间范围。</p></div>
-            <a href="#ask" onClick={() => navigate('ask')}>去问一件事 <ArrowRight size={19} weight="bold" /></a>
-          </div>}
         </div>
       </section>}
 
       {activeView === 'ask' && <section className="task-view ask-view" id="ask" aria-labelledby="ask-title">
         <header className="task-heading">
-          <span>问事</span><h1 id="ask-title">现在，你具体想问什么？</h1>
-          <p>选一个具体领域，或直接看某段时间；两类结果分别计算，不会拼接成一句吉凶。</p>
+          <span>问事</span><h1 id="ask-title">你想问什么？</h1>
         </header>
-        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong><p>问事需要使用你的命盘事实，出生资料不会默认保存。</p></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <>
+        {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div> : <>
           <DomainAnalysisConsole chart={chart} onSave={saveReading} />
           <FortuneConsole
             chartReady daily={daily} periods={periods} windowTransit={windowTransit}
@@ -449,10 +458,10 @@ export function App() {
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
-        <header className="task-heading"><span>命盘</span><h1 id="chart-title">先看摘要，需要时再展开依据。</h1><p>四柱、十二宫和计算轨迹来自同一份输入；外观主题不参与计算。</p></header>
+        <header className="task-heading"><span>命盘</span><h1 id="chart-title">命盘摘要</h1></header>
         <div className="chart-output" aria-live="polite">
           {isSubmitting && chart && <div className="updating-status" role="status">正在按新资料更新，上一份有效命盘暂时保留。</div>}
-          {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong><p>回到“今日”填写四项资料，计算完成后再来查看完整依据。</p></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
+          {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#today" onClick={() => navigate('today')}>去填写资料 <ArrowRight size={18} /></a></div>}
         </div>
       </section>}
 
@@ -465,8 +474,7 @@ export function App() {
 
     <footer className="site-footer">
       <div><strong>看运</strong><span>认真算，轻松看。</span></div>
-      <p>传统解释框架，不构成医疗、法律或投资建议。</p>
-      <span><CheckCircle size={17} weight="fill" /> 规则计算，可复现</span>
+      <p>传统命理解释框架，不构成医疗、法律或投资建议。</p>
     </footer>
 
     {savedNotice && <div className="save-toast" role="status"><CheckCircle size={18} weight="fill" />{savedNotice}</div>}

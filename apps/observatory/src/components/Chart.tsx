@@ -19,7 +19,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
   return <article className="chart-result">
     <header className="result-header">
       <div>
-        <span>命盘摘要 / REPRODUCIBLE CHART</span>
+        <span>命盘摘要</span>
         <h2>{pillars.join(' · ')}</h2>
         <p>农历 {chart.bazi.lunar_date}，{chart.bazi.input_time_basis === 'apparent_solar' ? '真太阳时口径' : '民用时间口径'}</p>
       </div>
@@ -51,7 +51,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
     <details className="chart-full-details">
       <summary>查看完整命盘、十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
-      <div className="section-kicker"><span>可执行解读</span><small>只引用已计算事实</small></div>
+      <div className="section-kicker"><span>可执行解读</span></div>
       <div className="insight-list">
         {chart.natal_insights.map((insight, index) => <article key={insight.insight_id}>
           <b>{String(index + 1).padStart(2, '0')}</b>
@@ -61,7 +61,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
     </section>}
 
     <section className="ziwei-section">
-      <div className="section-kicker"><span>紫微十二宫</span><small>大限 / 小限</small></div>
+      <div className="section-kicker"><span>紫微十二宫</span></div>
       <div className="palace-grid">
         {chart.ziwei.palaces.map((palace) => <article className={palace.is_body_palace ? 'is-body-palace' : ''} key={`${palace.name}-${palace.branch}`}>
           <span>{palace.branch}</span><h3>{palace.name}{palace.is_body_palace ? ' · 身宫' : ''}</h3>

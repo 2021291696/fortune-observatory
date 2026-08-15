@@ -16,24 +16,23 @@ type DomainResult = {
 const domainConfig: Record<AnalysisDomain, {
   palace: string
   label: string
-  prompt: string
   action: string
   icon: ComponentType<{ size?: number; weight?: 'bold' | 'fill' }>
 }> = {
   health: {
-    palace: '疾厄', label: '健康', prompt: '从疾厄宫读取身体议题的结构入口', icon: Heartbeat,
+    palace: '疾厄', label: '健康', icon: Heartbeat,
     action: '把睡眠、饮食、活动量与不适记录成可复查的时间线；持续或明显不适请优先交给专业医生。',
   },
   relationship: {
-    palace: '夫妻', label: '姻缘', prompt: '从夫妻宫读取亲密关系的互动入口', icon: Heart,
+    palace: '夫妻', label: '姻缘', icon: Heart,
     action: '把沟通节奏、个人边界与冲突后的恢复方式分开观察，用真实互动校准命盘语言。',
   },
   career: {
-    palace: '官禄', label: '事业', prompt: '从官禄宫读取职业发展的结构入口', icon: Briefcase,
+    palace: '官禄', label: '事业', icon: Briefcase,
     action: '把专业能力、责任边界与下一阶段作品拆开列出，先推进一个可以被验证的最小成果。',
   },
   wealth: {
-    palace: '财帛', label: '财运', prompt: '从财帛宫读取资源与现金流的结构入口', icon: Coins,
+    palace: '财帛', label: '财运', icon: Coins,
     action: '先定义现金流、风险上限和不可承受损失，再讨论机会；命盘不能替代具体财务数据。',
   },
 }
@@ -63,8 +62,8 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
 
   return {
     title: `${config.label} · ${config.palace}宫在${palace.branch}`,
-    lead: `${config.prompt}。宫内主星：${majorStars}；辅星：${minorStars}${mutagenCopy}。`,
-    structure: `这是一组领域定位事实，不是吉凶评分。单宫尚不足以推出确定结果，当前引擎也不会把八字、紫微和七政机械相加。`,
+    lead: `主星：${majorStars}；辅星：${minorStars}${mutagenCopy}。`,
+    structure: `这是领域定位事实，不是吉凶评分。`,
     action: config.action,
     evidence: [
       `${config.palace}宫 · ${palace.branch}`, `大限 ${palace.decadal_range[0]} 至 ${palace.decadal_range[1]}`,
@@ -97,9 +96,7 @@ export function DomainAnalysisConsole({ chart, onSave }: {
 
   return <section className="analysis-section" id="analysis">
     <header className="content-heading compact-heading">
-      <span>第一步 · 选问题</span>
       <h2>你最想问哪件事？</h2>
-      <p>健康、感情、事业、财运分开看；只展开你主动选择的领域。</p>
     </header>
     <div className={`domain-console ${chart ? 'is-ready' : ''}`}>
       <div className="domain-choices" role="group" aria-label="选择专项分析">
@@ -114,14 +111,14 @@ export function DomainAnalysisConsole({ chart, onSave }: {
             onClick={() => request(domain)}
           >
             <Icon size={25} weight={active === domain ? 'fill' : 'bold'} />
-            <span>{label}<small>{results[domain] ? '已生成 · 查看' : '按需分析'}</small></span>
+            <span>{label}</span>
           </button>
         })}
       </div>
 
       <div className="domain-output" aria-live="polite">
-        {!chart && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>等待命盘完成</strong><p>这里不会提前生成套话，也不会自动分析四个领域。</p></div></div>}
-        {chart && !result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>命盘已就绪</strong><p>选择一个领域开始。已经生成的其他领域会继续保留。</p></div></div>}
+        {!chart && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>先完成排盘</strong></div></div>}
+        {chart && !result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>选择一个领域开始</strong></div></div>}
         {result && activeConfig && active && chart && <article className="domain-reading">
           <header><span>{activeConfig.label} / 命盘依据</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>

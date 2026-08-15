@@ -3,10 +3,10 @@ import { ChatCircleDots, StarFour, Sun, UserCircle } from '@phosphor-icons/react
 export type AppView = 'today' | 'ask' | 'chart' | 'profile'
 
 const views = [
-  { id: 'today', label: '今日', hint: '先看重点', icon: Sun },
-  { id: 'ask', label: '问事', hint: '具体问题', icon: ChatCircleDots },
-  { id: 'chart', label: '命盘', hint: '查看依据', icon: StarFour },
-  { id: 'profile', label: '我的', hint: '保存与设置', icon: UserCircle },
+  { id: 'today', label: '今日', icon: Sun },
+  { id: 'ask', label: '问事', icon: ChatCircleDots },
+  { id: 'chart', label: '命盘', icon: StarFour },
+  { id: 'profile', label: '我的', icon: UserCircle },
 ] as const
 
 export function viewFromHash(hash = window.location.hash): AppView {
@@ -22,7 +22,7 @@ export function AppNavigation({ activeView, onNavigate }: {
   onNavigate: (view: AppView) => void
 }) {
   return <nav className="primary-nav" aria-label="核心功能">
-    {views.map(({ id, label, hint, icon: Icon }) => <a
+    {views.map(({ id, label, icon: Icon }) => <a
       key={id}
       className={activeView === id ? 'is-active' : ''}
       href={`#${id}`}
@@ -30,7 +30,7 @@ export function AppNavigation({ activeView, onNavigate }: {
       onClick={() => onNavigate(id)}
     >
       <Icon size={22} weight={activeView === id ? 'fill' : 'bold'} />
-      <span><strong>{label}</strong><small>{hint}</small></span>
+      <span><strong>{label}</strong></span>
     </a>)}
   </nav>
 }

@@ -1,4 +1,4 @@
-import { ArrowClockwise, CheckCircle, Lightning, ShieldCheck, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
+import { ArrowClockwise, CheckCircle, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
 import type { DailyTransitResponse, TransitResponse } from '../types'
 
 const relationLabels = {
@@ -37,21 +37,16 @@ export function DailyBrief({
 
   return <section className="daily-brief" id="today-brief" aria-labelledby="daily-brief-title" tabIndex={-1}>
     <div className="daily-brief-heading">
-      <div>
-        <span><Lightning size={17} weight="fill" /> 排盘后自动生成</span>
-        <h2 id="daily-brief-title">今天，先做这一件事。</h2>
-      </div>
-      <p><ShieldCheck size={17} weight="bold" /> 固定规则计算 · 结果可复现</p>
+      <h2 id="daily-brief-title">今天，先做这一件事。</h2>
     </div>
 
     {!chartReady && <div className="daily-brief-empty">
       <strong>填写出生资料后，今日结果会出现在这里。</strong>
-      <span>没有可靠事实就不生成结论，也不会用套话填空。</span>
     </div>}
 
     {chartReady && isLoading && !daily && <div className="daily-brief-loading" role="status">
       <SpinnerGap className="spin" size={24} />
-      <div><strong>正在读取今天的干支关系</strong><span>命盘已完成，今日层正在计算。</span></div>
+      <div><strong>正在计算今日运势</strong></div>
     </div>}
 
     {chartReady && error && !daily && <div className="daily-brief-error" role="alert">
@@ -69,15 +64,14 @@ export function DailyBrief({
       <article className="daily-card daily-card-primary daily-card-action">
         <span>今天可以先做</span>
         <strong>{action ?? (error ? '详细建议暂不可用' : periods ? '本次不生成行动建议' : '等待详细时间层')}</strong>
-        <p>{periods?.transit.insights[0]?.summary
-          ?? (error ? '时间层没有完整返回，系统不会用套话补写行动建议。' : '当前没有足够事实支持额外建议。')}</p>
+        <p>{periods?.transit.insights[0]?.summary ?? (error ? '详细建议暂不可用。' : '当前没有足够事实支持额外建议。')}</p>
       </article>
       <article className="daily-card">
         <span>主要关系信号</span>
         <strong>{primaryFact ? relationLabels[primaryFact.relation] : '未见已定义关系'}</strong>
         <p>{primaryFact
           ? `${primaryFact.natal_pillar} 与 ${primaryFact.transit_pillar}，共 ${facts.length} 条可追溯事实`
-          : '未检测到地支冲、合或同支，不额外推断吉凶。'}</p>
+          : '未检测到地支冲、合或同支。'}</p>
       </article>
       <article className="daily-card">
         <span>今日计算状态</span>
@@ -90,8 +84,8 @@ export function DailyBrief({
         <strong>{greatLuck ? `${periodLabels[greatLuck.period]} ${greatLuck.pillar}` : error ? '详细时间层暂不可用' : '等待时间层'}</strong>
         <p>{periods
           ? `流年、流月、流日均已按 ${daily.transit.transit_date} 计算。`
-          : error ? '系统保留已经验证的日柱，不会用缺失数据补写大运。' : '基础日柱已经生成，详细时间层仍在读取。'}</p>
+          : error ? '详细时间层暂不可用。' : '详细时间层仍在读取。'}</p>
       </article>
-    </div><p className="daily-brief-note">传统命理解释仅供参考；“计算可复现”不代表对现实结果的科学预测。</p></>}
+    </div></>}
   </section>
 }

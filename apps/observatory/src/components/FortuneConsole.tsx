@@ -93,17 +93,15 @@ export function FortuneConsole(props: FortuneProps) {
 
   return <section className="fortune-section" id="fortune">
     <header className="content-heading">
-      <span>或者 · 选时间</span>
       <h2>你想看哪段时间？</h2>
-      <p>今日已经自动计算；明日、本周、下周、本月和下月，只在你点击时生成。</p>
     </header>
     <div className={`fortune-console ${chartReady ? 'is-ready' : ''}`} aria-live="polite">
       {!chartReady ? <div className="fortune-empty">
         <div className="reaction-frame"><MemeMedia source={theme.stickers[0] ?? theme.mainMedia} /></div>
-        <div><span>WAITING FOR CHART</span><h3>先完成上面的排盘。</h3><p>命盘验证完成后，今日运势会自动在这里出现。</p><a href="#birth-form">去填写资料 <ArrowRight size={18} /></a></div>
+        <div><span>WAITING FOR CHART</span><h3>先完成排盘</h3><a href="#birth-form">去填写资料 <ArrowRight size={18} /></a></div>
       </div> : <>
         <div className="fortune-toolbar">
-          <div><Lightning size={19} weight="fill" /><span>{selectedLabel}分析</span><small>{isLoading ? `正在生成${requestedLabel}` : scope === 'today' ? '排盘后自动' : '按你的要求'}</small></div>
+          <div><Lightning size={19} weight="fill" /><span>{selectedLabel}分析</span></div>
           <div className="fortune-scopes" role="group" aria-label="选择运势周期">
             {fortuneScopes.map(([key, label]) => <button
               key={key}
@@ -116,7 +114,7 @@ export function FortuneConsole(props: FortuneProps) {
           </div>
         </div>
         <div className="fortune-output">
-          {isLoading && <div className={hasReading ? 'fortune-refreshing' : 'fortune-loading'} role="status"><SpinnerGap className="spin" size={28} /><strong>正在读取干支关系与时间层</strong><span>{hasReading ? '上一份有效结果暂时保留。' : '这一步只使用已经生成的命盘事实。'}</span></div>}
+          {isLoading && <div className={hasReading ? 'fortune-refreshing' : 'fortune-loading'} role="status"><SpinnerGap className="spin" size={28} /><strong>正在计算{requestedLabel}</strong>{hasReading && <span>上一份结果暂时保留</span>}</div>}
           {error && <div className="fortune-error"><strong>{error.includes('已生成') ? '部分结果已生成' : `${requestedLabel}这次没算出来`}</strong><p>{error}</p><button type="button" disabled={isLoading} onClick={() => onRequest(requestedScope)}>重试{requestedLabel}</button></div>}
           {daily && <div className="fortune-reading">
             <header><div><span>{daily.transit.transit_date}</span><h3>日柱 {daily.transit.day_pillar}</h3></div><em>{daily.transit.verification_status === 'verified' ? '计算已核验' : '计算待核验'}</em></header>
@@ -128,7 +126,7 @@ export function FortuneConsole(props: FortuneProps) {
           </div>}
           {windowTransit && <div className="fortune-reading window-reading">
             <header><div><span>{windowTransit.transit.start_date} 至 {windowTransit.transit.end_date}</span><h3>{selectedLabel}时间窗口</h3></div><em>{windowTransit.transit.verification_status === 'verified' ? '计算已核验' : '计算待核验'}</em></header>
-            <p className="reading-lead">共覆盖 {windowDays.length} 天，其中 {activeDays.length} 天出现可追溯关系。{windowRead}</p>
+            <p className="reading-lead">共 {windowDays.length} 天，{activeDays.length} 天出现可追溯关系。{windowRead}</p>
             <div className="fortune-counts"><span><b>{supportCount}</b>合</span><span><b>{tensionCount}</b>冲</span><span><b>{sameCount}</b>同支</span></div>
             {activeDays.length > 0 && <div className="active-dates">{activeDays.slice(0, 12).map((day) => <span key={day.transit_date}><b>{day.transit_date.slice(5)}</b>{day.facts.map((fact) => relationLabels[fact.relation]).join('、')}</span>)}</div>}
             <button className="reading-save" type="button" disabled={isLoading} onClick={saveFortune}><FloppyDisk size={18} weight="bold" /> 保存{selectedLabel}运势</button>

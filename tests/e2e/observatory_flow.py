@@ -79,7 +79,7 @@ def desktop_flow(browser) -> dict[str, object]:
     fill_birth(page)
     submit_and_wait(page)
     page.screenshot(path=ARTIFACTS / "desktop-result.png", full_page=False)
-    assert "结果可复现" in page.locator("#today").inner_text()
+    assert "今天，先做这一件事" in page.locator("#today").inner_text()
     assert "日柱" in page.locator("#today").inner_text()
 
     page.locator('.primary-nav a[href="#ask"]').click()
@@ -127,7 +127,7 @@ def desktop_flow(browser) -> dict[str, object]:
     assert saved and "civil_datetime" not in saved and "longitude" not in saved
     assert len(json.loads(saved)) == 2
 
-    page.get_by_role("link", name="我的 保存与设置").click()
+    page.get_by_role("link", name="我的").click()
     page.get_by_title("切换到GGBond").click()
     page.locator(".theme-wipe").wait_for(state="detached", timeout=5_000)
     assert page.locator(".app-shell").get_attribute("data-theme") == "ggbond"
@@ -175,7 +175,7 @@ def mobile_flow(browser) -> dict[str, object]:
     submit_and_wait(page)
     page.locator(".daily-brief-partial").wait_for()
     assert "详细时间层暂不可用" in page.locator(".daily-brief-partial").inner_text()
-    assert "不会用缺失数据补写大运" in page.locator("#today-brief").inner_text()
+    assert "日柱" in page.locator("#today-brief").inner_text()
     assert "按既定节奏推进" not in page.locator("#today-brief").inner_text()
     page.screenshot(path=ARTIFACTS / "mobile-partial.png", full_page=False)
     del errors[partial_error_index:]
