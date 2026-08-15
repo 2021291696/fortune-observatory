@@ -7,14 +7,31 @@ Run with PowerShell:
 
 from __future__ import annotations
 
+import logging
 import os
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
 
 from security import RequestGuardMiddleware
+from ai_explainer import (
+    AiBudgetExceeded,
+    AiConfigurationError,
+    AiContextBundle,
+    AiExplainRequest,
+    AiExplainResponse,
+    AiFact,
+    AiProviderError,
+    AiStatusResponse,
+    build_signed_context,
+    derive_context_group,
+    explain_with_ai,
+    provider_is_available,
+)
 
 from fortune_core.bazi import active_great_luck, calculate_bazi
 from fortune_core.models import (
@@ -36,6 +53,26 @@ from fortune_core.signals import build_natal_insights
 from fortune_core.time_location import build_time_trace
 from fortune_core.transit import calculate_daily_transit, calculate_transit, calculate_transit_window
 from fortune_core.ziwei import calculate_palaces
+
+logger = logging.getLogger("fortune.api")
+
+RELATION_LABELS = {
+    "branch_clash": "地支冲",
+    "branch_combination": "地支合",
+    "branch_same": "同支",
+}
+PERIOD_LABELS = {"great_luck": "大运", "year": "流年", "month": "流月", "day": "流日"}
+
+ERROR_SECURITY_HEADERS = {
+    "Cache-Control": "no-store",
+    "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+    "Cross-Origin-Resource-Policy": "same-site",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+    "Referrer-Policy": "no-referrer",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+}
 
 cors_origins = [
     origin.strip()
@@ -63,9 +100,177 @@ app.add_middleware(
     max_body_bytes=16_384,
     requests_per_minute=90,
     global_requests_per_minute=900,
+    max_concurrent_body_readers=32,
+    request_body_timeout_seconds=5.0,
     max_concurrent_calculations=8,
     calculation_timeout_seconds=12.0,
 )
+
+
+class ChartApiResponse(ChartResponse):
+    ai_contexts: dict[str, AiContextBundle]
+
+
+class DailyTransitApiResponse(DailyTransitResponse):
+    ai_context: AiContextBundle | None = None
+
+
+class TransitWindowApiResponse(TransitWindowResponse):
+    ai_context: AiContextBundle | None = None
+
+
+class TransitApiResponse(TransitResponse):
+    ai_context: AiContextBundle | None = None
+
+
+def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
+    # Domain facts below come only from the Ziwei snapshot; unrelated Qizheng
+    # ambiguity must not suppress an otherwise verified palace context.
+    if chart.ziwei.verification_status != "verified":
+        return {}
+    # Health and wealth stay deterministic-only: an explanation model adds
+    # less value than the medical/financial instruction risk it introduces.
+    domain_palaces = {"relationship": "夫妻", "career": "官禄"}
+    contexts: dict[str, AiContextBundle] = {}
+    for domain, palace_name in domain_palaces.items():
+        palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
+        if palace is None:
+            continue
+        major_stars = (
+            "、".join(f"{star}（{brightness}）" for star, brightness in palace.major_star_brightness)
+            or "、".join(palace.major_stars)
+            or "当前无主星数据"
+        )
+        minor_stars = "、".join(palace.minor_stars) or "当前无辅星数据"
+        palace_stars = set((*palace.major_stars, *palace.minor_stars))
+        mutagens = [
+            f"{item.star}化{item.mutagen}"
+            for item in chart.ziwei.birth_mutagens
+            if item.star in palace_stars
+        ]
+        fact_texts = [
+            f"{palace_name}宫位于{palace.branch}",
+            f"该宫大限范围为{palace.decadal_range[0]}至{palace.decadal_range[1]}",
+            f"该宫主星为{major_stars}",
+            f"该宫辅星为{minor_stars}",
+            *( [f"该宫可追溯四化为{'、'.join(mutagens)}"] if mutagens else [] ),
+        ]
+        bundle = build_signed_context(
+            "domain",
+            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts)],
+            bundle_type=f"domain.{domain}",
+            context_group=chart.trace_id,
+        )
+        if bundle is not None:
+            contexts[domain] = bundle
+    return contexts
+
+
+def _fortune_context_group(
+    calculation_datetime: str,
+    pillars: tuple[str, str, str, str],
+    sex_for_rule: str,
+    *parts: str,
+) -> str:
+    return derive_context_group(
+        calculation_datetime,
+        *pillars,
+        sex_for_rule,
+        *parts,
+    ) or "context_unavailable"
+
+
+def _daily_ai_context(response: DailyTransitResponse, context_group: str) -> AiContextBundle | None:
+    transit = response.transit
+    if transit.verification_status != "verified":
+        return None
+    relation_facts = [
+        f"{RELATION_LABELS[fact.relation]}：{fact.natal_pillar} / {fact.transit_pillar}"
+        for fact in transit.facts
+    ] or ["该日未检测到已定义的地支冲、合或同支关系"]
+    texts = [f"{transit.transit_date}的日柱为{transit.day_pillar}", *relation_facts]
+    return build_signed_context(
+        "fortune",
+        [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:5])],
+        bundle_type="fortune.daily",
+        context_group=context_group,
+    )
+
+
+def _transit_ai_context(response: TransitResponse, context_group: str) -> AiContextBundle | None:
+    transit = response.transit
+    if transit.verification_status != "verified":
+        return None
+    texts = [
+        f"{PERIOD_LABELS[layer.period]}为{layer.pillar}"
+        + (f"，出现{'、'.join(RELATION_LABELS[fact.relation] for fact in layer.facts)}" if layer.facts else "，未出现已定义关系")
+        for layer in transit.layers
+    ]
+    texts.extend(f"{insight.title}：{insight.summary}；{insight.action}" for insight in transit.insights[:3])
+    return build_signed_context(
+        "fortune",
+        [AiFact(id=f"period-{index + 1}", text=text) for index, text in enumerate(texts[:7])],
+        bundle_type="fortune.period",
+        context_group=context_group,
+    )
+
+
+def _window_ai_context(response: TransitWindowResponse, context_group: str) -> AiContextBundle | None:
+    transit = response.transit
+    if transit.verification_status != "verified":
+        return None
+    all_facts = [fact for day in transit.daily for fact in day.facts]
+    active_days = [day for day in transit.daily if day.facts]
+    texts = [
+        f"时间范围为{transit.start_date}至{transit.end_date}，共{len(transit.daily)}天",
+        f"其中{len(active_days)}天出现可追溯关系",
+        "，".join(
+            (
+                f"地支合{sum(fact.relation == 'branch_combination' for fact in all_facts)}次",
+                f"地支冲{sum(fact.relation == 'branch_clash' for fact in all_facts)}次",
+                f"同支{sum(fact.relation == 'branch_same' for fact in all_facts)}次",
+            )
+        ),
+        *(
+            f"{day.transit_date}：{'、'.join(RELATION_LABELS[fact.relation] for fact in day.facts)}"
+            for day in active_days[:9]
+        ),
+    ]
+    return build_signed_context(
+        "fortune",
+        [AiFact(id=f"window-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
+        bundle_type="fortune.window",
+        context_group=context_group,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_request: Request, error: RequestValidationError) -> JSONResponse:
+    detail = [
+        {
+            "type": item.get("type", "value_error"),
+            "loc": list(item.get("loc", ())),
+            "msg": item.get("msg", "Invalid input"),
+        }
+        for item in error.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": detail})
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, error: Exception) -> JSONResponse:
+    trace_id = str(uuid4())
+    logger.error(
+        "Unhandled API error trace_id=%s path=%s error_type=%s",
+        trace_id,
+        request.url.path,
+        type(error).__name__,
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "trace_id": trace_id},
+        headers=ERROR_SECURITY_HEADERS,
+    )
 app.add_middleware(
     CORSMiddleware,
     allow_origins=cors_origins,
@@ -80,8 +285,43 @@ def health() -> dict[str, str]:
     return {"status": "ok", "engine": "bazi-v1"}
 
 
-@app.post("/v1/charts", response_model=ChartResponse)
-def create_chart(birth: BirthInput) -> ChartResponse:
+@app.get("/v1/ai/status", response_model=AiStatusResponse)
+def ai_status() -> AiStatusResponse:
+    return AiStatusResponse(available=provider_is_available())
+
+
+@app.post("/v1/ai/explain", response_model=AiExplainResponse)
+async def explain_result(request: AiExplainRequest) -> AiExplainResponse:
+    try:
+        return await explain_with_ai(request)
+    except AiConfigurationError as error:
+        logger.warning("AI provider unavailable error_type=%s", type(error).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="AI 讲解暂未配置，规则结果不受影响。",
+        ) from error
+    except AiBudgetExceeded as error:
+        raise HTTPException(
+            status_code=429,
+            detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",
+            headers={"Retry-After": "3600"},
+        ) from error
+    except AiProviderError as error:
+        trace_id = str(uuid4())
+        logger.warning(
+            "AI explanation failed trace_id=%s error_type=%s",
+            trace_id,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail="AI 讲解这次没有生成，请稍后重试。",
+            headers={"X-Trace-Id": trace_id},
+        ) from error
+
+
+@app.post("/v1/charts", response_model=ChartApiResponse)
+def create_chart(birth: BirthInput) -> ChartApiResponse:
     try:
         snapshot = calculate_bazi(birth)
         ziwei = ZiweiSnapshot.model_validate(
@@ -90,7 +330,7 @@ def create_chart(birth: BirthInput) -> ChartResponse:
         qizheng = calculate_physical_baseline(birth.civil_datetime)
     except ValueError as error:
         raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
-    return ChartResponse(
+    chart = ChartResponse(
         bazi=snapshot,
         ziwei=ziwei,
         qizheng=qizheng,
@@ -98,10 +338,11 @@ def create_chart(birth: BirthInput) -> ChartResponse:
         natal_insights=build_natal_insights(snapshot, ziwei, qizheng),
         trace_id=str(uuid4()),
     )
+    return ChartApiResponse(**chart.model_dump(), ai_contexts=_chart_ai_contexts(chart))
 
 
-@app.post("/v1/transits/daily", response_model=DailyTransitResponse)
-def create_daily_transit(request: DailyTransitRequest) -> DailyTransitResponse:
+@app.post("/v1/transits/daily", response_model=DailyTransitApiResponse)
+def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiResponse:
     try:
         bazi = calculate_bazi(request.birth)
         pillars = bazi.pillars
@@ -118,11 +359,21 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitResponse:
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
         )
-    return DailyTransitResponse(transit=transit, trace_id=str(uuid4()))
+    response = DailyTransitResponse(transit=transit, trace_id=str(uuid4()))
+    context_group = _fortune_context_group(
+        bazi.calculation_datetime.isoformat(),
+        (pillars.year, pillars.month, pillars.day, pillars.hour),
+        request.birth.sex_for_rule,
+        request.transit_date.isoformat(),
+    )
+    return DailyTransitApiResponse(
+        **response.model_dump(),
+        ai_context=_daily_ai_context(response, context_group),
+    )
 
 
-@app.post("/v1/transits/window", response_model=TransitWindowResponse)
-def create_transit_window(request: TransitWindowRequest) -> TransitWindowResponse:
+@app.post("/v1/transits/window", response_model=TransitWindowApiResponse)
+def create_transit_window(request: TransitWindowRequest) -> TransitWindowApiResponse:
     try:
         bazi = calculate_bazi(request.birth)
         pillars = bazi.pillars
@@ -140,11 +391,22 @@ def create_transit_window(request: TransitWindowRequest) -> TransitWindowRespons
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
         )
-    return TransitWindowResponse(transit=transit, trace_id=str(uuid4()))
+    response = TransitWindowResponse(transit=transit, trace_id=str(uuid4()))
+    context_group = _fortune_context_group(
+        bazi.calculation_datetime.isoformat(),
+        (pillars.year, pillars.month, pillars.day, pillars.hour),
+        request.birth.sex_for_rule,
+        request.start_date.isoformat(),
+        request.end_date.isoformat(),
+    )
+    return TransitWindowApiResponse(
+        **response.model_dump(),
+        ai_context=_window_ai_context(response, context_group),
+    )
 
 
-@app.post("/v1/transits", response_model=TransitResponse)
-def create_transit(request: TransitRequest) -> TransitResponse:
+@app.post("/v1/transits", response_model=TransitApiResponse)
+def create_transit(request: TransitRequest) -> TransitApiResponse:
     try:
         bazi = calculate_bazi(request.birth)
         pillars = bazi.pillars
@@ -163,4 +425,14 @@ def create_transit(request: TransitRequest) -> TransitResponse:
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
         )
-    return TransitResponse(transit=transit, trace_id=str(uuid4()))
+    response = TransitResponse(transit=transit, trace_id=str(uuid4()))
+    context_group = _fortune_context_group(
+        bazi.calculation_datetime.isoformat(),
+        (pillars.year, pillars.month, pillars.day, pillars.hour),
+        request.birth.sex_for_rule,
+        request.transit_date.isoformat(),
+    )
+    return TransitApiResponse(
+        **response.model_dump(),
+        ai_context=_transit_ai_context(response, context_group),
+    )
