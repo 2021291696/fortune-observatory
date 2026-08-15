@@ -7,7 +7,7 @@ import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
-import { birthPlaces } from './birthPlaces'
+import { findArea } from './birthPlaces'
 import { dateKey, fortuneWindow } from './dates'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
@@ -86,6 +86,7 @@ function loadUsers(): StoredUser[] {
       id: user.id.slice(0, 64),
       name: user.name.trim().slice(0, 12) || '我',
       createdAt: user.createdAt,
+      placeAdcode: typeof user.placeAdcode === 'string' ? user.placeAdcode : undefined,
       birth: user.birth,
     }))
     const seen = new Set<string>()
@@ -143,13 +144,13 @@ function initialSavedReadings(): SavedReading[] {
 function deriveInitial(user: StoredUser): BirthInitial {
   const [date, rest] = user.birth.civil_datetime.split('T')
   const time = rest.slice(0, 5)
-  const place = birthPlaces.find((item) => item.longitude === user.birth.longitude && item.latitude === user.birth.latitude)
+  const place = user.placeAdcode ? findArea(user.placeAdcode) : null
   return {
     name: user.name,
     civilDate: date,
     civilTime: time,
     sexForRule: user.birth.sex_for_rule,
-    placeId: place?.id ?? 'manual',
+    placeId: place?.adcode ?? 'manual',
     longitude: place ? '' : String(user.birth.longitude),
     latitude: place ? '' : String(user.birth.latitude),
   }
@@ -420,7 +421,7 @@ export function App() {
       longitude = Number(fields.get('longitude'))
       latitude = Number(fields.get('latitude'))
     } else {
-      const place = birthPlaces.find((item) => item.id === placeId)
+      const place = findArea(placeId)
       longitude = place?.longitude ?? Number.NaN
       latitude = place?.latitude ?? Number.NaN
     }
@@ -449,9 +450,10 @@ export function App() {
       use_apparent_solar_time: true,
     }
     const editing = editingUser
+    const placeAdcode = placeId === 'manual' ? undefined : placeId
     const updated: StoredUser = editing
-      ? { ...editing, name: displayName, birth: payload }
-      : { id: crypto.randomUUID(), name: displayName, createdAt: new Date().toISOString(), birth: payload }
+      ? { ...editing, name: displayName, birth: payload, placeAdcode }
+      : { id: crypto.randomUUID(), name: displayName, createdAt: new Date().toISOString(), birth: payload, placeAdcode }
     const nextUsers = editing
       ? users.map((user) => (user.id === editing.id ? updated : user))
       : [...users, updated]

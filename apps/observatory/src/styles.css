@@ -114,7 +114,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .select-wrap > svg { position: absolute; z-index: 1; top: 50%; left: 10px; color: var(--accent); transform: translateY(-50%); pointer-events: none; }
 .select-wrap select { padding-left: 32px; }
 .form-grid.two { grid-template-columns: 1fr 1fr; }
-.place-field { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.place-field { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .form-error { margin-top: 9px; padding: 9px 11px; border-radius: 8px; color: #8d111b; background: #ffe3e6; font-size: 11px; font-weight: 750; }
 .submit-button { width: 100%; min-height: 46px; display: flex; align-items: center; justify-content: center; gap: 9px; margin-top: 10px; border: 0; border-radius: 9px; color: #fff; background: var(--accent); box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 58%, #071b54); font-size: 15px; font-weight: 900; transition: transform 140ms ease, box-shadow 140ms ease; }
 .submit-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 58%, #071b54); }
@@ -228,6 +228,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   .motion-toggle { flex-basis: 44px; min-height: 44px; }
   .form-head { align-items: flex-start; }
   .privacy-lock { font-size: 9px !important; }
+  .place-field select { font-size: 12px; padding: 0 4px; }
+  .place-field { gap: 6px; }
   .form-grid, .form-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   
   .form-privacy { align-items: flex-start; }

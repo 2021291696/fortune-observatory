@@ -36,13 +36,13 @@ def assert_touch_targets(page: Page) -> None:
     assert not too_small, too_small
 
 
-def fill_birth(page: Page, name: str = "我", city: str = "beijing", date: str = "2000-01-01", time: str = "08:30") -> None:
-    province = {"beijing": "北京", "shanghai": "上海"}[city]
+def fill_birth(page: Page, name: str = "我", prov: str = "110000", city: str = "110101", date: str = "2000-01-01", time: str = "08:30") -> None:
     page.locator('input[name="displayName"]').fill(name)
     page.locator('input[name="civilDate"]').fill(date)
     page.locator('input[name="civilTime"]').fill(time)
-    page.locator('select[name="province"]').select_option(province)
-    page.locator('select[name="placePreset"]').select_option(city)
+    page.locator('select[aria-label="省份"]').select_option(prov)
+    if city:
+        page.locator('select[aria-label="城市或辖区"]').select_option(city)
 
 
 def submit_and_wait(page: Page, name: str = "我") -> None:
@@ -86,14 +86,21 @@ def desktop_flow(browser) -> dict[str, object]:
 
     # Second profile via the side panel: multi-user switching.
     page.get_by_role("button", name="新用户").click()
-    fill_birth(page, name="妈妈", date="1965-03-08", time="06:10", city="shanghai")
+    fill_birth(page, name="妈妈", date="1965-03-08", time="06:10", prov="310000", city="310104")
     submit_and_wait(page, "妈妈")
     assert page.locator(".header-users .user-chip").count() == 2
     page.locator(".header-users .user-pick", has_text="我").first.click()
     page.get_by_text("我的盘已就绪", exact=True).wait_for(timeout=20_000)
     page.locator("#fortune .fortune-reading").wait_for(timeout=20_000)
-    assert page.locator('select[name="province"]').input_value() == "北京"
-    assert page.locator('select[name="placePreset"]').input_value() == "beijing"
+    assert page.locator('select[aria-label="省份"]').input_value() == "110000"
+    assert page.locator('select[aria-label="城市或辖区"]').input_value() == "110101"
+    # Third-level cascade on a regular province: 河北 -> 石家庄市 -> 长安区.
+    page.locator('select[aria-label="省份"]').select_option("130000")
+    page.locator('select[aria-label="城市或辖区"]').select_option("130100")
+    page.locator('select[aria-label="区县"]').select_option("130102")
+    assert page.locator('input[name="placePreset"]').input_value() == "130102"
+    page.locator('select[aria-label="省份"]').select_option("110000")
+    page.locator('select[aria-label="城市或辖区"]').select_option("110101")
 
     page.locator('.primary-nav a[href="#ask"]').click()
     page.locator(".domain-choices button", has_text="事业").click()
@@ -174,7 +181,7 @@ def mobile_flow(browser) -> dict[str, object]:
     assert nav_position == "fixed"
     assert page.locator(".primary-nav a").count() == 4
 
-    fill_birth(page, "小明", "shanghai")
+    fill_birth(page, "小明", "310000", "310104")
     submit_and_wait(page, "小明")
     page.screenshot(path=ARTIFACTS / "mobile-result.png", full_page=False)
     assert_no_overflow(page)

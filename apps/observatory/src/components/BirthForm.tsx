@@ -1,8 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { ArrowRight, LockKey, MapPin, PencilSimple, SpinnerGap, UserPlus, X } from '@phosphor-icons/react'
-import { birthPlaces, birthPlaceProvinces } from '../birthPlaces'
+import { birthAreas, findArea, findAreaPath } from '../birthPlaces'
 
-const defaultPlace = birthPlaces[0]
 const MANUAL = 'manual'
 
 export type BirthInitial = {
@@ -15,12 +14,6 @@ export type BirthInitial = {
   latitude: string
 }
 
-function initialProvince(initial?: BirthInitial): string {
-  if (!initial) return defaultPlace.province
-  if (initial.placeId === MANUAL) return MANUAL
-  return birthPlaces.find((place) => place.id === initial.placeId)?.province ?? defaultPlace.province
-}
-
 export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
   isSubmitting: boolean
   error: string | null
@@ -28,34 +21,53 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
   onClear: () => boolean
   initial?: BirthInitial
 }) {
-  const [province, setProvince] = useState(() => initialProvince(initial))
-  const provincePlaces = useMemo(() => birthPlaces.filter((place) => place.province === province), [province])
-  const [placeId, setPlaceId] = useState(initial?.placeId ?? defaultPlace.id)
+  const [provinceCode, setProvinceCode] = useState(() => {
+    if (!initial) return birthAreas[0].adcode
+    if (initial.placeId === MANUAL) return MANUAL
+    return findAreaPath(initial.placeId)[0]?.adcode ?? MANUAL
+  })
+  const [cityCode, setCityCode] = useState(() => {
+    if (!initial || initial.placeId === MANUAL) return ''
+    return findAreaPath(initial.placeId)[1]?.adcode ?? ''
+  })
+  const [districtCode, setDistrictCode] = useState(() => {
+    if (!initial || initial.placeId === MANUAL) return ''
+    return findAreaPath(initial.placeId)[2]?.adcode ?? ''
+  })
   const [longitude, setLongitude] = useState(initial?.longitude ?? '')
   const [latitude, setLatitude] = useState(initial?.latitude ?? '')
-  const isManual = province === MANUAL
+  const isManual = provinceCode === MANUAL
 
-  function selectProvince(next: string) {
-    setProvince(next)
-    setLongitude('')
-    setLatitude('')
-    if (next === MANUAL) {
-      setPlaceId(MANUAL)
-      return
-    }
-    setPlaceId(birthPlaces.find((place) => place.province === next)?.id ?? MANUAL)
-  }
+  const provinceNode = useMemo(
+    () => birthAreas.find((node) => node.adcode === provinceCode) ?? birthAreas[0],
+    [provinceCode],
+  )
+  const cityList = provinceNode.children
+  const cityNode = useMemo(
+    () => cityList.find((node) => node.adcode === cityCode) ?? cityList[0] ?? null,
+    [cityCode, cityList],
+  )
+  const districtList = cityNode?.children ?? []
+  const districtNode = useMemo(
+    () => districtList.find((node) => node.adcode === districtCode) ?? districtList[0] ?? null,
+    [districtCode, districtList],
+  )
+  const placeNode = districtNode ?? cityNode ?? provinceNode
+  const placeAdcode = isManual ? MANUAL : placeNode?.adcode ?? MANUAL
 
-  function selectPlace(id: string) {
-    setPlaceId(id)
+  function selectProvince(code: string) {
+    setProvinceCode(code)
+    setCityCode('')
+    setDistrictCode('')
     setLongitude('')
     setLatitude('')
   }
 
   function clearForm(form: HTMLFormElement | null) {
     if (!onClear()) return
-    setProvince(defaultPlace.province)
-    setPlaceId(defaultPlace.id)
+    setProvinceCode(birthAreas[0].adcode)
+    setCityCode('')
+    setDistrictCode('')
     setLongitude('')
     setLatitude('')
     form?.reset()
@@ -79,18 +91,23 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
         <label>出生日期<input name="civilDate" type="date" min="1901-01-01" max="2100-12-31" required defaultValue={initial?.civilDate} /></label>
         <label>出生时间<input name="civilTime" type="time" required defaultValue={initial?.civilTime} /></label>
         <div className="place-field" role="group" aria-label="出生地">
+          <input type="hidden" name="placePreset" value={placeAdcode} />
           <label>省 / 直辖市
-            <span className="select-wrap"><MapPin size={17} weight="fill" /><select name="province" value={province} onChange={(event) => selectProvince(event.target.value)}>
-              {birthPlaceProvinces.map((name) => <option key={name} value={name}>{name}</option>)}
+            <span className="select-wrap"><MapPin size={17} weight="fill" /><select aria-label="省份" value={provinceCode} onChange={(event) => selectProvince(event.target.value)}>
+              {birthAreas.map((node) => <option key={node.adcode} value={node.adcode}>{node.name}</option>)}
               <option value={MANUAL}>自定义经纬度</option>
             </select></span>
           </label>
-          <label>市 / 县
-            <select name="placePreset" value={isManual ? '' : placeId} disabled={isManual} onChange={(event) => selectPlace(event.target.value)}>
-              {isManual && <option value="">已选自定义经纬度</option>}
-              {provincePlaces.map((place) => <option key={place.id} value={place.id}>{place.name}</option>)}
+          {!isManual && cityList.length > 0 && cityNode && <label>市 / 区
+            <select aria-label="城市或辖区" value={cityNode.adcode} onChange={(event) => { setCityCode(event.target.value); setDistrictCode('') }}>
+              {cityList.map((node) => <option key={node.adcode} value={node.adcode}>{node.name}</option>)}
             </select>
-          </label>
+          </label>}
+          {!isManual && districtList.length > 0 && districtNode && <label>区 / 县
+            <select aria-label="区县" value={districtNode.adcode} onChange={(event) => setDistrictCode(event.target.value)}>
+              {districtList.map((node) => <option key={node.adcode} value={node.adcode}>{node.name}</option>)}
+            </select>
+          </label>}
         </div>
       </div>
       {isManual && <div className="form-grid two coordinate-grid">
@@ -113,6 +130,7 @@ export type StoredUser = {
   id: string
   name: string
   createdAt: string
+  placeAdcode?: string
   birth: {
     civil_datetime: string
     timezone_id: 'Asia/Shanghai'

@@ -12,13 +12,13 @@ def shoot(page, name, full=True):
     print("shot", name)
 
 
-def fill(page, name, city="beijing", date="2000-01-01"):
-    province = {"beijing": "北京", "shanghai": "上海"}[city]
+def fill(page, name, prov="110000", city="110101", date="2000-01-01"):
     page.locator('input[name="displayName"]').fill(name)
     page.locator('input[name="civilDate"]').fill(date)
     page.locator('input[name="civilTime"]').fill("08:30")
-    page.locator('select[name="province"]').select_option(province)
-    page.locator('select[name="placePreset"]').select_option(city)
+    page.locator('select[aria-label="省份"]').select_option(prov)
+    if city:
+        page.locator('select[aria-label="城市或辖区"]').select_option(city)
 
 
 def submit(page, name):
@@ -39,7 +39,7 @@ with sync_playwright() as p:
     page.wait_for_timeout(1500)
     shoot(page, "desktop-fortune-today")
     page.get_by_role("button", name="新用户").click()
-    fill(page, "妈妈", "shanghai", "1965-03-08")
+    fill(page, "妈妈", "310000", "310104", "1965-03-08")
     submit(page, "妈妈")
     shoot(page, "desktop-fortune-mama")
     page.locator(".header-users .user-pick", has_text="我").first.click()
