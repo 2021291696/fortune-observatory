@@ -4,6 +4,7 @@ import { App } from './App'
 import './styles.css'
 import './theme-styles.css'
 import './components.css'
+import './task-layout.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode><App /></StrictMode>,

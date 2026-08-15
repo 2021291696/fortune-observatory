@@ -2,6 +2,8 @@ import { ArrowRight, FloppyDisk, Lightning, SpinnerGap } from '@phosphor-icons/r
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
+import type { AiExplainSource } from '../types'
+import { AiExplainPanel } from './AiExplainPanel'
 import { MemeMedia } from './MemeMedia'
 
 const relationLabels = { branch_clash: '地支冲', branch_combination: '地支合', branch_same: '同支' }
@@ -41,6 +43,36 @@ export function FortuneConsole(props: FortuneProps) {
     ? daily.transit.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；')
     : '未检测到已定义的地支冲、合或同支关系。'
 
+  const aiSource: AiExplainSource | null = daily ? {
+    key: `daily-${daily.trace_id}-${scope}`,
+    kind: 'fortune',
+    title: `${selectedLabel}运势 · 日柱 ${daily.transit.day_pillar}`,
+    summary: dailyRead,
+    facts: daily.ai_context && periods?.ai_context
+      ? [...daily.ai_context.facts, ...periods.ai_context.facts].slice(0, 12)
+      : daily.ai_context?.facts ?? [
+      { id: 'fortune-1', text: `${daily.transit.transit_date}的日柱为${daily.transit.day_pillar}` },
+      ...(daily.transit.facts.length
+        ? daily.transit.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`)
+        : ['该日未检测到已定义的地支冲、合或同支关系']),
+      ...(periods?.transit.layers.map((layer) => `${periodLabels[layer.period]}为${layer.pillar}${layer.facts.length ? `，出现${layer.facts.map((fact) => relationLabels[fact.relation]).join('、')}` : '，未出现已定义关系'}`) ?? []),
+      ...(periods?.transit.insights.map((insight) => `${insight.title}：${insight.summary}；${insight.action}`) ?? []),
+    ].slice(0, 12).map((text, index) => typeof text === 'string' ? { id: `fortune-${index + 1}`, text } : text),
+    contextTokens: [daily.ai_context?.token, periods?.ai_context?.token].filter((token): token is string => Boolean(token)),
+  } : windowTransit ? {
+    key: `window-${windowTransit.trace_id}-${scope}`,
+    kind: 'fortune',
+    title: `${selectedLabel}运势 · ${windowTransit.transit.start_date} 至 ${windowTransit.transit.end_date}`,
+    summary: `共覆盖 ${windowDays.length} 天，其中 ${activeDays.length} 天出现可追溯关系。${windowRead}`,
+    facts: windowTransit.ai_context?.facts ?? [
+      `时间范围为${windowTransit.transit.start_date}至${windowTransit.transit.end_date}，共${windowDays.length}天`,
+      `其中${activeDays.length}天出现可追溯关系`,
+      `地支合${supportCount}次，地支冲${tensionCount}次，同支${sameCount}次`,
+      ...activeDays.map((day) => `${day.transit_date}：${day.facts.map((fact) => relationLabels[fact.relation]).join('、')}`),
+    ].slice(0, 12).map((text, index) => ({ id: `fortune-${index + 1}`, text })),
+    contextTokens: windowTransit.ai_context ? [windowTransit.ai_context.token] : [],
+  } : null
+
   function saveFortune() {
     if (isLoading) return
     if (daily) {
@@ -61,9 +93,9 @@ export function FortuneConsole(props: FortuneProps) {
 
   return <section className="fortune-section" id="fortune">
     <header className="content-heading">
-      <span>02 / 六种运势</span>
-      <h2>排完今天自动看，其他周期你来点。</h2>
-      <p>今日在命盘完成后自动分析。明日、本周、下周、本月和下月，只有你主动要求时才计算。</p>
+      <span>或者 · 选时间</span>
+      <h2>你想看哪段时间？</h2>
+      <p>今日已经自动计算；明日、本周、下周、本月和下月，只在你点击时生成。</p>
     </header>
     <div className={`fortune-console ${chartReady ? 'is-ready' : ''}`} aria-live="polite">
       {!chartReady ? <div className="fortune-empty">
@@ -87,18 +119,20 @@ export function FortuneConsole(props: FortuneProps) {
           {isLoading && <div className={hasReading ? 'fortune-refreshing' : 'fortune-loading'} role="status"><SpinnerGap className="spin" size={28} /><strong>正在读取干支关系与时间层</strong><span>{hasReading ? '上一份有效结果暂时保留。' : '这一步只使用已经生成的命盘事实。'}</span></div>}
           {error && <div className="fortune-error"><strong>{error.includes('已生成') ? '部分结果已生成' : `${requestedLabel}这次没算出来`}</strong><p>{error}</p><button type="button" disabled={isLoading} onClick={() => onRequest(requestedScope)}>重试{requestedLabel}</button></div>}
           {daily && <div className="fortune-reading">
-            <header><div><span>{daily.transit.transit_date}</span><h3>日柱 {daily.transit.day_pillar}</h3></div><em>{daily.transit.verification_status === 'verified' ? '已验证' : '待验证'}</em></header>
+            <header><div><span>{daily.transit.transit_date}</span><h3>日柱 {daily.transit.day_pillar}</h3></div><em>{daily.transit.verification_status === 'verified' ? '计算已核验' : '计算待核验'}</em></header>
             <p className="reading-lead">{dailyRead}</p>
             {periods && <div className="fortune-layers">{periods.transit.layers.map((layer) => <span key={layer.period}><small>{periodLabels[layer.period]}</small><b>{layer.pillar}</b>{layer.facts.length > 0 && <i>{layer.facts.map((fact) => relationLabels[fact.relation]).join('、')}</i>}</span>)}</div>}
             {periods?.transit.insights.length ? <div className="fortune-insights">{periods.transit.insights.map((insight) => <article key={insight.insight_id}><h4>{insight.title}</h4><p>{insight.summary}</p><strong>{insight.action}</strong><small>依据：{insight.fact_ids.join('、')}</small></article>)}</div> : null}
             <button className="reading-save" type="button" disabled={isLoading} onClick={saveFortune}><FloppyDisk size={18} weight="bold" /> 保存{selectedLabel}运势</button>
+            {aiSource && <AiExplainPanel source={aiSource} defaultQuestion={`请把${selectedLabel}运势讲得更直白，并指出我最值得注意的一件事。`} />}
           </div>}
           {windowTransit && <div className="fortune-reading window-reading">
-            <header><div><span>{windowTransit.transit.start_date} 至 {windowTransit.transit.end_date}</span><h3>{selectedLabel}时间窗口</h3></div><em>{windowTransit.transit.verification_status === 'verified' ? '已验证' : '待验证'}</em></header>
+            <header><div><span>{windowTransit.transit.start_date} 至 {windowTransit.transit.end_date}</span><h3>{selectedLabel}时间窗口</h3></div><em>{windowTransit.transit.verification_status === 'verified' ? '计算已核验' : '计算待核验'}</em></header>
             <p className="reading-lead">共覆盖 {windowDays.length} 天，其中 {activeDays.length} 天出现可追溯关系。{windowRead}</p>
             <div className="fortune-counts"><span><b>{supportCount}</b>合</span><span><b>{tensionCount}</b>冲</span><span><b>{sameCount}</b>同支</span></div>
             {activeDays.length > 0 && <div className="active-dates">{activeDays.slice(0, 12).map((day) => <span key={day.transit_date}><b>{day.transit_date.slice(5)}</b>{day.facts.map((fact) => relationLabels[fact.relation]).join('、')}</span>)}</div>}
             <button className="reading-save" type="button" disabled={isLoading} onClick={saveFortune}><FloppyDisk size={18} weight="bold" /> 保存{selectedLabel}运势</button>
+            {aiSource && <AiExplainPanel source={aiSource} defaultQuestion={`请把${selectedLabel}时间窗口讲得更直白，并指出最值得安排的一件事。`} />}
           </div>}
         </div>
       </>}

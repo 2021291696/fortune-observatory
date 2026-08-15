@@ -5,9 +5,9 @@ const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
 
 function statusCopy(status: VerificationStatus) {
-  if (status === 'verified') return '已验证'
+  if (status === 'verified') return '计算已核验'
   if (status === 'ambiguous') return '存在临界条件'
-  return '待验证'
+  return '计算待核验'
 }
 
 export function Chart({ chart }: { chart: ChartResponse }) {
@@ -19,7 +19,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
   return <article className="chart-result">
     <header className="result-header">
       <div>
-        <span>命盘结果 / VERIFIED CHART</span>
+        <span>命盘摘要 / REPRODUCIBLE CHART</span>
         <h2>{pillars.join(' · ')}</h2>
         <p>农历 {chart.bazi.lunar_date}，{chart.bazi.input_time_basis === 'apparent_solar' ? '真太阳时口径' : '民用时间口径'}</p>
       </div>
@@ -49,7 +49,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
     </section>
 
     <details className="chart-full-details">
-      <summary>展开完整命盘、十二宫与计算依据</summary>
+      <summary>查看完整命盘、十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
       <div className="section-kicker"><span>可执行解读</span><small>只引用已计算事实</small></div>
       <div className="insight-list">

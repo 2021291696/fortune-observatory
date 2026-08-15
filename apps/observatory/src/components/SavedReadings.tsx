@@ -12,9 +12,9 @@ export function SavedReadings({ items, onRemove, onClear }: {
 }) {
   return <section className="saved-section" id="saved">
     <header className="content-heading compact-heading">
-      <span>03 / 保存区</span>
+      <span>你的保存区</span>
       <h2>只留下你想回看的。</h2>
-      <p>你主动保存的命理结果与依据会写入当前浏览器本地存储；不保存出生日期、时间或地点，可随时删除。</p>
+      <p>你主动保存的命理结果与依据会写入当前浏览器本地存储；不保存出生日期、时间或地点。共享设备上建议不保存，用完后可一键清空。</p>
     </header>
     <div className="saved-panel">
       <div className="saved-toolbar">

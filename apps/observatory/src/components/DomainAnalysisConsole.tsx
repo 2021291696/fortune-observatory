@@ -2,6 +2,7 @@ import { Briefcase, Coins, FloppyDisk, Heart, Heartbeat, ShieldCheck } from '@ph
 import { useEffect, useState, type ComponentType } from 'react'
 import type { AnalysisDomain, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
+import { AiExplainPanel } from './AiExplainPanel'
 
 type DomainResult = {
   title: string
@@ -66,7 +67,7 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
     structure: `这是一组领域定位事实，不是吉凶评分。单宫尚不足以推出确定结果，当前引擎也不会把八字、紫微和七政机械相加。`,
     action: config.action,
     evidence: [
-      `${config.palace}宫 · ${palace.branch}`, `大限 ${palace.decadal_range[0]}–${palace.decadal_range[1]}`,
+      `${config.palace}宫 · ${palace.branch}`, `大限 ${palace.decadal_range[0]} 至 ${palace.decadal_range[1]}`,
       `主星 ${majorStars}`, `辅星 ${minorStars}`, ...(mutagens.length ? [`四化 ${mutagens.join('、')}`] : []),
     ],
     ...(domain === 'health' ? { disclaimer: '命理分析不构成诊断、治疗或用药建议。' } : {}),
@@ -96,9 +97,9 @@ export function DomainAnalysisConsole({ chart, onSave }: {
 
   return <section className="analysis-section" id="analysis">
     <header className="content-heading compact-heading">
-      <span>01 / 命盘专项</span>
-      <h2>四个问题，分开分析。</h2>
-      <p>健康、姻缘、事业、财运互不捆绑。排盘完成后，只有你点击的领域才会展开。</p>
+      <span>第一步 · 选问题</span>
+      <h2>你最想问哪件事？</h2>
+      <p>健康、感情、事业、财运分开看；只展开你主动选择的领域。</p>
     </header>
     <div className={`domain-console ${chart ? 'is-ready' : ''}`}>
       <div className="domain-choices" role="group" aria-label="选择专项分析">
@@ -122,7 +123,7 @@ export function DomainAnalysisConsole({ chart, onSave }: {
         {!chart && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>等待命盘完成</strong><p>这里不会提前生成套话，也不会自动分析四个领域。</p></div></div>}
         {chart && !result && <div className="feature-empty"><ShieldCheck size={34} weight="bold" /><div><strong>命盘已就绪</strong><p>选择一个领域开始。已经生成的其他领域会继续保留。</p></div></div>}
         {result && activeConfig && active && chart && <article className="domain-reading">
-          <header><span>{activeConfig.label.toUpperCase()} / FACT-GROUNDED</span><h3>{result.title}</h3></header>
+          <header><span>{activeConfig.label} / 命盘依据</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
           <div className="domain-interpretation"><span>怎么读</span><p>{result.structure}</p></div>
           <blockquote><span>你可以把握的是</span>{result.action}</blockquote>
@@ -134,6 +135,18 @@ export function DomainAnalysisConsole({ chart, onSave }: {
               details: [result.structure, result.action, ...result.evidence],
             })}><FloppyDisk size={18} weight="bold" /> 保存这项分析</button>
           </footer>
+          {(active === 'relationship' || active === 'career') && <AiExplainPanel
+            source={{
+              key: `${chart.trace_id}-${active}`,
+              kind: 'domain',
+              title: result.title,
+              summary: result.lead,
+              facts: chart.ai_contexts[active]?.facts
+                ?? result.evidence.map((text, index) => ({ id: `domain-${index + 1}`, text })),
+              contextTokens: chart.ai_contexts[active] ? [chart.ai_contexts[active].token] : [],
+            }}
+            defaultQuestion={`请把这段${activeConfig.label}分析讲得更直白，并告诉我最值得先做的一件事。`}
+          />}
         </article>}
       </div>
     </div>

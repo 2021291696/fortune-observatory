@@ -69,6 +69,7 @@ export type ChartResponse = {
   }
   natal_insights: Array<{ insight_id: string; title: string; summary: string; action: string; fact_ids: string[] }>
   trace_id: string
+  ai_contexts: Partial<Record<AnalysisDomain, AiContextBundle>>
 }
 
 export type DailyTransitResponse = {
@@ -79,6 +80,7 @@ export type DailyTransitResponse = {
     verification_status: VerificationStatus
   }
   trace_id: string
+  ai_context: AiContextBundle | null
 }
 
 export type TransitWindowResponse = {
@@ -94,6 +96,7 @@ export type TransitWindowResponse = {
     verification_status: VerificationStatus
   }
   trace_id: string
+  ai_context: AiContextBundle | null
 }
 
 export type TransitResponse = {
@@ -123,6 +126,7 @@ export type TransitResponse = {
     verification_status: VerificationStatus
   }
   trace_id: string
+  ai_context: AiContextBundle | null
 }
 
 export const fortuneScopes = [
@@ -155,4 +159,25 @@ export type SaveDraft = {
 export type SavedReading = SaveDraft & {
   id: string
   savedAt: string
+}
+
+export type AiFact = { id: string; text: string }
+
+export type AiContextBundle = { token: string; facts: AiFact[] }
+
+export type AiExplainSource = {
+  key: string
+  kind: 'domain' | 'fortune'
+  title: string
+  summary: string
+  facts: AiFact[]
+  contextTokens: string[]
+}
+
+export type AiGroundedClaim = { text: string; fact_ids: string[] }
+
+export type AiExplainResponse = {
+  summary: AiGroundedClaim
+  actions: AiGroundedClaim[]
+  caveats: AiGroundedClaim[]
 }
