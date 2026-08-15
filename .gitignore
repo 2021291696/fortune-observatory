@@ -12,6 +12,8 @@ htmlcov/
 **/dist/
 **/build/
 *.tsbuildinfo
+tests/.artifacts/
+tests/.tmp/
 
 # Local environment and credentials
 .env
@@ -35,7 +37,6 @@ data/golden/candidates/
 data/vendor/
 docs/
 tests/verified/test_api_contract.py
-tests/verified/test_api_security.py
 tests/verified/test_apparent_solar.py
 tests/verified/test_current_user_bazi_stable.py
 tests/verified/test_great_luck_transit.py
