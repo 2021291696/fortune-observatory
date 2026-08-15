@@ -198,6 +198,26 @@ async function readResponse<T>(response: Response, fallback: string) {
   return body as T
 }
 
+// Session-level caches: switching views or flipping between profiles reuses
+// results instead of recomputing; keys include the birth fingerprint and the
+// civil day so edits and midnight rollovers invalidate naturally.
+const CHART_CACHE_TTL_MS = 30 * 60 * 1000
+const chartMemoryCache = new Map<string, { chart: ChartResponse; expiresAt: number }>()
+const fortuneMemoryCache = new Map<string, {
+  daily: DailyTransitResponse | null
+  periods: TransitResponse | null
+  windowTransit: TransitWindowResponse | null
+  expiresAt: number
+}>()
+
+function birthFingerprint(birth: BirthPayload): string {
+  return `${birth.civil_datetime}|${birth.longitude},${birth.latitude}|${birth.sex_for_rule}`
+}
+
+function todayCacheKey(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<AppView>(viewFromHash)
   const [themeId, setThemeId] = useState<ThemeId>(initialTheme)
@@ -332,6 +352,19 @@ export function App() {
   }
 
   async function requestChart(user: StoredUser): Promise<boolean> {
+    const cacheKey = `${user.id}:${birthFingerprint(user.birth)}`
+    const hit = chartMemoryCache.get(cacheKey)
+    if (hit && Date.now() < hit.expiresAt) {
+      chartRequest.current?.abort('superseded')
+      fortuneRequest.current?.abort('superseded')
+      chartRequest.current = null
+      fortuneRequest.current = null
+      setError(null)
+      setFortuneError(null)
+      setChart(hit.chart)
+      void loadFortune('today', user.birth)
+      return true
+    }
     chartRequest.current?.abort('superseded')
     fortuneRequest.current?.abort('superseded')
     const controller = new AbortController()
@@ -347,6 +380,11 @@ export function App() {
     try {
       const result = await postJson<ChartResponse>('/v1/charts', user.birth, controller, '排盘服务暂时不可用。')
       if (chartRequest.current !== controller) return false
+      chartMemoryCache.set(cacheKey, { chart: result, expiresAt: Date.now() + CHART_CACHE_TTL_MS })
+      if (chartMemoryCache.size > 12) {
+        const oldest = [...chartMemoryCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0]
+        if (oldest) chartMemoryCache.delete(oldest[0])
+      }
       setChart(result)
       void loadFortune('today', user.birth)
       return true
@@ -477,6 +515,19 @@ export function App() {
     const period = fortuneWindow(scope)
     const startDate = dateKey(period.start)
     const endDate = dateKey(period.end)
+    const fortuneKey = `${birthFingerprint(payload)}:${scope}:${todayCacheKey()}`
+    const cachedFortune = fortuneMemoryCache.get(fortuneKey)
+    if (cachedFortune && Date.now() < cachedFortune.expiresAt) {
+      fortuneRequest.current?.abort('superseded')
+      fortuneRequest.current = null
+      setRequestedFortuneScope(scope)
+      setFortuneError(null)
+      setDaily(cachedFortune.daily)
+      setPeriods(cachedFortune.periods)
+      setWindowTransit(cachedFortune.windowTransit)
+      setFortuneScope(scope)
+      return
+    }
     fortuneRequest.current?.abort('superseded')
     const controller = new AbortController()
     fortuneRequest.current = controller
@@ -489,6 +540,7 @@ export function App() {
           birth: payload, start_date: startDate, end_date: endDate,
         }, controller, '周期运势服务暂时不可用。')
         if (fortuneRequest.current !== controller) return
+        fortuneMemoryCache.set(fortuneKey, { daily: null, periods: null, windowTransit: result, expiresAt: Date.now() + CHART_CACHE_TTL_MS })
         setWindowTransit(result)
         setDaily(null)
         setPeriods(null)
@@ -501,6 +553,16 @@ export function App() {
       ])
       if (fortuneRequest.current !== controller) return
       if (nextDaily.status === 'rejected') throw nextDaily.reason
+      fortuneMemoryCache.set(fortuneKey, {
+        daily: nextDaily.value,
+        periods: nextPeriods.status === 'fulfilled' ? nextPeriods.value : null,
+        windowTransit: null,
+        expiresAt: Date.now() + CHART_CACHE_TTL_MS,
+      })
+      if (fortuneMemoryCache.size > 24) {
+        const oldest = [...fortuneMemoryCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt)[0]
+        if (oldest) fortuneMemoryCache.delete(oldest[0])
+      }
       setDaily(nextDaily.value)
       setPeriods(nextPeriods.status === 'fulfilled' ? nextPeriods.value : null)
       setWindowTransit(null)
