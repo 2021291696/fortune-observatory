@@ -160,6 +160,30 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
     # medical diagnosis and investment instructions, so facts stay on star
     # placements and lifestyle framing only.
     domain_palaces = {"health": "疾厄", "relationship": "夫妻", "career": "官禄", "wealth": "财帛"}
+    # 跨盘锚点（四柱+紫微整体格局），给各领域解读提供领域宫之外的语境。
+    STEM_ELEMENTS = {
+        "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
+        "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水",
+    }
+    day_stem = chart.bazi.pillars.day[0]
+    day_element = STEM_ELEMENTS.get(day_stem, "")
+    life_palace = next((item for item in chart.ziwei.palaces if item.name == "命宫"), None)
+    body_palace = next((item for item in chart.ziwei.palaces if item.is_body_palace), None)
+    life_anchor = (
+        f"命宫在{life_palace.branch}，坐"
+        + ("、".join(life_palace.major_stars) or "无主星")
+        if life_palace
+        else ""
+    )
+    body_anchor = (
+        f"身宫落于{body_palace.name}宫（{body_palace.branch}）" if body_palace else ""
+    )
+    daymaster_anchor = f"八字日主为{day_stem}（{day_element}）" if day_element else ""
+    mutagen_anchor = (
+        "生年四化：" + "、".join(f"{item.star}化{item.mutagen}" for item in chart.ziwei.birth_mutagens)
+        if chart.ziwei.birth_mutagens
+        else ""
+    )
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
@@ -187,17 +211,25 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
         palace_index = BRANCHES_FROM_YIN.index(palace.branch)
         _, opposite, trinity_a, trinity_b = surrounding_indices(palace_index)
         branch_by_index = {BRANCHES_FROM_YIN.index(item.branch): item for item in chart.ziwei.palaces}
-        surround_names = []
-        for other_index in (opposite, trinity_a, trinity_b):
-            other = branch_by_index.get(other_index)
-            if other and other.major_stars:
-                other_label = other.name if other.name.endswith("宫") else f"{other.name}宫"
-                surround_names.append(f"{other_label}的{'、'.join(other.major_stars)}")
-        if surround_names:
-            fact_texts.append(f"该宫三方四正（本宫+对宫+两个三合宫）会照：{'；'.join(surround_names)}")
+
+        def _label(other) -> str:
+            name = other.name if other.name.endswith("宫") else f"{other.name}宫"
+            stars = "、".join(other.major_stars)
+            return f"{name}（{stars}）" if stars else f"{name}（无主星）"
+
+        opposite_palace = branch_by_index.get(opposite)
+        if opposite_palace:
+            fact_texts.append(f"该宫对宫为{_label(opposite_palace)}，对宫星情与本品互为表里")
+        trinity_palaces = [branch_by_index.get(idx) for idx in (trinity_a, trinity_b)]
+        trinity_labels = [_label(other) for other in trinity_palaces if other]
+        if trinity_labels:
+            fact_texts.append(f"该宫三合会照：{'；'.join(trinity_labels)}")
+        for anchor in (life_anchor, body_anchor, daymaster_anchor, mutagen_anchor):
+            if anchor:
+                fact_texts.append(anchor)
         bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts)],
+            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:12])],
             bundle_type=f"domain.{domain}",
             context_group=chart.trace_id,
         )
