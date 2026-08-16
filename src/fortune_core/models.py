@@ -194,11 +194,40 @@ class QizhengBodySnapshot(BaseModel):
     motion: Literal["direct", "retrograde"]
 
 
+class QizhengTraditionalBody(BaseModel):
+    body: Literal[
+        "sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn",
+        "rahu", "ketu", "apogee", "ziqi",
+    ]
+    longitude_deg: float
+    longitude_rate_deg_per_day: float
+    motion: Literal["direct", "retrograde"]
+    mansion: str
+    mansion_offset_deg: float
+
+
+class QizhengTraditionalHouses(BaseModel):
+    life_branch: str
+    body_branch: str
+    houses: tuple[tuple[str, str], ...]
+
+
+class QizhengTraditionalSnapshot(BaseModel):
+    profile_id: str
+    anchor: Literal["j2000_mean_ecliptic"]
+    bodies: tuple[QizhengTraditionalBody, ...]
+    houses: QizhengTraditionalHouses | None = None
+    notes: tuple[str, ...] = ()
+    scope_limits: tuple[str, ...]
+    verification_status: Literal["verified", "ambiguous", "unsupported"]
+
+
 class QizhengSnapshot(BaseModel):
     profile_id: str
     ephemeris_id: str
     ephemeris_datetime: datetime
     bodies: tuple[QizhengBodySnapshot, ...]
+    traditional: QizhengTraditionalSnapshot | None = None
     scope_limits: tuple[str, ...]
     verification_status: Literal["verified", "ambiguous", "unsupported"]
 

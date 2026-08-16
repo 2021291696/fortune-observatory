@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "qizheng-traditional-alpha-v1",
+  "system": "qizheng",
+  "status": "alpha",
+  "display_name": "七政四余传统层·四余+恒星黄道二十八宿+命身宫 alpha v1",
+  "extends": "qizheng-physical-beta-v1",
+  "frozen_conventions": {
+    "four_remainders": {
+      "rahu": "mean_ascending_node_meeus_47_7",
+      "ketu": "rahu_plus_180",
+      "lunar_apogee": "mean_L'_minus_M'_plus_180_meeus_47_1_47_4",
+      "ziqi": "apogee_plus_180_modern_placeholder_not_classical_motion",
+      "delta_t": "omitted_error_below_0p001_deg"
+    },
+    "sidereal_anchor": {
+      "frame": "j2000_mean_ecliptic",
+      "obliquity_deg": 23.4392911,
+      "seven_bodies": "apparent_position_via_icrs_radec_conversion",
+      "four_remainders_frame_reduction": "minus_IAU1976_general_precession_p_A"
+    },
+    "mansions": {
+      "source": "wikipedia_28_mansion_determinative_star_table_with_qing_adjustments",
+      "adjustments": {
+        "奎": "奎宿二 ζ And（明清调整后）",
+        "昴": "昴宿一 17 Tau",
+        "觜": "觜宿二 φ¹ Ori（明清调整后）",
+        "参": "参宿一 ζ Ori（维基表作 δ Ori 但其黄经 82.4° 在觜距星之西、宿度为负，几何不可行；取崇祯以来距星称宿一之通例）"
+      },
+      "widths": "derived_from_determinative_star_j2000_ecliptic_differences_single_source_of_truth",
+      "palace_branches": "辰角亢、巳翼轸、午柳星张、未井鬼、申觜参、酉胃昴毕、戌奎娄、亥室壁、子女虚危、丑斗牛、寅尾箕、卯房心氐",
+      "star_table_sha256": "fca0f4efc228851d7d3e47df157e27d98394f1f617a0a943a2bc1a2d1556b409",
+      "cross_check": "HYG v4.1 (Hipparcos) all 28 stars ≤12 arcsec, scripts/cross_check_mansions_hyg.py"
+    },
+    "houses": {
+      "life_palace": "sun_palace_branch_plus_mao_minus_birth_hour_branch_mod_12",
+      "body_palace": "same_counting_to_you_always_opposite_life_palace",
+      "twelve_house_order": "命宫财帛兄弟田宅子女奴仆夫妻疾厄迁移官禄福德相貌 arranged_counter_zodiac_from_life_palace_guolao_xingzong"
+    }
+  },
+  "unsupported": {
+    "dignities_temple_exaltation": "3B",
+    "benefic_affliction_relations": "3B",
+    "major_minor_limits": "3B",
+    "day_night_chart": "3B",
+    "dynamic_fortune": "3B"
+  },
+  "feature_flags": {
+    "natal_physical_positions": true,
+    "traditional_chart": true,
+    "traditional_static_display_only": true,
+    "dynamic_fortune": false
+  },
+  "verification": {
+    "star_table": "cross_checked_hyg_v41_wikipedia",
+    "four_remainders": "formula_constants_and_rates_self_consistent_meeus_published_terms",
+    "houses_and_mansion_ingress": "candidates_not_golden_pending_human_review",
+    "adr_gate": "traditional layer enters AI dynamic interpretation only after human-reviewed golden fixtures (ADR-0002)"
+  }
+}
