@@ -177,7 +177,7 @@ export function UserBar({ users, currentId, editingId, manage = false, onSwitch,
             onKeyDown={(event) => { if (event.key === 'Enter') commitRename(user.id); if (event.key === 'Escape') setRenamingId(null) }}
           />
         : <button type="button" className="user-pick" onClick={() => onSwitch(user.id)} title={`切换到 ${user.name}`}>
-          {user.name}{index === 0 && <span className="user-default" title="默认用户">★</span>}
+          <span className="user-name">{user.name}</span>{index === 0 && <span className="user-default" title="默认用户">★</span>}
         </button>}
       {manage && renamingId !== user.id && <>
         <button type="button" className="user-act" aria-label={`重命名 ${user.name}`} title="重命名"

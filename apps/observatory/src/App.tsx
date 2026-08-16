@@ -611,7 +611,7 @@ export function App() {
       </div>}
       <span className={`session-state ${chart ? 'is-ready' : ''}`}>
         {chart ? <CheckCircle size={17} weight="fill" /> : <ShieldCheck size={17} weight="bold" />}
-        {sessionState}
+        <span className="session-copy">{sessionState}</span>
       </span>
     </header>
 
