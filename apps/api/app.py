@@ -49,12 +49,15 @@ from fortune_core.models import (
     TransitResponse,
     TransitSnapshot,
     ZiweiSnapshot,
+    ZiweiYearlySnapshot,
 )
 from fortune_core.qizheng import calculate_physical_baseline
 from fortune_core.signals import build_natal_insights
 from fortune_core.time_location import build_time_trace
 from fortune_core.transit import calculate_daily_transit, calculate_transit, calculate_transit_window
 from fortune_core.ziwei import calculate_palaces
+from fortune_core.ziwei.limits import calculate_yearly_limit
+from fortune_core.ziwei.palaces import BRANCHES_FROM_YIN, surrounding_indices
 
 logger = logging.getLogger("fortune.api")
 
@@ -180,6 +183,17 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             f"该宫辅星为{minor_stars}",
             *( [f"该宫可追溯四化为{'、'.join(mutagens)}"] if mutagens else [] ),
         ]
+        palace_index = BRANCHES_FROM_YIN.index(palace.branch)
+        _, opposite, trinity_a, trinity_b = surrounding_indices(palace_index)
+        branch_by_index = {BRANCHES_FROM_YIN.index(item.branch): item for item in chart.ziwei.palaces}
+        surround_names = []
+        for other_index in (opposite, trinity_a, trinity_b):
+            other = branch_by_index.get(other_index)
+            if other and other.major_stars:
+                other_label = other.name if other.name.endswith("宫") else f"{other.name}宫"
+                surround_names.append(f"{other_label}的{'、'.join(other.major_stars)}")
+        if surround_names:
+            fact_texts.append(f"该宫三方四正（本宫+对宫+两个三合宫）会照：{'；'.join(surround_names)}")
         bundle = build_signed_context(
             "domain",
             [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts)],
@@ -196,11 +210,19 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             for item in chart.ziwei.birth_mutagens
             if item.star in palace_stars
         ]
+        self_mutagens = [
+            entry.mutagen
+            for entry in chart.ziwei.flying_mutagens
+            if entry.from_branch == palace.branch and entry.is_self
+        ]
         stars = "、".join(f"{star}（{brightness}）" for star, brightness in palace.major_star_brightness) or "无主星"
+        palace_label = palace.name if palace.name.endswith("宫") else f"{palace.name}宫"
         text = (
-            f"{palace.name}宫在{palace.branch}"
+            f"{palace_label}干支{palace.stem}{palace.branch}"
             + ("（身宫）" if palace.is_body_palace else "")
             + (f"，{('、'.join(mutagens))}" if mutagens else "")
+            + ("，自化" if self_mutagens else "")
+            + ("、".join(self_mutagens) if self_mutagens else "")
             + f"，主星：{stars}"
             + (f"，辅星：{'、'.join(palace.minor_stars)}" if palace.minor_stars else "")
             + f"，大限{palace.decadal_range[0]}至{palace.decadal_range[1]}岁"
@@ -272,6 +294,29 @@ def _daily_ai_context(
     annual = getattr(internal, "ziwei_annual", None)
     if annual is not None and getattr(annual, "life_branch", None):
         texts.append(f"{annual.year_pillar}年紫微流年命宫位于{annual.life_branch}")
+    yearly = response.ziwei_yearly
+    if yearly is not None:
+        def _palace_label(entry: Any) -> str:
+            name = entry.palace_name or entry.palace_branch
+            return name if name.endswith("宫") else f"{name}宫"
+        mutagen_line = "、".join(
+            f"{entry.star}化{entry.mutagen}入{_palace_label(entry)}"
+            for entry in yearly.yearly_mutagens
+        )
+        texts.append(f"{yearly.year_pillar}年四化：{mutagen_line}")
+        court_stars = [
+            star.star for star in yearly.flowing_stars if star.branch == yearly.life_branch
+        ]
+        if court_stars:
+            texts.append(
+                f"流年命宫在{yearly.life_branch}，坐{'、'.join(court_stars)}（流曜：随年流转的辅星）"
+            )
+        decadal = yearly.decadal
+        decadal_mutagens = "、".join(f"{entry.star}化{entry.mutagen}" for entry in decadal.mutagens)
+        texts.append(
+            f"当前{'童限' if decadal.is_childhood else '大限'}{decadal.branch}宫（{decadal.stem}{decadal.branch}，"
+            f"{decadal.start_age}-{decadal.end_age}岁），限内四化：{decadal_mutagens}"
+        )
     return build_signed_context(
         "fortune",
         [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
@@ -436,7 +481,17 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
         )
-    response = DailyTransitResponse(transit=transit, trace_id=str(uuid4()))
+    ziwei_yearly = None
+    try:
+        ziwei_snapshot = calculate_palaces(request.birth)
+        if ziwei_snapshot.verification_status == "verified":
+            ziwei_yearly = ZiweiYearlySnapshot.model_validate(
+                calculate_yearly_limit(ziwei_snapshot, request.birth, request.transit_date),
+                from_attributes=True,
+            )
+    except ValueError:
+        ziwei_yearly = None
+    response = DailyTransitResponse(transit=transit, trace_id=str(uuid4()), ziwei_yearly=ziwei_yearly)
     context_group = _fortune_context_group(
         bazi.calculation_datetime.isoformat(),
         (pillars.year, pillars.month, pillars.day, pillars.hour),

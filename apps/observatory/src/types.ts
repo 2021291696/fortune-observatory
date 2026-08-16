@@ -37,6 +37,7 @@ export type ChartResponse = {
     verification_status: VerificationStatus
     palaces: Array<{
       name: string
+      stem: string
       branch: string
       is_body_palace: boolean
       decadal_range: [number, number]
@@ -44,6 +45,14 @@ export type ChartResponse = {
       major_stars: string[]
       major_star_brightness: [string, string][]
       minor_stars: string[]
+    }>
+    flying_mutagens?: Array<{
+      from_branch: string
+      stem: string
+      mutagen: string
+      star: string
+      to_branch: string
+      is_self: boolean
     }>
   }
   qizheng: {
@@ -79,6 +88,29 @@ export type ChartResponse = {
   ai_contexts: Partial<Record<AnalysisDomain | 'ziwei', AiContextBundle>>
 }
 
+export type ZiweiMutagenPlacement = {
+  star: string
+  mutagen: string
+  palace_branch: string
+  palace_name: string
+}
+
+export type ZiweiYearly = {
+  year_pillar: string
+  nominal_age: number
+  life_branch: string
+  yearly_mutagens: ZiweiMutagenPlacement[]
+  decadal: {
+    branch: string
+    stem: string
+    start_age: number
+    end_age: number
+    is_childhood: boolean
+    mutagens: ZiweiMutagenPlacement[]
+  }
+  flowing_stars: Array<{ star: string; branch: string }>
+}
+
 export type DailyTransitResponse = {
   transit: {
     transit_date: string
@@ -87,6 +119,7 @@ export type DailyTransitResponse = {
     verification_status: VerificationStatus
   }
   trace_id: string
+  ziwei_yearly?: ZiweiYearly | null
   ai_context: AiContextBundle | null
 }
 

@@ -93,12 +93,20 @@
 .insight-list strong { display: block; margin-top: 9px; font-size: 12px; line-height: 1.6; }
 .insight-list small { display: block; margin-top: 6px; color: var(--muted); font-size: 11px; }
 .palace-grid { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--soft-line); border-left: 1px solid var(--soft-line); }
-.palace-grid article { position: relative; min-height: 112px; padding: 14px; border-right: 1px solid var(--soft-line); border-bottom: 1px solid var(--soft-line); }
+.palace-grid article { position: relative; min-height: 112px; padding: 14px; border-right: 1px solid var(--soft-line); border-bottom: 1px solid var(--soft-line); cursor: pointer; transition: background 140ms ease, box-shadow 140ms ease; }
+.palace-grid article:hover { background: color-mix(in srgb, var(--wash) 14%, #fff); }
+.palace-grid article.is-inspecting { background: color-mix(in srgb, var(--accent) 7%, #fff); }
+.palace-grid article.is-target { box-shadow: inset 0 0 0 2px var(--accent); background: color-mix(in srgb, var(--accent) 12%, #fff); }
+.palace-grid article > span { position: absolute; right: 10px; top: 8px; color: var(--accent); font-family: serif; font-size: 15px; font-weight: 850; letter-spacing: .04em; }
+.palace-inspect { margin-top: 14px; padding: 18px; border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--soft-line)); border-radius: 12px; background: color-mix(in srgb, var(--paper) 82%, #fff); }
+.palace-inspect > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.palace-inspect > header strong { font-size: 15px; }
+.palace-inspect > header button { min-height: 36px; padding: 0 10px; border: 1px solid var(--soft-line); border-radius: 8px; color: var(--muted); background: #fff; font-size: 11px; font-weight: 800; }
+.palace-inspect > p { margin: 6px 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
 .palace-grid article.is-body-palace { background: color-mix(in srgb, var(--wash) 20%, #fff); }
-.palace-grid article > span { position: absolute; right: 10px; top: 8px; color: var(--accent); font-family: serif; font-size: 22px; font-weight: 850; }
-.palace-grid h3 { margin: 0 0 20px; padding-right: 25px; font-size: 13px; }
+.palace-grid h3 { margin: 0 0 20px; padding-right: 45px; font-size: 13px; }
 .palace-grid p, .palace-grid small { display: block; margin: 4px 0 0; color: var(--muted); font-size: 11px; }
-.palace-stars { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 7px; padding-right: 22px; }
+.palace-stars { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 7px; padding-right: 40px; }
 .star-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px; border: 1px solid var(--soft-line); border-radius: 6px; background: rgba(255,255,255,.62); color: var(--ink); font-size: 10px; font-weight: 800; font-style: normal; line-height: 1.4; }
 .star-chip em { font-size: 8px; color: var(--muted); font-style: normal; }
 .star-chip b { padding: 0 3px; border-radius: 4px; color: #fff; font-size: 8px; font-weight: 900; }
@@ -182,6 +190,10 @@
 .fortune-layers b { font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fortune-layers i { color: var(--accent); font-size: 10px; font-style: normal; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fortune-insights { margin-top: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.yearly-ziwei { display: grid; gap: 6px; margin: -8px 0 18px; padding: 12px 14px; border: 1px solid var(--soft-line); border-radius: 12px; background: color-mix(in srgb, var(--wash) 16%, #fff); }
+.yearly-ziwei .yz-pill { justify-self: start; padding: 3px 9px; border-radius: 999px; color: var(--accent); background: #fff; font-size: 10px; font-weight: 900; }
+.yearly-ziwei p { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.7; }
+.yearly-ziwei small { color: var(--muted); font-size: 10px; font-weight: 700; }
 .fortune-insights article { padding: 18px; border: 1px solid var(--soft-line); border-radius: 12px; background: var(--paper); }
 .fortune-insights h4 { margin: 0 0 6px; font-size: 14px; }
 .fortune-insights p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.65; }

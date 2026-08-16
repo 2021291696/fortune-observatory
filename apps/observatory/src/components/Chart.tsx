@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import type { ThemeConfig } from '../themes'
 import type { ChartResponse } from '../types'
-import { termGlossary } from '../terminology'
+import { termGlossary, branchesFromYin } from '../terminology'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
@@ -26,6 +27,7 @@ export function branchClass(branch: string) {
 }
 
 export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConfig }) {
+  const [inspectIndex, setInspectIndex] = useState<number | null>(null)
   const pillars = Object.values(chart.bazi.pillars)
   const details = chart.bazi.pillar_details.length === 4
     ? chart.bazi.pillar_details
@@ -101,23 +103,68 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
     </section>
 
     <section className="ziwei-section">
-      <div className="section-kicker"><span>紫微十二宫</span><small>禄/权/科/忌 = 生年四化（{termGlossary['四化']}）</small></div>
+      <div className="section-kicker"><span>紫微十二宫</span><small>点击宫位看三方四正与飞化 · 禄/权/科/忌 = 生年四化</small></div>
       <div className="palace-grid">
-        {chart.ziwei.palaces.map((palace) => <article className={palace.is_body_palace ? 'is-body-palace' : ''} key={`${palace.name}-${palace.branch}`}>
-          <span>{palace.branch}</span><h3>{palace.name}{palace.is_body_palace ? ' · 身宫' : ''}</h3>
-          <div className="palace-stars">
-            {palace.major_star_brightness.map(([star, brightness]) => {
-              const mutagen = mutagenOf.get(star)
-              return <i key={star} className={`star-chip${mutagen ? ` is-mutagen is-${mutagen}` : ''}`} title={termGlossary[brightness] ?? ''}>
-                {star}<em>{brightness}</em>{mutagen ? <b title={termGlossary[`化${mutagen}`]}>{mutagen}</b> : null}
-              </i>
-            })}
-            {!palace.major_stars.length && <i className="star-chip is-empty">无主星</i>}
-          </div>
-          <p title={termGlossary['大限']}>大限 {palace.decadal_range[0]}-{palace.decadal_range[1]}</p>
-          <small title={termGlossary['小限']}>小限 {palace.minor_limit_ages.slice(0, 4).join('/')}</small>
-        </article>)}
+        {chart.ziwei.palaces.map((palace, index) => {
+          const targetBranch = inspectIndex !== null ? chart.ziwei.palaces[inspectIndex].branch : null
+          const targetBranchIndex = targetBranch ? branchesFromYin.indexOf(targetBranch) : -1
+          const inspectingBranches = targetBranch
+            ? [targetBranch, ...[6, 4, 8].map((offset) => branchesFromYin[(targetBranchIndex + offset) % 12])]
+            : []
+          return <article
+            className={`${palace.is_body_palace ? 'is-body-palace ' : ''}${inspectingBranches.includes(palace.branch) ? 'is-inspecting ' : ''}${inspectIndex === index ? 'is-target' : ''}`}
+            key={`${palace.name}-${palace.branch}`}
+            role="button"
+            tabIndex={0}
+            title="点击查看三方四正与飞化"
+            onClick={() => setInspectIndex(inspectIndex === index ? null : index)}
+            onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') setInspectIndex(inspectIndex === index ? null : index) }}
+          >
+            <span title={termGlossary['宫干']}>{palace.stem}{palace.branch}</span><h3>{palace.name}{palace.is_body_palace ? ' · 身宫' : ''}</h3>
+            <div className="palace-stars">
+              {palace.major_star_brightness.map(([star, brightness]) => {
+                const mutagen = mutagenOf.get(star)
+                return <i key={star} className={`star-chip${mutagen ? ` is-mutagen is-${mutagen}` : ''}`} title={termGlossary[brightness] ?? ''}>
+                  {star}<em>{brightness}</em>{mutagen ? <b title={termGlossary[`化${mutagen}`]}>{mutagen}</b> : null}
+                </i>
+              })}
+              {!palace.major_stars.length && <i className="star-chip is-empty">无主星</i>}
+            </div>
+            <p title={termGlossary['大限']}>大限 {palace.decadal_range[0]}-{palace.decadal_range[1]}</p>
+            <small title={termGlossary['小限']}>小限 {palace.minor_limit_ages.slice(0, 4).join('/')}</small>
+          </article>
+        })}
       </div>
+      {inspectIndex !== null && (() => {
+        const target = chart.ziwei.palaces[inspectIndex]
+        const targetBranchIndex = branchesFromYin.indexOf(target.branch)
+        const surrounds = [6, 4, 8].map((offset) =>
+          chart.ziwei.palaces.find((item) => item.branch === branchesFromYin[(targetBranchIndex + offset) % 12]))
+          .filter((item): item is NonNullable<typeof item> => Boolean(item))
+        const flying = (chart.ziwei.flying_mutagens ?? []).filter((entry) => entry.from_branch === target.branch)
+        const nameOf = (branch: string) => chart.ziwei.palaces.find((item) => item.branch === branch)?.name ?? branch
+        return <div className="palace-inspect">
+          <header>
+            <strong>{target.name}宫 · {target.stem}{target.branch}</strong>
+            <button type="button" onClick={() => setInspectIndex(null)}>收起</button>
+          </header>
+          <p title={termGlossary['三方四正']}>三方四正会照：{surrounds.map((item) => `${item.name}宫（${item.major_stars.join('、') || '无主星'}）`).join('；')}</p>
+          {flying.length > 0 && <p title={termGlossary['飞化']}>宫干飞化：{flying.map((entry) => `${entry.star}化${entry.mutagen}→${nameOf(entry.to_branch)}宫${entry.is_self ? `（${termGlossary['自化']}）` : ''}`).join('；')}</p>}
+          {chart.ai_contexts.ziwei && <AiExplainPanel
+            auto
+            cacheKey={`ai-ziwei-${chart.trace_id}-${target.branch}`}
+            source={{
+              key: `ziwei-${chart.trace_id}-${target.branch}`,
+              kind: 'domain',
+              title: `${target.name}宫详解`,
+              summary: `${target.stem}${target.branch}宫，主星：${target.major_stars.join('、') || '无主星'}`,
+              facts: chart.ai_contexts.ziwei.facts,
+              contextTokens: [chart.ai_contexts.ziwei.token],
+            }}
+            defaultQuestion={`请详解我的${target.name}宫（${target.stem}${target.branch}，主星：${target.major_stars.join('、') || '无主星'}；三方四正：${surrounds.map((item) => item.name + '宫').join('、')}）：先一句话结论加一个比喻，再讲这个宫位管辖的生活领域在我身上的典型表现（每个术语配一句白话），最后给2条具体行动建议。`}
+          />}
+        </div>
+      })()}
       {chart.ai_contexts.ziwei && <AiExplainPanel
         auto
         cacheKey={`ai-ziwei-${chart.trace_id}`}

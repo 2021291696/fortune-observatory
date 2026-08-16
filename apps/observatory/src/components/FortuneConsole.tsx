@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react'
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
-import { factDomain, plainFactLine } from '../terminology'
+import { factDomain, plainFactLine, termGlossary } from '../terminology'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
@@ -138,6 +138,18 @@ export function FortuneConsole(props: FortuneProps) {
             <MemeCompanion theme={theme} />
             <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
+            {daily.ziwei_yearly && <div className="yearly-ziwei">
+              <span className="yz-pill" title={termGlossary['流年四化']}>{daily.ziwei_yearly.year_pillar}年 · 虚岁{daily.ziwei_yearly.nominal_age}</span>
+              <p>{daily.ziwei_yearly.yearly_mutagens.map((entry) => {
+                const label = entry.palace_name || entry.palace_branch
+                return `${entry.star}化${entry.mutagen}入${label.endsWith('宫') ? label : `${label}宫`}`
+              }).join('；')}</p>
+              <small title={termGlossary[daily.ziwei_yearly.decadal.is_childhood ? '童限' : '大限']}>
+                {daily.ziwei_yearly.decadal.is_childhood
+                  ? `童限行${daily.ziwei_yearly.decadal.branch}宫`
+                  : `大限${daily.ziwei_yearly.decadal.stem}${daily.ziwei_yearly.decadal.branch} · ${daily.ziwei_yearly.decadal.start_age}-${daily.ziwei_yearly.decadal.end_age}岁`}
+              </small>
+            </div>}
             {dailyAi && <AiExplainPanel
               auto
               cacheKey={`ai-${aiOwner}-${daily.transit.transit_date}`}
