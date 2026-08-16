@@ -1,5 +1,7 @@
 import type { ThemeConfig } from '../themes'
 import type { ChartResponse } from '../types'
+import { termGlossary } from '../terminology'
+import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
@@ -29,6 +31,7 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
     ? chart.bazi.pillar_details
     : pillars.map((pillar) => ({ pillar, ten_god: '', hidden_stems: [] as { stem: string; ten_god: string }[], nayin: '' }))
   const dayun = chart.bazi.great_luck_periods.slice(0, 8)
+  const mutagenOf = new Map(chart.ziwei.birth_mutagens.map((item) => [item.star, item.mutagen]))
   const starPalaces = chart.ziwei.palaces.filter((palace) => palace.major_stars.length)
   const minorPalaces = chart.ziwei.palaces.filter((palace) => palace.minor_stars.length)
 
@@ -97,6 +100,39 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
       </div>
     </section>
 
+    <section className="ziwei-section">
+      <div className="section-kicker"><span>紫微十二宫</span><small>禄/权/科/忌 = 生年四化（{termGlossary['四化']}）</small></div>
+      <div className="palace-grid">
+        {chart.ziwei.palaces.map((palace) => <article className={palace.is_body_palace ? 'is-body-palace' : ''} key={`${palace.name}-${palace.branch}`}>
+          <span>{palace.branch}</span><h3>{palace.name}{palace.is_body_palace ? ' · 身宫' : ''}</h3>
+          <div className="palace-stars">
+            {palace.major_star_brightness.map(([star, brightness]) => {
+              const mutagen = mutagenOf.get(star)
+              return <i key={star} className={`star-chip${mutagen ? ` is-mutagen is-${mutagen}` : ''}`} title={termGlossary[brightness] ?? ''}>
+                {star}<em>{brightness}</em>{mutagen ? <b title={termGlossary[`化${mutagen}`]}>{mutagen}</b> : null}
+              </i>
+            })}
+            {!palace.major_stars.length && <i className="star-chip is-empty">无主星</i>}
+          </div>
+          <p title={termGlossary['大限']}>大限 {palace.decadal_range[0]}-{palace.decadal_range[1]}</p>
+          <small title={termGlossary['小限']}>小限 {palace.minor_limit_ages.slice(0, 4).join('/')}</small>
+        </article>)}
+      </div>
+      {chart.ai_contexts.ziwei && <AiExplainPanel
+        auto
+        cacheKey={`ai-ziwei-${chart.trace_id}`}
+        source={{
+          key: `ziwei-${chart.trace_id}`,
+          kind: 'domain',
+          title: `紫微命盘 · 命宫${chart.ziwei.life_branch} 身宫${chart.ziwei.body_branch}`,
+          summary: `${chart.ziwei.five_elements_bureau}局十二宫整盘解读`,
+          facts: chart.ai_contexts.ziwei.facts,
+          contextTokens: [chart.ai_contexts.ziwei.token],
+        }}
+        defaultQuestion="请用白话解读我的紫微命盘整体格局：先一句话结论加一个比喻；再讲命宫和身宫的星曜组合各意味着什么（每个术语都配一句白话）；最后给我2到4条今天就能做的具体行动建议。"
+      />}
+    </section>
+
     <details className="chart-full-details">
       <summary>解读、紫微十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
@@ -108,17 +144,6 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
         </article>)}
       </div>
     </section>}
-
-    <section className="ziwei-section">
-      <div className="section-kicker"><span>紫微十二宫</span></div>
-      <div className="palace-grid">
-        {chart.ziwei.palaces.map((palace) => <article className={palace.is_body_palace ? 'is-body-palace' : ''} key={`${palace.name}-${palace.branch}`}>
-          <span>{palace.branch}</span><h3>{palace.name}{palace.is_body_palace ? ' · 身宫' : ''}</h3>
-          <p>大限 {palace.decadal_range[0]}-{palace.decadal_range[1]}</p>
-          <small>小限 {palace.minor_limit_ages.slice(0, 4).join('/')}</small>
-        </article>)}
-      </div>
-    </section>
 
     <details className="technical-details">
       <summary>展开计算依据与深层数据</summary>

@@ -76,7 +76,7 @@ export type ChartResponse = {
   }
   natal_insights: Array<{ insight_id: string; title: string; summary: string; action: string; fact_ids: string[] }>
   trace_id: string
-  ai_contexts: Partial<Record<AnalysisDomain, AiContextBundle>>
+  ai_contexts: Partial<Record<AnalysisDomain | 'ziwei', AiContextBundle>>
 }
 
 export type DailyTransitResponse = {

@@ -98,6 +98,16 @@
 .palace-grid article > span { position: absolute; right: 10px; top: 8px; color: var(--accent); font-family: serif; font-size: 22px; font-weight: 850; }
 .palace-grid h3 { margin: 0 0 20px; padding-right: 25px; font-size: 13px; }
 .palace-grid p, .palace-grid small { display: block; margin: 4px 0 0; color: var(--muted); font-size: 11px; }
+.palace-stars { display: flex; flex-wrap: wrap; gap: 3px; margin: 0 0 7px; padding-right: 22px; }
+.star-chip { display: inline-flex; align-items: center; gap: 3px; padding: 2px 5px; border: 1px solid var(--soft-line); border-radius: 6px; background: rgba(255,255,255,.62); color: var(--ink); font-size: 10px; font-weight: 800; font-style: normal; line-height: 1.4; }
+.star-chip em { font-size: 8px; color: var(--muted); font-style: normal; }
+.star-chip b { padding: 0 3px; border-radius: 4px; color: #fff; font-size: 8px; font-weight: 900; }
+.star-chip.is-mutagen b { background: currentColor; }
+.star-chip.is-禄 { background: #e5f6ec; color: #0a7d43; border-color: #9fd8bb; }
+.star-chip.is-权 { background: #fdecec; color: #b3261e; border-color: #eab6b2; }
+.star-chip.is-科 { background: #eaf1fd; color: #1d4ed8; border-color: #b6cbf0; }
+.star-chip.is-忌 { background: #fdf3e3; color: #92600a; border-color: #ecd6ab; }
+.star-chip.is-empty { color: var(--muted); border-style: dashed; }
 .technical-details { border-top: 1px solid var(--soft-line); }
 .technical-details > summary { min-height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 28px; list-style: none; font-size: 11px; font-weight: 850; }
 .technical-details > summary::after { content: '＋'; font-size: 18px; }

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import logging
 import os
+from collections import Counter
+from typing import Any
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
@@ -186,6 +188,32 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
         )
         if bundle is not None:
             contexts[domain] = bundle
+    palace_texts: list[str] = []
+    for palace in chart.ziwei.palaces:
+        palace_stars = set((*palace.major_stars, *palace.minor_stars))
+        mutagens = [
+            f"{item.star}化{item.mutagen}"
+            for item in chart.ziwei.birth_mutagens
+            if item.star in palace_stars
+        ]
+        stars = "、".join(f"{star}（{brightness}）" for star, brightness in palace.major_star_brightness) or "无主星"
+        text = (
+            f"{palace.name}宫在{palace.branch}"
+            + ("（身宫）" if palace.is_body_palace else "")
+            + (f"，{('、'.join(mutagens))}" if mutagens else "")
+            + f"，主星：{stars}"
+            + (f"，辅星：{'、'.join(palace.minor_stars)}" if palace.minor_stars else "")
+            + f"，大限{palace.decadal_range[0]}至{palace.decadal_range[1]}岁"
+        )
+        palace_texts.append(text[:280])
+    ziwei_bundle = build_signed_context(
+        "domain",
+        [AiFact(id=f"ziwei-{index + 1}", text=text) for index, text in enumerate(palace_texts[:12])],
+        bundle_type="ziwei.chart",
+        context_group=chart.trace_id,
+    )
+    if ziwei_bundle is not None:
+        contexts["ziwei"] = ziwei_bundle
     return contexts
 
 
@@ -203,18 +231,50 @@ def _fortune_context_group(
     ) or "context_unavailable"
 
 
-def _daily_ai_context(response: DailyTransitResponse, context_group: str) -> AiContextBundle | None:
+PILLAR_POSITION_LABELS = ("年柱", "月柱", "日柱", "时柱")
+PILLAR_DOMAIN_HINTS = ("长辈与人生根基的领域", "事业环境与同辈的领域", "本人与配偶的领域", "子女与晚辈的领域")
+SIGNAL_DIRECTION_LABELS = {"support": "支持", "tension": "张力", "neutral": "中性"}
+
+
+def _pillar_position(fact: Any) -> str:
+    index = fact.fact_id.rsplit("-", 1)[-1]
+    return PILLAR_POSITION_LABELS[int(index)] if index.isdigit() and int(index) < 4 else "本命"
+
+
+def _pillar_domain(fact: Any) -> str:
+    index = fact.fact_id.rsplit("-", 1)[-1]
+    return PILLAR_DOMAIN_HINTS[int(index)] if index.isdigit() and int(index) < 4 else "本命盘对应领域"
+
+
+def _daily_ai_context(
+    response: DailyTransitResponse,
+    context_group: str,
+    internal: Any = None,
+) -> AiContextBundle | None:
     transit = response.transit
     if transit.verification_status != "verified":
         return None
-    relation_facts = [
-        f"{RELATION_LABELS[fact.relation]}：{fact.natal_pillar} / {fact.transit_pillar}"
-        for fact in transit.facts
-    ] or ["该日未检测到已定义的地支冲、合或同支关系"]
-    texts = [f"{transit.transit_date}的日柱为{transit.day_pillar}", *relation_facts]
+    texts = [f"{transit.transit_date}的日柱为{transit.day_pillar}"]
+    for fact in transit.facts[:4]:
+        texts.append(
+            f"{RELATION_LABELS[fact.relation]}：流日{fact.transit_pillar}作用于本命{_pillar_position(fact)}{fact.natal_pillar}"
+            f"，主要涉及{_pillar_domain(fact)}"
+        )
+    if not transit.facts:
+        texts.append("该日未检测到已定义的地支冲、合或同支关系")
+    signals = tuple(getattr(internal, "signals", ()) or ())
+    if signals:
+        counts = Counter(SIGNAL_DIRECTION_LABELS[signal.direction] for signal in signals)
+        texts.append(
+            f"当日规则信号共{len(signals)}条："
+            + "、".join(f"{direction}{count}条" for direction, count in counts.items())
+        )
+    annual = getattr(internal, "ziwei_annual", None)
+    if annual is not None and getattr(annual, "life_branch", None):
+        texts.append(f"{annual.year_pillar}年紫微流年命宫位于{annual.life_branch}")
     return build_signed_context(
         "fortune",
-        [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:5])],
+        [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
         bundle_type="fortune.daily",
         context_group=context_group,
     )
@@ -362,11 +422,12 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     try:
         bazi = calculate_bazi(request.birth)
         pillars = bazi.pillars
+        daily_internal = calculate_daily_transit(
+            request.transit_date,
+            (pillars.year, pillars.month, pillars.day, pillars.hour),
+        )
         transit = DailyTransitSnapshot.model_validate(
-            calculate_daily_transit(
-                request.transit_date,
-                (pillars.year, pillars.month, pillars.day, pillars.hour),
-            ),
+            daily_internal,
             from_attributes=True,
         )
     except ValueError as error:
@@ -384,7 +445,7 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     )
     return DailyTransitApiResponse(
         **response.model_dump(),
-        ai_context=_daily_ai_context(response, context_group),
+        ai_context=_daily_ai_context(response, context_group, daily_internal),
     )
 
 

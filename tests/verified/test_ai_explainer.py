@@ -161,7 +161,7 @@ def test_provider_payload_isolates_prompt_injection_and_omits_secrets(monkeypatc
     assert "context_tokens" not in serialized
 
 
-def test_every_ai_claim_requires_known_fact_ids() -> None:
+def test_every_ai_claim_cites_only_known_fact_ids() -> None:
     valid = json.dumps({
         "summary": {"text": "可先观察节奏。", "fact_ids": ["fact-1"]},
         "actions": [{"text": "记录变化。", "fact_ids": ["fact-1"]}],
@@ -169,6 +169,14 @@ def test_every_ai_claim_requires_known_fact_ids() -> None:
     }, ensure_ascii=False)
     answer = _parse_answer(valid, {"fact-1"})
     assert answer.summary.fact_ids == ["fact-1"]
+
+    # General traditional knowledge needs no citation (full-unlock trial policy).
+    knowledge_only = json.dumps({
+        "summary": {"text": "天机星传统上主变动与思辨。", "fact_ids": []},
+        "actions": [], "caveats": [],
+    }, ensure_ascii=False)
+    answer = _parse_answer(knowledge_only, {"fact-1"})
+    assert answer.summary.fact_ids == []
 
     unknown = valid.replace('"fact-1"]}], "caveats"', '"invented"]}], "caveats"')
     with pytest.raises(AiProviderError, match="unknown"):
@@ -261,7 +269,7 @@ def test_chart_issues_server_signed_domain_context_without_birth_data(
     })
     assert response.status_code == 200
     contexts: dict[str, dict[str, Any]] = response.json()["ai_contexts"]
-    assert set(contexts) == {"health", "relationship", "career", "wealth"}
+    assert set(contexts) == {"health", "relationship", "career", "wealth", "ziwei"}
     serialized = json.dumps(contexts, ensure_ascii=False)
     assert "2005-12-24" not in serialized
     assert "102.0" not in serialized

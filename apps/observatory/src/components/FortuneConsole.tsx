@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
+import { factDomain, plainFactLine } from '../terminology'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
@@ -14,22 +15,36 @@ const periodLabels = { great_luck: '大运', year: '流年', month: '流月', da
 type DayFact = { fact_id: string; relation: 'branch_clash' | 'branch_combination' | 'branch_same'; natal_pillar: string; transit_pillar: string }
 
 function dayPlain(facts: DayFact[]) {
-  const clash = facts.filter((fact) => fact.relation === 'branch_clash').length
-  const comb = facts.filter((fact) => fact.relation === 'branch_combination').length
-  if (clash > comb) return {
-    keyword: '变动日', tone: 'tension',
+  const clash = facts.filter((fact) => fact.relation === 'branch_clash')
+  const comb = facts.filter((fact) => fact.relation === 'branch_combination')
+  const mainClash = clash[0]
+  const mainComb = comb[0]
+  if (clash.length > comb.length && mainClash) {
+    return {
+      keyword: '变动日', tone: 'tension' as const,
+      line: `今天（${mainClash.transit_pillar}）与你的${mainClash.natal_pillar}相冲，主要牵动${factDomain(mainClash)}——节奏容易被外力打断，重大决定和签署先放一放，把大任务拆成小块推进更稳。`,
+    }
+  }
+  if (clash.length > comb.length) return {
+    keyword: '变动日', tone: 'tension' as const,
     line: '这天节奏容易被外力打断、意见分歧变多——重大决定和签署先放一放，把大任务拆成小块推进会更稳。',
   }
-  if (comb > clash) return {
-    keyword: '顺合日', tone: 'support',
+  if (comb.length > clash.length && mainComb) {
+    return {
+      keyword: '顺合日', tone: 'support' as const,
+      line: `今天（${mainComb.transit_pillar}）与你的${mainComb.natal_pillar}相合，主要牵动${factDomain(mainComb)}——适合主动沟通、修复关系、推进合作，把话说开更容易成。`,
+    }
+  }
+  if (comb.length > clash.length) return {
+    keyword: '顺合日', tone: 'support' as const,
     line: '这天与人协作、修复关系、推进合作都比较顺，适合主动沟通和把话说开。',
   }
   if (facts.length) return {
-    keyword: '平稳日', tone: 'neutral',
+    keyword: '平稳日', tone: 'neutral' as const,
     line: '这天与命盘只是同气重复，没有明显冲合——按既定安排走就好。',
   }
   return {
-    keyword: '平常日', tone: 'plain',
+    keyword: '平常日', tone: 'plain' as const,
     line: '这天与命盘没有已定义的冲合关系，平常节奏安排即可。',
   }
 }
@@ -64,7 +79,7 @@ export function FortuneConsole(props: FortuneProps) {
   const hasReading = Boolean(daily || windowTransit)
   const todayKey = new Date().toISOString().slice(0, 10)
   const dailyRead = daily?.transit.facts.length
-    ? daily.transit.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；')
+    ? daily.transit.facts.map((fact) => plainFactLine(fact)).join('；')
     : '未检测到已定义的地支冲、合或同支关系。'
   const plain = daily ? dayPlain(daily.transit.facts as DayFact[]) : null
 
