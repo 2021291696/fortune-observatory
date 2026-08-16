@@ -5,6 +5,7 @@ import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
+import { MemeCompanion } from './MemeCompanion'
 import { MemeMedia } from './MemeMedia'
 
 const relationLabels = { branch_clash: '地支冲', branch_combination: '地支合', branch_same: '同支' }
@@ -119,6 +120,7 @@ export function FortuneConsole(props: FortuneProps) {
           {error && <div className="fortune-error"><strong>{error.includes('已生成') ? '部分结果已生成' : `${requestedLabel}这次没算出来`}</strong><p>{error}</p><button type="button" disabled={isLoading} onClick={() => onRequest(requestedScope)}>重试{requestedLabel}</button></div>}
 
           {daily && plain && <div className="fortune-reading">
+            <MemeCompanion theme={theme} />
             <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
             {dailyAi && <AiExplainPanel

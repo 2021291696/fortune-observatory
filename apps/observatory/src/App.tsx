@@ -662,7 +662,7 @@ export function App() {
           <h1 id="ask-title">问事</h1>
         </header>
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
-          : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} onSave={saveReading} />}
+          : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} theme={theme} onSave={saveReading} />}
       </section>}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
@@ -678,7 +678,7 @@ export function App() {
           />
           <div className="chart-output" aria-live="polite">
             {isSubmitting && chart && <div className="updating-status" role="status">正在读取{currentUser?.name}的新命盘，上一份暂时保留。</div>}
-            {chart ? <Chart chart={chart} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>盘面还没就绪</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>回运势页排盘 <ArrowRight size={18} /></a></div>}
+            {chart ? <Chart chart={chart} theme={theme} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>盘面还没就绪</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>回运势页排盘 <ArrowRight size={18} /></a></div>}
           </div>
         </>}
       </section>}

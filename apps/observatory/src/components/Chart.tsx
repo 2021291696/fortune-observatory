@@ -1,4 +1,6 @@
+import type { ThemeConfig } from '../themes'
 import type { ChartResponse } from '../types'
+import { MemeCompanion } from './MemeCompanion'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
@@ -21,7 +23,7 @@ export function branchClass(branch: string) {
   return `el-${BRANCH_ELEMENTS[branch] ?? 'earth'}`
 }
 
-export function Chart({ chart }: { chart: ChartResponse }) {
+export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConfig }) {
   const pillars = Object.values(chart.bazi.pillars)
   const details = chart.bazi.pillar_details.length === 4
     ? chart.bazi.pillar_details
@@ -32,6 +34,7 @@ export function Chart({ chart }: { chart: ChartResponse }) {
 
   return <article className="chart-result">
     <header className="result-header">
+      <MemeCompanion theme={theme} />
       <div>
         <span>命盘</span>
         <h2>{pillars.join(' · ')}</h2>

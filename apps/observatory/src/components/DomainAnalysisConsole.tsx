@@ -3,7 +3,9 @@ import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 
 import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
+import type { ThemeConfig } from '../themes'
 import { AiExplainPanel } from './AiExplainPanel'
+import { MemeCompanion } from './MemeCompanion'
 
 type DomainResult = {
   title: string
@@ -76,9 +78,10 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
   }
 }
 
-export function DomainAnalysisConsole({ chart, aiOwner, onSave }: {
+export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
   chart: ChartResponse
   aiOwner: string
+  theme: ThemeConfig
   onSave: (draft: SaveDraft) => void
 }) {
   const [active, setActive] = useState<AnalysisDomain | 'chat' | null>(null)
@@ -130,6 +133,7 @@ export function DomainAnalysisConsole({ chart, aiOwner, onSave }: {
         {active === 'chat' && <AiChat chart={chart} aiOwner={aiOwner} />}
         {!result && active !== 'chat' && <div className="feature-empty"><span>选择一个领域看 AI 解读，或直接和 AI 聊你的盘。</span></div>}
         {result && activeConfig && domainActive && <article className="domain-reading">
+          <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <AiExplainPanel
             auto
