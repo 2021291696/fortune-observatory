@@ -48,7 +48,8 @@ AUDIT_JS = """() => {
 
 def run(pg, width, height, tag):
     pg.set_viewport_size({"width": width, "height": height})
-    pg.goto(URL, wait_until="networkidle")
+    # Fresh visitors land on the chart view (no saved users) — the birth form lives on #fortune.
+    pg.goto(URL + "#fortune", wait_until="networkidle")
     pg.evaluate("() => localStorage.clear()")
     pg.reload(wait_until="networkidle")
     pg.route("**/v1/ai/status", lambda r: r.fulfill(status=200, content_type="application/json", body='{"available":false}'))
