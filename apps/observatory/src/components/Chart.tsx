@@ -51,6 +51,7 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
       </div>
     </header>
 
+    <div className="section-kicker board-kicker"><span>盘一 · 四柱八字</span><small>天干地支 · 藏干 · 纳音 · 大运</small></div>
     <div className="pillars-board" aria-label="四柱八字">
       <div className="board-row board-head">
         <span className="row-label" />
@@ -107,7 +108,7 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
     </section>
 
     <section className="ziwei-section">
-      <div className="section-kicker"><span>紫微十二宫</span><small>点击宫位看三方四正与飞化 · 禄/权/科/忌 = 生年四化</small></div>
+      <div className="section-kicker"><span>盘二 · 紫微斗数（十二宫）</span><small>点击宫位看三方四正与飞化 · 禄/权/科/忌 = 生年四化</small></div>
       <div className="palace-grid">
         {chart.ziwei.palaces.map((palace, index) => {
           const targetBranch = inspectIndex !== null ? chart.ziwei.palaces[inspectIndex].branch : null
@@ -184,6 +185,60 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
       />}
     </section>
 
+    {chart.qizheng.traditional && (() => {
+      const trad = chart.qizheng.traditional
+      const branchOrder = chart.ziwei.palaces.length === 12
+        ? chart.ziwei.palaces.map((palace) => palace.branch)
+        : branchesFromYin
+      const houseNameOf = new Map((trad.houses?.houses ?? []).map(([name, branch]) => [branch, name]))
+      const starsByBranch = new Map<string, typeof trad.bodies>()
+      for (const body of trad.bodies) {
+        const group = starsByBranch.get(body.mansion_branch) ?? []
+        group.push(body)
+        starsByBranch.set(body.mansion_branch, group)
+      }
+      const chipTitle = (body: typeof trad.bodies[number]) =>
+        `${body.mansion}宿${body.mansion_offset_deg.toFixed(1)}度 · 黄经${body.longitude_deg.toFixed(2)}° · ${body.motion === 'retrograde' ? '逆行' : '顺行'} · ${termGlossary[traditionalLabels[body.body]] ?? ''}`
+      return <section className="ziwei-section qizheng-board">
+        <div className="section-kicker"><span>盘三 · 七政四余（恒星黄道）<em className="alpha-badge">传统层 alpha</em></span><small>十一星曜按十二地支宫分布 · 悬停星标看入宿度 · 命宫身宫安法见术语</small></div>
+        <div className="palace-grid is-qizheng">
+          {branchOrder.map((branch) => {
+            const stars = starsByBranch.get(branch) ?? []
+            const isLife = trad.houses?.life_branch === branch
+            const isBodyHouse = trad.houses?.body_branch === branch
+            return <article key={branch} className={isBodyHouse ? 'is-body-palace' : ''}>
+              <span title={termGlossary['恒星黄道']}>{branch}</span>
+              <h3>{houseNameOf.get(branch) ?? '—'}{isLife ? ' · 命宫' : ''}{isBodyHouse ? ' · 身宫' : ''}</h3>
+              <div className="palace-stars">
+                {stars.length ? stars.map((body) => (
+                  <i key={body.body} className="star-chip" title={chipTitle(body)}>
+                    {traditionalLabels[body.body]}<em>{body.mansion}</em>{body.motion === 'retrograde' ? <b title="逆行">逆</b> : null}
+                  </i>
+                )) : <i className="star-chip is-empty">无星曜</i>}
+              </div>
+            </article>
+          })}
+        </div>
+        <details className="qz-details">
+          <summary>星曜入宿与行度明细</summary>
+          <table className="qz-table">
+            <thead><tr><th>星曜</th><th>黄经</th><th>入宿</th><th>行度</th></tr></thead>
+            <tbody>
+              {trad.bodies.map((body) => (
+                <tr key={body.body}>
+                  <td title={termGlossary[traditionalLabels[body.body]] ?? ''}>{traditionalLabels[body.body]}</td>
+                  <td title={termGlossary['恒星黄道']}>{body.longitude_deg.toFixed(2)}°</td>
+                  <td title={termGlossary['入宿']}>入{body.mansion}宿 {body.mansion_offset_deg.toFixed(1)}°</td>
+                  <td>{body.motion === 'retrograde' ? '逆行' : '顺行'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <small title={termGlossary['二十八宿']}>{trad.notes.join('；')} · 口径见规则包 {trad.profile_id}</small>
+        </details>
+      </section>
+    })()}
+
     <details className="chart-full-details">
       <summary>解读、紫微十二宫与计算依据</summary>
     {chart.natal_insights.length > 0 && <section className="insight-section">
@@ -216,30 +271,9 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
           <p>{chart.ziwei.year_stem}年干：{chart.ziwei.birth_mutagens.map((item) => `${item.star}化${item.mutagen}`).join('、')}</p>
         </section>
         <section>
-          <h3>七政四余 · 恒星黄道 <em className="alpha-badge">传统层 alpha</em></h3>
-          {chart.qizheng.traditional && (
-            <table className="qz-table">
-              <thead><tr><th>星曜</th><th>黄经</th><th>入宿</th><th>行度</th></tr></thead>
-              <tbody>
-                {chart.qizheng.traditional.bodies.map((body) => (
-                  <tr key={body.body}>
-                    <td title={termGlossary[traditionalLabels[body.body]] ?? ''}>{traditionalLabels[body.body]}</td>
-                    <td title={termGlossary['恒星黄道']}>{body.longitude_deg.toFixed(2)}°</td>
-                    <td title={termGlossary['入宿']}>入{body.mansion}宿 {body.mansion_offset_deg.toFixed(1)}°</td>
-                    <td>{body.motion === 'retrograde' ? '逆行' : '顺行'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-          {chart.qizheng.traditional?.houses && (
-            <p title={termGlossary['命宫']}>
-              命宫{chart.qizheng.traditional.houses.life_branch} · 身宫{chart.qizheng.traditional.houses.body_branch}：
-              {chart.qizheng.traditional.houses.houses.map(([name, branch]) => `${name}${branch}`).join('、')}
-            </p>
-          )}
+          <h3>七政物理位置</h3>
           <p>{chart.qizheng.bodies.map((body) => `${qizhengBodyLabels[body.body]} ${body.longitude_deg.toFixed(3)}°${body.motion === 'retrograde' ? '逆行' : ''}`).join('；')}</p>
-          <small title={termGlossary['二十八宿']}>{chart.qizheng.traditional ? `${chart.qizheng.traditional.notes.join('；')} · 口径见规则包 ${chart.qizheng.traditional.profile_id}` : '当前仅显示地心视黄经，不输出尚未达到稳定门槛的传统宫位结论。'}</small>
+          <small>回归黄经（历元瞬时）物理基线；传统恒星黄道盘面见上方「盘三 · 七政四余」。</small>
         </section>
       </div>
       <p className="trace-line">规则包 {chart.bazi.profile_id} · 星历 {chart.time_trace.ephemeris_id} / {chart.time_trace.ephemeris_sha256.slice(0, 12)}… · trace {chart.trace_id}</p>

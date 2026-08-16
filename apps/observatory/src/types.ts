@@ -75,6 +75,7 @@ export type ChartResponse = {
         longitude_rate_deg_per_day: number
         motion: 'direct' | 'retrograde'
         mansion: string
+        mansion_branch: string
         mansion_offset_deg: number
       }>
       houses?: { life_branch: string; body_branch: string; houses: Array<[string, string]> }

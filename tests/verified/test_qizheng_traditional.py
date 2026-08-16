@@ -121,6 +121,9 @@ def test_traditional_snapshot_fixture_2026_08_16():
     assert len(snap.bodies) == 11
     assert by_key["sun"].mansion == "柳"
     assert by_key["sun"].mansion_offset_deg == pytest.approx(12.98, abs=0.01)
+    assert by_key["sun"].mansion_branch == "午"
+    assert by_key["rahu"].mansion == "虚"
+    assert by_key["rahu"].mansion_branch == "子"
     assert by_key["rahu"].motion == "retrograde"
     assert by_key["apogee"].motion == "direct"
     # 帧一致性：罗睺 J2000 帧黄经 = 平黄经 − p_A。

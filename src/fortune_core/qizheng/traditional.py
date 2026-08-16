@@ -101,6 +101,7 @@ def calculate_traditional(
                 longitude_rate_deg_per_day=round(rate, 4),
                 motion="retrograde" if rate < 0 else "direct",
                 mansion=mansion.name,
+                mansion_branch=mansion.branch,
                 mansion_offset_deg=round(offset, 2),
             )
         )
@@ -118,6 +119,7 @@ def calculate_traditional(
                 longitude_rate_deg_per_day=round(rate, 4),
                 motion="retrograde" if rate < 0 else "direct",
                 mansion=mansion.name,
+                mansion_branch=mansion.branch,
                 mansion_offset_deg=round(offset, 2),
             )
         )

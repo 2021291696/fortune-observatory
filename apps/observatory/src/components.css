@@ -85,6 +85,15 @@
 .insight-section, .ziwei-section { padding: 28px; border-top: 1px solid var(--soft-line); }
 .section-kicker { display: flex; justify-content: space-between; gap: 18px; margin-bottom: 18px; color: var(--accent); font-size: 12px; font-weight: 900; }
 .section-kicker small { color: var(--muted); font-size: 11px; }
+.board-kicker { padding: 18px 30px 0; margin-bottom: 12px; }
+.palace-grid.is-qizheng article { cursor: default; min-height: 96px; }
+.palace-grid.is-qizheng article:hover { background: transparent; }
+.qizheng-board .qz-details { border-top: 1px solid var(--soft-line); margin-top: 20px; }
+.qizheng-board .qz-details > summary { min-height: 40px; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 800; list-style: none; cursor: pointer; }
+.qizheng-board .qz-details > summary::before { content: '＋'; color: var(--accent); font-size: 13px; }
+.qizheng-board .qz-details[open] > summary::before { content: '－'; }
+.qizheng-board .qz-details > summary::-webkit-details-marker { display: none; }
+.qizheng-board .qz-details small { display: block; margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.7; }
 .insight-list { border-top: 1px solid var(--soft-line); }
 .insight-list article { display: grid; grid-template-columns: 42px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--soft-line); }
 .insight-list article > b { color: var(--accent); font-size: 23px; }

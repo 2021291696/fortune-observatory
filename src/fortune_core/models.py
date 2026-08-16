@@ -203,6 +203,7 @@ class QizhengTraditionalBody(BaseModel):
     longitude_rate_deg_per_day: float
     motion: Literal["direct", "retrograde"]
     mansion: str
+    mansion_branch: str
     mansion_offset_deg: float
 
 
