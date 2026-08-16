@@ -13,6 +13,7 @@ Run from the project root:
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".deploy-stage" / "cloudfunctions" / "destiny-api"
+DIAG_FLAG = ROOT / ".deploy-stage" / "diag-mode"
 
 CODE_DIRS = ("src/fortune_core", "apps/api", "data/ephemeris")
 
@@ -68,6 +70,20 @@ HTTPServer(("0.0.0.0", 9000), Handler).serve_forever()
 '''
 
 
+def resolve_diag_mode() -> bool:
+    """The diag server answers anyone with the full import traceback; packaging it must be deliberate."""
+    if not DIAG_FLAG.exists():
+        return False
+    if os.environ.get("FORTUNE_ALLOW_DIAG_PACKAGE") == "1":
+        print("WARNING: diag-mode package requested (FORTUNE_ALLOW_DIAG_PACKAGE=1) — do not deploy this to production.", file=sys.stderr)
+        return True
+    sys.exit(
+        "refusing to package: .deploy-stage/diag-mode is present.\n"
+        "The diag server would return the full import traceback to anyone who reaches the function.\n"
+        "Delete the flag file, or set FORTUNE_ALLOW_DIAG_PACKAGE=1 to package it deliberately."
+    )
+
+
 def main() -> None:
     if STAGE.exists():
         shutil.rmtree(STAGE)
@@ -84,7 +100,7 @@ def main() -> None:
         junk.unlink()
 
     bootstrap = STAGE / "scf_bootstrap"
-    if (ROOT / ".deploy-stage" / "diag-mode").exists():
+    if resolve_diag_mode():
         (STAGE / "diag.py").write_text(DIAG_SERVER, encoding="ascii")
         bootstrap.write_bytes(
             (

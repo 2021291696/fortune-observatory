@@ -86,6 +86,15 @@ allowed_hosts = [
     for host in os.getenv("FORTUNE_ALLOWED_HOSTS", "127.0.0.1,localhost,testserver").split(",")
     if host.strip() and host.strip() != "*"
 ]
+if not os.getenv("FORTUNE_ALLOWED_HOSTS"):
+    # Fail-closed guard: leaving the local defaults in a gateway deployment makes
+    # TrustedHostMiddleware reject every public request (400), which is confusing
+    # to diagnose from the outside — surface it in the function log instead.
+    logger.warning(
+        "FORTUNE_ALLOWED_HOSTS not set; TrustedHostMiddleware only allows local hosts (%s). "
+        "Gateway deployments must configure it with the public service host.",
+        ", ".join(allowed_hosts),
+    )
 
 app = FastAPI(
     title="Fortune Observatory API",

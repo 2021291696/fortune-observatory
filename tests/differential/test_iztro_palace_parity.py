@@ -17,6 +17,8 @@ CHINA_STANDARD_TIME = timezone(timedelta(hours=8))
 
 
 def _cases() -> list[dict[str, str | int]]:
+    # Seeded PRNG on purpose (not secrets): differential fixtures must stay
+    # reproducible byte-for-byte across runs; no security decision depends on it.
     generator = random.Random(20260721)
     # China observed daylight saving time before 1992. This fixture deliberately
     # keeps the +08:00 test offset inside the post-DST support window.

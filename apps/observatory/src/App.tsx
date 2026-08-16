@@ -7,14 +7,12 @@ import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
+import { API_BASE } from './apiBase'
 import { findArea } from './birthPlaces'
 import { dateKey, fortuneWindow } from './dates'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD
-  ? 'https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny'
-  : 'http://127.0.0.1:8000')
 const REQUEST_TIMEOUT_MS = 20_000
 const validThemes: ThemeId[] = ['phoebe', 'ggbond', 'nailong', 'kawaii', 'shuffle']
 const SAVED_READINGS_KEY = 'fortune-saved-readings-v1'

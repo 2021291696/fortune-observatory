@@ -88,7 +88,7 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
             <label><input name="sexForRule" type="radio" value="female" defaultChecked={initial ? initial.sexForRule === 'female' : false} /><span>女</span></label>
           </div>
         </div>
-        <label>出生日期<input name="civilDate" type="date" min="1901-01-01" max="2100-12-31" required defaultValue={initial?.civilDate} /></label>
+        <label>出生日期<input name="civilDate" type="date" min="1849-01-01" max="2150-12-31" required defaultValue={initial?.civilDate} /></label>
         <label>出生时间<input name="civilTime" type="time" required defaultValue={initial?.civilTime} /></label>
         <div className="place-field" role="group" aria-label="出生地">
           <input type="hidden" name="placePreset" value={placeAdcode} />

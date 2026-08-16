@@ -1,10 +1,8 @@
 import { ChatCircleDots, CheckCircle, Info, LockKey, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
 import { useEffect, useRef, useState } from 'react'
+import { API_BASE } from '../apiBase'
 import type { AiExplainResponse, AiExplainSource } from '../types'
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD
-  ? 'https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny'
-  : 'http://127.0.0.1:8000')
 const DEFAULT_QUESTION = '请把这段结果讲得更直白，并告诉我最值得先做的一件事。'
 const AI_CACHE_KEY = 'fortune-ai-cache-v1'
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000

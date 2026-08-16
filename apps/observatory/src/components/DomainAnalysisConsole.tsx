@@ -2,6 +2,7 @@ import { Briefcase, ChatCircleDots, Coins, FloppyDisk, Heart, Heartbeat, PaperPl
 import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
 import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
+import { API_BASE } from '../apiBase'
 import { AiExplainPanel } from './AiExplainPanel'
 
 type DomainResult = {
@@ -254,7 +255,7 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
     setIsLoading(true)
     startChatProgress()
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE ?? (import.meta.env.PROD ? 'https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny' : 'http://127.0.0.1:8000')}/v1/ai/explain`, {
+      const response = await fetch(`${API_BASE}/v1/ai/explain`, {
         method: 'POST',
         headers: { accept: 'application/json', 'content-type': 'application/json' },
         body: JSON.stringify({ question: clean, context_tokens: tokens, history }),
