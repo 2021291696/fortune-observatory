@@ -66,6 +66,22 @@ export type ChartResponse = {
       longitude_rate_deg_per_day: number
       motion: 'direct' | 'retrograde'
     }>
+    traditional?: {
+      profile_id: string
+      anchor: 'j2000_mean_ecliptic'
+      bodies: Array<{
+        body: 'sun' | 'moon' | 'mercury' | 'venus' | 'mars' | 'jupiter' | 'saturn' | 'rahu' | 'ketu' | 'apogee' | 'ziqi'
+        longitude_deg: number
+        longitude_rate_deg_per_day: number
+        motion: 'direct' | 'retrograde'
+        mansion: string
+        mansion_offset_deg: number
+      }>
+      houses?: { life_branch: string; body_branch: string; houses: Array<[string, string]> }
+      notes: string[]
+      scope_limits: string[]
+      verification_status: VerificationStatus
+    }
     scope_limits: string[]
     verification_status: VerificationStatus
   }

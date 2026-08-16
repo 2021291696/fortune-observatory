@@ -7,6 +7,10 @@ import { MemeCompanion } from './MemeCompanion'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
 const qizhengBodyLabels = { sun: '日', moon: '月', mercury: '水', venus: '金', mars: '火', jupiter: '木', saturn: '土' }
+const traditionalLabels: Record<string, string> = {
+  sun: '太阳', moon: '太阴', mercury: '水星', venus: '金星', mars: '火星',
+  jupiter: '木星', saturn: '土星', rahu: '罗睺', ketu: '计都', apogee: '月孛', ziqi: '紫炁',
+}
 
 const STEM_ELEMENTS: Record<string, string> = {
   甲: 'wood', 乙: 'wood', 丙: 'fire', 丁: 'fire', 戊: 'earth',
@@ -212,9 +216,30 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
           <p>{chart.ziwei.year_stem}年干：{chart.ziwei.birth_mutagens.map((item) => `${item.star}化${item.mutagen}`).join('、')}</p>
         </section>
         <section>
-          <h3>七政物理位置</h3>
+          <h3>七政四余 · 恒星黄道 <em className="alpha-badge">传统层 alpha</em></h3>
+          {chart.qizheng.traditional && (
+            <table className="qz-table">
+              <thead><tr><th>星曜</th><th>黄经</th><th>入宿</th><th>行度</th></tr></thead>
+              <tbody>
+                {chart.qizheng.traditional.bodies.map((body) => (
+                  <tr key={body.body}>
+                    <td title={termGlossary[traditionalLabels[body.body]] ?? ''}>{traditionalLabels[body.body]}</td>
+                    <td title={termGlossary['恒星黄道']}>{body.longitude_deg.toFixed(2)}°</td>
+                    <td title={termGlossary['入宿']}>入{body.mansion}宿 {body.mansion_offset_deg.toFixed(1)}°</td>
+                    <td>{body.motion === 'retrograde' ? '逆行' : '顺行'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {chart.qizheng.traditional?.houses && (
+            <p title={termGlossary['命宫']}>
+              命宫{chart.qizheng.traditional.houses.life_branch} · 身宫{chart.qizheng.traditional.houses.body_branch}：
+              {chart.qizheng.traditional.houses.houses.map(([name, branch]) => `${name}${branch}`).join('、')}
+            </p>
+          )}
           <p>{chart.qizheng.bodies.map((body) => `${qizhengBodyLabels[body.body]} ${body.longitude_deg.toFixed(3)}°${body.motion === 'retrograde' ? '逆行' : ''}`).join('；')}</p>
-          <small>当前仅显示地心视黄经，不输出尚未达到稳定门槛的传统宫位结论。</small>
+          <small title={termGlossary['二十八宿']}>{chart.qizheng.traditional ? `${chart.qizheng.traditional.notes.join('；')} · 口径见规则包 ${chart.qizheng.traditional.profile_id}` : '当前仅显示地心视黄经，不输出尚未达到稳定门槛的传统宫位结论。'}</small>
         </section>
       </div>
       <p className="trace-line">规则包 {chart.bazi.profile_id} · 星历 {chart.time_trace.ephemeris_id} / {chart.time_trace.ephemeris_sha256.slice(0, 12)}… · trace {chart.trace_id}</p>

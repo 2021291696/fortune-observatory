@@ -125,6 +125,12 @@
 .technical-grid section:nth-child(even) { padding-left: 20px; border-left: 1px solid var(--soft-line); }
 .technical-grid h3 { margin: 0 0 8px; font-size: 12px; }
 .technical-grid p, .technical-grid small { margin: 4px 0; color: var(--muted); font-size: 11px; line-height: 1.7; overflow-wrap: anywhere; }
+.qz-table { width: 100%; margin: 4px 0 8px; border-collapse: collapse; }
+.qz-table th { padding: 2px 6px; color: var(--muted); font-size: 10px; font-weight: 800; text-align: left; border-bottom: 1px solid var(--soft-line); }
+.qz-table td { padding: 3px 6px; border-bottom: 1px solid var(--soft-line); font-size: 11px; text-align: left; }
+.qz-table td:first-child { font-weight: 850; color: var(--ink); }
+.qz-table td[title], .qz-table th[title] { cursor: help; }
+.alpha-badge { display: inline-block; margin-left: 4px; padding: 1px 7px; border: 1px solid var(--soft-line); border-radius: 999px; color: var(--accent); font-size: 10px; font-style: normal; font-weight: 800; vertical-align: 1px; }
 .trace-line { margin: 0; padding: 16px 28px 22px; color: var(--muted); font: 600 9px/1.6 monospace; overflow-wrap: anywhere; }
 
 .domain-choices { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--soft-line); }

@@ -52,6 +52,7 @@ from fortune_core.models import (
     ZiweiYearlySnapshot,
 )
 from fortune_core.qizheng import calculate_physical_baseline
+from fortune_core.qizheng.traditional import calculate_traditional
 from fortune_core.signals import build_natal_insights
 from fortune_core.time_location import build_time_trace
 from fortune_core.transit import calculate_daily_transit, calculate_transit, calculate_transit_window
@@ -449,6 +450,8 @@ def create_chart(birth: BirthInput) -> ChartApiResponse:
             calculate_palaces(birth), from_attributes=True
         )
         qizheng = calculate_physical_baseline(birth.civil_datetime)
+        traditional = calculate_traditional(birth.civil_datetime, snapshot.pillars.hour[1])
+        qizheng = qizheng.model_copy(update={"traditional": traditional})
     except ValueError as error:
         raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
     chart = ChartResponse(
