@@ -20,7 +20,8 @@
 .primary-nav a > span { display: grid; gap: 1px; }
 .primary-nav strong { font-size: 13px; line-height: 1.1; }
 .primary-nav small { font-size: 9px; line-height: 1.1; font-weight: 700; opacity: .78; }
-.session-state { min-height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--soft-line); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.78); font-size: 10px; font-weight: 850; white-space: nowrap; }
+.session-state { min-height: 40px; max-width: clamp(120px, 32vw, 360px); display: flex; align-items: center; gap: 6px; padding: 0 11px; border: 1px solid var(--soft-line); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.78); font-size: 10px; font-weight: 850; white-space: nowrap; }
+.session-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .session-state.is-ready { color: #08743d; border-color: rgba(8,116,61,.24); }
 
 .task-view { min-height: calc(100vh - 64px); }
@@ -44,8 +45,9 @@
 
 /* Multi-user chips: switch / rename / remove profiles. */
 .user-bar { display: flex; flex-wrap: wrap; gap: 7px; }
-.user-chip { display: inline-flex; align-items: stretch; border: 1.5px solid var(--line); border-radius: 999px; background: #fff; box-shadow: 0 3px 0 rgba(17,17,17,.12); overflow: hidden; }
-.user-pick { min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; color: var(--ink); background: transparent; font-size: 12px; font-weight: 850; white-space: nowrap; }
+.user-chip { min-width: 0; max-width: 100%; display: inline-flex; align-items: stretch; border: 1.5px solid var(--line); border-radius: 999px; background: #fff; box-shadow: 0 3px 0 rgba(17,17,17,.12); overflow: hidden; }
+.user-pick { min-width: 0; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 14px; border: 0; color: var(--ink); background: transparent; font-size: 12px; font-weight: 850; white-space: nowrap; }
+.user-pick .user-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .user-chip.is-current .user-pick { color: #fff; background: var(--accent); }
 .user-chip.is-editing { outline: 3px solid color-mix(in srgb, var(--accent) 34%, transparent); outline-offset: 1px; }
 .user-default { color: #d99a00; font-size: 12px; }
@@ -57,7 +59,7 @@
 .user-chip-add { min-height: 47px; display: inline-flex; align-items: center; gap: 6px; padding: 0 15px; border: 1.5px dashed var(--line); border-radius: 999px; color: var(--ink); background: rgba(255,255,255,.7); font-size: 12px; font-weight: 850; }
 .user-chip-add:hover { border-style: solid; background: #fff; }
 .header-users { display: flex; align-items: center; justify-self: end; }
-.header-users .user-bar { flex-wrap: nowrap; }
+.header-users .user-bar { flex-wrap: nowrap; overflow: hidden; }
 .header-users .user-chip { border-width: 1px; box-shadow: none; }
 .header-users .user-pick { min-height: 38px; padding: 0 11px; font-size: 11px; }
 .chart-view .user-bar { margin-bottom: 18px; }
@@ -88,6 +90,8 @@
 .profile-view .remote-label { display: block; grid-column: 1 / -1; color: var(--muted); font-size: 11px; font-weight: 750; }
 .profile-view .remote-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
 .profile-view .remote-options button { min-width: 0; min-height: 58px; grid-template-columns: 25px auto; }
+.profile-view .theme-card-stage { display: grid; place-items: center; width: 25px; height: 25px; }
+.profile-view .theme-card-sticker { display: none; }
 .profile-view .motion-toggle { align-self: end; }
 .privacy-card ul { display: grid; gap: 15px; margin: 18px 0 0; padding: 0; list-style: none; }
 .privacy-card li { display: grid; grid-template-columns: 24px 1fr; gap: 9px; color: var(--muted); font-size: 11px; line-height: 1.55; }
@@ -132,8 +136,20 @@
   .task-gate { min-height: 250px; grid-template-columns: auto 1fr; padding: 22px 18px; }
   .task-gate a { grid-column: 1 / -1; width: 100%; }
   .profile-grid { grid-template-columns: 1fr; margin-bottom: 40px; }
-  .profile-view .remote-options { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
-  .profile-view .remote-options button { min-width: 0; grid-template-columns: 25px auto; }
+  /* 主题选择：≤820px 切换为 2×2 预览卡（渐变底 + 主角 + 贴纸），混合为跨列宽条 */
+  .profile-view .remote-options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .profile-view .remote-options button { min-width: 0; min-height: 0; display: grid; grid-template-columns: none; padding: 0; border: 1.5px solid var(--soft-line); border-radius: 12px; background: #fff; box-shadow: 0 3px 0 rgba(17,17,17,.1); }
+  .profile-view .remote-options button.is-active { border-color: var(--accent); box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 42%, transparent); }
+  .profile-view .theme-card-stage { position: relative; display: block; width: 100%; height: 84px; border-bottom: 1px solid var(--soft-line); overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--wash) 52%, #fff) 0 55%, color-mix(in srgb, var(--accent) 30%, #fff) 100%); }
+  .profile-view .theme-card-hero { position: absolute; bottom: 0; left: 50%; width: auto; max-width: 96%; height: 94%; transform: translateX(-50%); object-fit: contain; }
+  .profile-view .theme-card-sticker { position: absolute; z-index: 2; display: block; width: 34px; height: 34px; border: 2.5px solid #fff; border-radius: 8px; background: #fff; box-shadow: 0 3px 0 rgba(17,17,17,.16); object-fit: cover; }
+  .profile-view .theme-card-sticker:nth-of-type(2) { top: 8px; left: 8px; transform: rotate(-7deg); }
+  .profile-view .theme-card-sticker:nth-of-type(3) { right: 8px; bottom: 8px; transform: rotate(6deg); }
+  .profile-view .theme-card-name { display: block; min-height: 40px; padding: 0 8px; line-height: 40px; text-align: center; font-size: 12px; font-weight: 900; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .profile-view .remote-options .theme-card-shuffle { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; border-color: #111; background: #fff200; box-shadow: 0 3px 0 rgba(17,17,17,.82); }
+  .profile-view .remote-options .theme-card-shuffle.is-active { border-color: #111; box-shadow: 0 3px 0 #111; outline: 3px solid #111; outline-offset: -6px; }
+  .profile-view .remote-options .theme-card-shuffle .remote-shuffle { width: 20px; height: 20px; border-radius: 5px; }
+  .profile-view .remote-options .theme-card-shuffle .theme-card-name { min-height: 0; line-height: 1.4; font-size: 12px; }
   .profile-view .theme-remote { grid-template-columns: 1fr; }
   .profile-view .motion-toggle { justify-self: start; }
   .site-footer { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
@@ -142,8 +158,9 @@
 @media (max-width: 440px) {
   .session-state { font-size: 9px; }
   .today-view:not(.is-ready) .launch-copy h1 { max-width: calc(100% - 130px); font-size: 40px; }
-  
-  .profile-view .remote-options { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; }
-  .profile-view .remote-options button, .profile-view .remote-options button:nth-child(n) { min-width: 0; grid-template-columns: 1fr; padding: 4px 3px; font-size: 9px; }
-  .profile-view .remote-options button > span:last-child { display: none; }
+
+  .profile-view .remote-options button { font-size: 12px; }
+  .profile-view .remote-options button > span:last-child { display: block; }
+  .profile-view .theme-card-stage { height: 72px; }
+  .profile-view .theme-card-name { min-height: 36px; line-height: 36px; }
 }

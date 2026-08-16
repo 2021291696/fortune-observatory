@@ -1,10 +1,15 @@
-"""Verify profile page mobile layout on the deployed site: theme buttons 5-col row + motion-toggle pill."""
+"""Verify profile page mobile layout on the deployed site: theme 2x2 preview cards + shuffle wide strip + motion-toggle pill.
+
+Usage: uv run --project apps/observatory python tests/e2e/profile_mobile_check.py [url]
+Default url = deployed site.
+"""
 
 import json
+import sys
 
 from playwright.sync_api import sync_playwright
 
-URL = "https://sol-d2ga5fpq8bcf67f5a-1410845958.tcloudbaseapp.com/#profile"
+URL = sys.argv[1] if len(sys.argv) > 1 else "https://sol-d2ga5fpq8bcf67f5a-1410845958.tcloudbaseapp.com/#profile"
 
 with sync_playwright() as p:
     b = p.chromium.launch(headless=True)
@@ -18,9 +23,25 @@ with sync_playwright() as p:
       const btns = [...document.querySelectorAll('.remote-options button')]
       out.themeButtons = btns.map(e => {
         const r = e.getBoundingClientRect()
-        return {label: (e.textContent || '').trim().slice(0, 12), x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height)}
+        const hero = e.querySelector('.theme-card-hero')
+        const stickers = [...e.querySelectorAll('.theme-card-sticker')].map(s => Math.round(s.getBoundingClientRect().width))
+        return {
+          label: (e.textContent || '').trim().slice(0, 12),
+          palette: e.getAttribute('data-palette'),
+          isShuffle: e.className.includes('theme-card-shuffle'),
+          x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height),
+          heroVisible: hero ? Math.round(hero.getBoundingClientRect().height) : null,
+          stickerWidths: stickers,
+        }
       })
       out.themeCount = btns.length
+      out.activeCard = (() => {
+        const el = document.querySelector('.remote-options button.is-active')
+        if (!el) return null
+        const r = el.getBoundingClientRect()
+        const cs = getComputedStyle(el)
+        return {label: (el.textContent || '').trim().slice(0, 12), borderColor: cs.borderColor, boxShadow: cs.boxShadow.slice(0, 60), h: Math.round(r.height)}
+      })()
       const mt = document.querySelector('.motion-toggle')
       if (mt) {
         const r = mt.getBoundingClientRect()
@@ -46,11 +67,19 @@ with sync_playwright() as p:
     }""")
     print(json.dumps(geo, ensure_ascii=False, indent=2))
 
-    # 5 distinct rows? check y positions
-    ys = sorted(set(g["y"] for g in geo["themeButtons"]))
-    print(f"\ntheme button rows (y positions): {ys}")
-    print(f"distinct rows: {len(ys)}")
-    if geo["themeButtons"]:
-        widths = sorted(set(g["w"] for g in geo["themeButtons"]))
-        print(f"widths: {widths}")
+    cards = [t for t in geo["themeButtons"] if not t["isShuffle"]]
+    shuffle = [t for t in geo["themeButtons"] if t["isShuffle"]]
+    ys = sorted(set(t["y"] for t in cards))
+    print(f"\npreview cards: {len(cards)}, rows (y): {ys} (expect 2 rows of 2)")
+    if cards:
+        widths = sorted(set(t["w"] for t in cards))
+        print(f"card widths: {widths} (expect single width)")
+        print(f"hero visible heights: {[t['heroVisible'] for t in cards]} (expect > 40)")
+        print(f"sticker widths per card: {[t['stickerWidths'] for t in cards]} (expect 2 each, ~34px)")
+        print(f"palettes: {[t['palette'] for t in cards]} (expect 4 distinct)")
+    if shuffle:
+        s = shuffle[0]
+        print(f"shuffle strip: w={s['w']} h={s['h']} y={s['y']} (expect full row width, below card rows)")
+    print(f"touch targets <44px: {geo['touchTargetsUnder44']} (expect 0)")
+    print(f"overflow: {geo['overflow']} (expect [])")
     b.close()
