@@ -3,6 +3,15 @@ import { ArrowRight, LockKey, MapPin, PencilSimple, SpinnerGap, UserPlus, X } fr
 import { birthAreas, findArea, findAreaPath } from '../birthPlaces'
 
 const MANUAL = 'manual'
+const DEFAULT_BIRTH_DATE = '1995-01-01'
+const DEFAULT_BIRTH_TIME = '12:00'
+const YEAR_OPTIONS: string[] = Array.from({ length: 2150 - 1849 + 1 }, (_, index) => String(2150 - index))
+
+function daysInMonth(year: string, month: string) {
+  return new Date(Number(year), Number(month), 0).getDate()
+}
+
+const pad2 = (value: string) => value.padStart(2, '0')
 
 export type BirthInitial = {
   name: string
@@ -36,7 +45,24 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
   })
   const [longitude, setLongitude] = useState(initial?.longitude ?? '')
   const [latitude, setLatitude] = useState(initial?.latitude ?? '')
+  const [birthYear, setBirthYear] = useState(() => (initial?.civilDate ?? DEFAULT_BIRTH_DATE).slice(0, 4))
+  const [birthMonth, setBirthMonth] = useState(() => String(Number((initial?.civilDate ?? DEFAULT_BIRTH_DATE).slice(5, 7))))
+  const [birthDay, setBirthDay] = useState(() => String(Number((initial?.civilDate ?? DEFAULT_BIRTH_DATE).slice(8, 10))))
+  const [birthHour, setBirthHour] = useState(() => String(Number((initial?.civilTime ?? DEFAULT_BIRTH_TIME).slice(0, 2))))
+  const [birthMinute, setBirthMinute] = useState(() => String(Number((initial?.civilTime ?? DEFAULT_BIRTH_TIME).slice(3, 5))))
+  const civilDate = `${birthYear}-${pad2(birthMonth)}-${pad2(birthDay)}`
+  const civilTime = `${pad2(birthHour)}:${pad2(birthMinute)}`
+  const dayCount = daysInMonth(birthYear, birthMonth)
   const isManual = provinceCode === MANUAL
+
+  function pickYear(year: string) {
+    setBirthYear(year)
+    if (Number(birthDay) > daysInMonth(year, birthMonth)) setBirthDay(String(daysInMonth(year, birthMonth)))
+  }
+  function pickMonth(month: string) {
+    setBirthMonth(month)
+    if (Number(birthDay) > daysInMonth(birthYear, month)) setBirthDay(String(daysInMonth(birthYear, month)))
+  }
 
   const provinceNode = useMemo(
     () => birthAreas.find((node) => node.adcode === provinceCode) ?? birthAreas[0],
@@ -88,8 +114,27 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
             <label><input name="sexForRule" type="radio" value="female" defaultChecked={initial ? initial.sexForRule === 'female' : false} /><span>女</span></label>
           </div>
         </div>
-        <label>出生日期<input name="civilDate" type="date" min="1849-01-01" max="2150-12-31" required defaultValue={initial?.civilDate} /></label>
-        <label>出生时间<input name="civilTime" type="time" required defaultValue={initial?.civilTime} /></label>
+        <div className="when-field" role="group" aria-label="出生日期">
+          <input type="hidden" name="civilDate" value={civilDate} />
+          <label>年<select aria-label="出生年" value={birthYear} onChange={(event) => pickYear(event.target.value)}>
+            {YEAR_OPTIONS.map((year) => <option key={year} value={year}>{year}年</option>)}
+          </select></label>
+          <label>月<select aria-label="出生月" value={birthMonth} onChange={(event) => pickMonth(event.target.value)}>
+            {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((month) => <option key={month} value={month}>{Number(month)}月</option>)}
+          </select></label>
+          <label>日<select aria-label="出生日" value={birthDay} onChange={(event) => setBirthDay(event.target.value)}>
+            {Array.from({ length: dayCount }, (_, index) => String(index + 1)).map((day) => <option key={day} value={day}>{Number(day)}日</option>)}
+          </select></label>
+        </div>
+        <div className="when-field two" role="group" aria-label="出生时间（24 小时制）">
+          <input type="hidden" name="civilTime" value={civilTime} />
+          <label>时<select aria-label="出生时（24 小时制）" value={birthHour} onChange={(event) => setBirthHour(event.target.value)}>
+            {Array.from({ length: 24 }, (_, index) => String(index)).map((hour) => <option key={hour} value={hour}>{pad2(hour)}时</option>)}
+          </select></label>
+          <label>分<select aria-label="出生分" value={birthMinute} onChange={(event) => setBirthMinute(event.target.value)}>
+            {Array.from({ length: 60 }, (_, index) => String(index)).map((minute) => <option key={minute} value={minute}>{pad2(minute)}分</option>)}
+          </select></label>
+        </div>
         <div className="place-field" role="group" aria-label="出生地">
           <input type="hidden" name="placePreset" value={placeAdcode} />
           <label>省 / 直辖市

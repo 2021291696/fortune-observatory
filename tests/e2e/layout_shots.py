@@ -14,8 +14,12 @@ def shoot(page, name, full=True):
 
 def fill(page, name, prov="110000", city="110101", date="2000-01-01"):
     page.locator('input[name="displayName"]').fill(name)
-    page.locator('input[name="civilDate"]').fill(date)
-    page.locator('input[name="civilTime"]').fill("08:30")
+    birth_year, birth_month, birth_day = date.split("-")
+    page.locator('select[aria-label="出生年"]').select_option(birth_year)
+    page.locator('select[aria-label="出生月"]').select_option(str(int(birth_month)))
+    page.locator('select[aria-label="出生日"]').select_option(str(int(birth_day)))
+    page.locator('select[aria-label="出生时（24 小时制）"]').select_option("8")
+    page.locator('select[aria-label="出生分"]').select_option("30")
     page.locator('select[aria-label="省份"]').select_option(prov)
     if city:
         page.locator('select[aria-label="城市或辖区"]').select_option(city)

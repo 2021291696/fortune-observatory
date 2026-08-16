@@ -38,8 +38,13 @@ def assert_touch_targets(page: Page) -> None:
 
 def fill_birth(page: Page, name: str = "我", prov: str = "110000", city: str = "110101", date: str = "2000-01-01", time: str = "08:30") -> None:
     page.locator('input[name="displayName"]').fill(name)
-    page.locator('input[name="civilDate"]').fill(date)
-    page.locator('input[name="civilTime"]').fill(time)
+    birth_year, birth_month, birth_day = date.split("-")
+    birth_hour, birth_minute = time.split(":")
+    page.locator('select[aria-label="出生年"]').select_option(birth_year)
+    page.locator('select[aria-label="出生月"]').select_option(str(int(birth_month)))
+    page.locator('select[aria-label="出生日"]').select_option(str(int(birth_day)))
+    page.locator('select[aria-label="出生时（24 小时制）"]').select_option(str(int(birth_hour)))
+    page.locator('select[aria-label="出生分"]').select_option(str(int(birth_minute)))
     page.locator('select[aria-label="省份"]').select_option(prov)
     if city:
         page.locator('select[aria-label="城市或辖区"]').select_option(city)
