@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from lunar_python import LunarYear, Solar
 
@@ -69,6 +69,7 @@ HUO_LING_START_BY_YEAR_BRANCH = {
 @dataclass(frozen=True)
 class ZiweiPalace:
     name: str
+    stem: str
     branch: str
     is_body_palace: bool
     decadal_range: tuple[int, int]
@@ -85,6 +86,16 @@ class ZiweiBirthMutagen:
 
 
 @dataclass(frozen=True)
+class ZiweiFlyingMutagen:
+    from_branch: str
+    stem: str
+    mutagen: str
+    star: str
+    to_branch: str
+    is_self: bool
+
+
+@dataclass(frozen=True)
 class ZiweiPalaceSnapshot:
     lunar_month: int
     hour_branch: str
@@ -94,7 +105,48 @@ class ZiweiPalaceSnapshot:
     year_stem: str
     birth_mutagens: tuple[ZiweiBirthMutagen, ...]
     palaces: tuple[ZiweiPalace, ...]
+    flying_mutagens: tuple[ZiweiFlyingMutagen, ...]
     verification_status: str
+
+
+def palace_stem(year_stem: str, branch_index_from_yin: int) -> str:
+    """五虎遁：寅宫起 TIGER_START_STEM[年干]，顺布十天干。"""
+    return STEMS[(STEMS.index(TIGER_START_STEM[year_stem]) + branch_index_from_yin) % 10]
+
+
+def surrounding_indices(index: int) -> tuple[int, int, int, int]:
+    """三方四正（寅起索引）：本宫、对宫(+6)、三合两宫(+4/+8)。"""
+    return (index % 12, (index + 6) % 12, (index + 4) % 12, (index + 8) % 12)
+
+
+def _star_to_branch(snapshot: ZiweiPalaceSnapshot) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    for palace in snapshot.palaces:
+        for star in (*palace.major_stars, *palace.minor_stars):
+            mapping.setdefault(star, palace.branch)
+    return mapping
+
+
+def palace_flying_mutagens(snapshot: ZiweiPalaceSnapshot) -> tuple[ZiweiFlyingMutagen, ...]:
+    """宫干四化（飞化）：每宫天干起四化，落到本命盘哪一宫；落本宫即自化。"""
+    placements = _star_to_branch(snapshot)
+    results: list[ZiweiFlyingMutagen] = []
+    for palace in snapshot.palaces:
+        for star, mutagen in zip(BIRTH_MUTAGENS[palace.stem], MUTAGEN_NAMES, strict=True):
+            to_branch = placements.get(star)
+            if to_branch is None:
+                continue
+            results.append(
+                ZiweiFlyingMutagen(
+                    from_branch=palace.branch,
+                    stem=palace.stem,
+                    mutagen=mutagen,
+                    star=star,
+                    to_branch=to_branch,
+                    is_self=to_branch == palace.branch,
+                )
+            )
+    return tuple(results)
 
 
 def _time_index(hour: int) -> int:
@@ -257,6 +309,7 @@ def calculate_palaces(birth: BirthInput) -> ZiweiPalaceSnapshot:
     palaces = tuple(
         ZiweiPalace(
             name=name,
+            stem=palace_stem(year_stem, (life_index - offset) % 12),
             branch=BRANCHES_FROM_YIN[(life_index - offset) % 12],
             is_body_palace=BRANCHES_FROM_YIN[(life_index - offset) % 12] == BRANCHES_FROM_YIN[body_index],
             decadal_range=decadal_ranges[BRANCHES_FROM_YIN[(life_index - offset) % 12]],
@@ -270,7 +323,7 @@ def calculate_palaces(birth: BirthInput) -> ZiweiPalaceSnapshot:
         )
         for offset, name in enumerate(PALACE_ORDER)
     )
-    return ZiweiPalaceSnapshot(
+    snapshot = ZiweiPalaceSnapshot(
         lunar_month=lunar_month,
         hour_branch=hour_branch,
         life_branch=BRANCHES_FROM_YIN[life_index],
@@ -279,9 +332,11 @@ def calculate_palaces(birth: BirthInput) -> ZiweiPalaceSnapshot:
         year_stem=year_stem,
         birth_mutagens=birth_mutagens,
         palaces=palaces,
+        flying_mutagens=(),
         verification_status=(
             "verified"
             if birth.use_apparent_solar_time and birth.apparent_solar_datetime is None
             else "ambiguous"
         ),
     )
+    return replace(snapshot, flying_mutagens=palace_flying_mutagens(snapshot))

@@ -106,6 +106,7 @@ class BaziSnapshot(BaseModel):
 
 class ZiweiPalace(BaseModel):
     name: str
+    stem: str
     branch: str
     is_body_palace: bool
     decadal_range: tuple[int, int]
@@ -120,6 +121,15 @@ class ZiweiBirthMutagen(BaseModel):
     mutagen: Literal["禄", "权", "科", "忌"]
 
 
+class ZiweiFlyingMutagen(BaseModel):
+    from_branch: str
+    stem: str
+    mutagen: Literal["禄", "权", "科", "忌"]
+    star: str
+    to_branch: str
+    is_self: bool
+
+
 class ZiweiSnapshot(BaseModel):
     lunar_month: int
     hour_branch: str
@@ -129,7 +139,38 @@ class ZiweiSnapshot(BaseModel):
     year_stem: str
     birth_mutagens: tuple[ZiweiBirthMutagen, ...]
     palaces: tuple[ZiweiPalace, ...]
+    flying_mutagens: tuple[ZiweiFlyingMutagen, ...] = ()
     verification_status: Literal["verified", "ambiguous", "unsupported"]
+
+
+class ZiweiMutagenPlacement(BaseModel):
+    star: str
+    mutagen: Literal["禄", "权", "科", "忌"]
+    palace_branch: str
+    palace_name: str
+
+
+class ZiweiDecadalLimit(BaseModel):
+    branch: str
+    stem: str
+    start_age: int
+    end_age: int
+    is_childhood: bool
+    mutagens: tuple[ZiweiMutagenPlacement, ...]
+
+
+class ZiweiFlowingStar(BaseModel):
+    star: str
+    branch: str
+
+
+class ZiweiYearlySnapshot(BaseModel):
+    year_pillar: str
+    nominal_age: int
+    life_branch: str
+    yearly_mutagens: tuple[ZiweiMutagenPlacement, ...]
+    decadal: ZiweiDecadalLimit
+    flowing_stars: tuple[ZiweiFlowingStar, ...]
 
 
 class ZiweiAnnualPalace(BaseModel):
@@ -254,6 +295,7 @@ class DailyTransitRequest(StrictRequestModel):
 class DailyTransitResponse(BaseModel):
     transit: DailyTransitSnapshot
     trace_id: str
+    ziwei_yearly: ZiweiYearlySnapshot | None = None
 
 
 class TransitWindowRequest(StrictRequestModel):

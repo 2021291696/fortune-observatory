@@ -1,6 +1,6 @@
 'use strict';
 
-const { astro } = require('iztro');
+const { astro, util } = require('iztro');
 
 astro.config({
   yearDivide: 'exact',
@@ -22,11 +22,27 @@ process.stdin.on('end', () => {
       .filter((star) => star.mutagen)
       .map((star) => [star.mutagen, star.name]));
     const yearly = chart.horoscope(item.date, 6).yearly;
-    return {
+    const starBranch = {};
+    chart.palaces.forEach((palace) => {
+      [...palace.majorStars, ...palace.minorStars].forEach((star) => {
+        starBranch[star.name] = palace.earthlyBranch;
+      });
+    });
+    const mutagedPlaces = Object.fromEntries(chart.palaces.map((palace) => [
+      palace.earthlyBranch,
+      // mutagedPlaces() lacks its astrolabe back-reference in 2.5.8, assemble manually.
+      util.getMutagensByHeavenlyStem(palace.heavenlyStem).map((star) => starBranch[star]),
+    ]));
+    const result = {
       year_stem: chart.rawDates.chineseDate.yearly[0],
       life_branch: chart.earthlyBranchOfSoulPalace,
       body_branch: chart.earthlyBranchOfBodyPalace,
       palace_branches: chart.palaces.map((palace) => palace.earthlyBranch).sort(),
+      palace_stems: Object.fromEntries(chart.palaces.map((palace) => [
+        palace.earthlyBranch,
+        palace.heavenlyStem,
+      ])),
+      mutaged_places: mutagedPlaces,
       decadal_ranges: Object.fromEntries(chart.palaces.map((palace) => [
         palace.earthlyBranch,
         palace.decadal.range,
@@ -54,6 +70,25 @@ process.stdin.on('end', () => {
       annual_year_pillar: `${yearly.heavenlyStem}${yearly.earthlyBranch}`,
       annual_palaces: yearly.palaceNames,
     };
+    if (item.horo_date) {
+      const horo = chart.horoscope(item.horo_date, 6);
+      result.horoscope = {
+        nominal_age: horo.age.nominalAge,
+        decadal: {
+          index: horo.decadal.index,
+          pillar: `${horo.decadal.heavenlyStem}${horo.decadal.earthlyBranch}`,
+          mutagen: horo.decadal.mutagen,
+          is_childhood: horo.decadal.name === '童限',
+        },
+        yearly: {
+          index: horo.yearly.index,
+          pillar: `${horo.yearly.heavenlyStem}${horo.yearly.earthlyBranch}`,
+          mutagen: horo.yearly.mutagen,
+          stars: horo.yearly.stars.map((bucket) => bucket.map((star) => star.name)),
+        },
+      };
+    }
+    return result;
   });
   process.stdout.write(JSON.stringify(results));
 });

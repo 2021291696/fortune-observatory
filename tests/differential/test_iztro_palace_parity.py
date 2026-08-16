@@ -9,6 +9,8 @@ import subprocess
 
 from fortune_core.models import BirthInput
 from fortune_core.ziwei import calculate_annual_palaces, calculate_palaces
+from fortune_core.ziwei.limits import calculate_yearly_limit
+from fortune_core.ziwei.palaces import BRANCHES_FROM_YIN
 
 
 RUNTIME_DIR = Path(__file__).parent / "iztro_runtime"
@@ -97,3 +99,86 @@ def test_iztro_2_5_8_palace_branch_parity_for_2080_charts() -> None:
         annual = calculate_annual_palaces(date.fromisoformat(str(item["date"])))
         assert annual.year_pillar == expected["annual_year_pillar"], item
         assert [palace.name for palace in annual.palaces] == expected["annual_palaces"], item
+
+
+def _run_oracle(cases: list[dict]) -> list[dict]:
+    completed = subprocess.run(
+        ["node", "batch-palaces.cjs"],
+        cwd=RUNTIME_DIR,
+        input=json.dumps(cases),
+        capture_output=True,
+        check=True,
+        text=True,
+        encoding="utf-8",
+    )
+    return json.loads(completed.stdout)
+
+
+def test_iztro_2_5_8_palace_stems_and_flying_mutagens_parity() -> None:
+    cases = _cases()
+    oracle = _run_oracle(cases)
+    for item, expected in zip(cases, oracle, strict=True):
+        actual = _python_snapshot(item)
+        stems = {palace.branch: palace.stem for palace in actual.palaces}
+        assert stems == expected["palace_stems"], item
+        flying: dict[str, dict[str, str]] = {}
+        for entry in actual.flying_mutagens:
+            flying.setdefault(entry.from_branch, {})[entry.mutagen] = entry.to_branch
+        assert {
+            branch: [mapping.get(mutagen) for mutagen in ("禄", "权", "科", "忌")]
+            for branch, mapping in flying.items()
+        } == expected["mutaged_places"], item
+        for entry in actual.flying_mutagens:
+            assert entry.is_self == (entry.to_branch == entry.from_branch)
+
+
+def test_iztro_2_5_8_yearly_limit_parity_for_300_charts() -> None:
+    # Seeded PRNG on purpose (not secrets): differential fixtures must stay
+    # reproducible byte-for-byte across runs; no security decision depends on it.
+    generator = random.Random(20260816)
+    cases = _cases()[:300]
+    for item in cases:
+        birth_date = date.fromisoformat(str(item["date"]))
+        years = generator.randint(1, 60)
+        target = birth_date.replace(year=min(birth_date.year + years, 2149))
+        if target.month == 2 and target.day == 29:
+            target = target.replace(day=28)
+        item["horo_date"] = target.isoformat()
+    oracle = _run_oracle(cases)
+
+    for item, expected in zip(cases, oracle, strict=True):
+        snapshot = _python_snapshot(item)
+        horo = expected["horoscope"]
+        target = date.fromisoformat(str(item["horo_date"]))
+        moment = datetime.combine(
+            date.fromisoformat(str(item["date"])),
+            datetime.min.time(),
+            tzinfo=CHINA_STANDARD_TIME,
+        ).replace(hour=TIME_INDEX_HOURS[int(item["time_index"])])
+        birth = BirthInput(
+            civil_datetime=moment,
+            apparent_solar_datetime=moment,
+            timezone_id="Asia/Shanghai",
+            longitude=116.4,
+            latitude=39.9,
+            sex_for_rule=str(item["sex"]),
+        )
+        actual = calculate_yearly_limit(snapshot, birth, target)
+        assert actual.nominal_age == horo["nominal_age"], item
+        assert actual.year_pillar == horo["yearly"]["pillar"], item
+        assert [entry.star for entry in actual.yearly_mutagens] == horo["yearly"]["mutagen"], item
+        assert actual.decadal.branch == BRANCHES_FROM_YIN[horo["decadal"]["index"]], item
+        assert actual.decadal.is_childhood == horo["decadal"]["is_childhood"], item
+        if not actual.decadal.is_childhood:
+            assert actual.decadal.stem == horo["decadal"]["pillar"][0], item
+            assert [entry.star for entry in actual.decadal.mutagens] == horo["decadal"]["mutagen"], item
+        flowing_buckets: dict[str, list[str]] = {}
+        for star in actual.flowing_stars:
+            flowing_buckets.setdefault(star.branch, []).append(star.star)
+        iztro_buckets = {
+            BRANCHES_FROM_YIN[index]: filtered
+            for index, bucket in enumerate(horo["yearly"]["stars"])
+            # Skip 年解 (rule table not frozen in this profile) and buckets left empty by that filter.
+            if (filtered := sorted(name for name in bucket if name != "年解"))
+        }
+        assert {branch: sorted(names) for branch, names in flowing_buckets.items()} == iztro_buckets, item
