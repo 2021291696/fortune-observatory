@@ -7,12 +7,15 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Literal
+
+logger = logging.getLogger("fortune.ai_explainer")
 from urllib.parse import urlparse
 
 import httpx
@@ -371,7 +374,7 @@ USER_DATA_JSON.history（如存在）是本次会话此前的问答摘录，仅�
             {"role": "user", "content": "USER_DATA_JSON\n" + json.dumps(untrusted_data, ensure_ascii=False, separators=(",", ":"))},
         ],
         "temperature": 0.2,
-        "max_tokens": 2600,
+        "max_tokens": 3000,
     }
     response_format = _response_format(config)
     if response_format is not None:
@@ -492,4 +495,16 @@ async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
         raise
     except (httpx.HTTPError, ValueError) as error:
         raise AiProviderError("AI provider request failed") from error
+    usage = body.get("usage") if isinstance(body, dict) else None
+    finish_reason = None
+    try:
+        finish_reason = body["choices"][0].get("finish_reason")
+    except (KeyError, IndexError, TypeError, AttributeError):
+        pass
+    logger.info(
+        "ai provider usage completion=%s total=%s finish=%s",
+        (usage or {}).get("completion_tokens"),
+        (usage or {}).get("total_tokens"),
+        finish_reason,
+    )
     return _parse_answer(_message_text(body), {fact.id for fact in facts}, bundle_types)
