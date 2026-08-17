@@ -185,6 +185,36 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
         if chart.ziwei.birth_mutagens
         else ""
     )
+    traditional = chart.qizheng.traditional
+    qizheng_anchors: list[str] = []
+    if traditional is not None and traditional.bodies:
+        if traditional.life_lord:
+            day_night = (
+                "昼" if traditional.is_day_chart
+                else "夜" if traditional.is_day_chart is False
+                else None
+            )
+            qizheng_anchors.append(
+                "七政四余盘（第三盘）："
+                + (f"{day_night}盘，" if day_night else "")
+                + f"命主{QIZHENG_STAR_NAMES[traditional.life_lord]}（命宫支守护星）、"
+                + f"身主{QIZHENG_STAR_NAMES[traditional.body_lord]}"
+            )
+        dignified = "、".join(
+            f"{QIZHENG_STAR_NAMES[body.body]}{body.dignity}"
+            for body in traditional.bodies if body.dignity
+        )
+        grouped: dict[str, list[str]] = {}
+        for body in traditional.bodies:
+            if body.relation:
+                grouped.setdefault(body.relation, []).append(QIZHENG_STAR_NAMES[body.body])
+        bits = []
+        if dignified:
+            bits.append(f"庙旺：{dignified}")
+        if grouped:
+            bits.append("恩难仇用：" + "，".join(f"{key}星{'、'.join(names)}" for key, names in grouped.items()))
+        if bits:
+            qizheng_anchors.append("七政星曜：" + "；".join(bits))
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
@@ -225,9 +255,18 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
         trinity_labels = [_label(other) for other in trinity_palaces if other]
         if trinity_labels:
             fact_texts.append(f"该宫三合会照：{'；'.join(trinity_labels)}")
-        for anchor in (life_anchor, body_anchor, daymaster_anchor, mutagen_anchor):
-            if anchor:
-                fact_texts.append(anchor)
+        # 锚点合并（命宫+身宫一行），为七政三盘联动腾出事实位（上限 12）。
+        palace_anchors = []
+        if life_anchor and body_anchor:
+            palace_anchors.append(f"{life_anchor}；{body_anchor}")
+        elif life_anchor or body_anchor:
+            palace_anchors.append(life_anchor or body_anchor)
+        if daymaster_anchor:
+            palace_anchors.append(daymaster_anchor)
+        if mutagen_anchor:
+            palace_anchors.append(mutagen_anchor)
+        fact_texts.extend(palace_anchors)
+        fact_texts.extend(qizheng_anchors)
         bundle = build_signed_context(
             "domain",
             [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:12])],
@@ -273,11 +312,6 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
 
     traditional = chart.qizheng.traditional
     if traditional is not None and traditional.bodies:
-        qz_names = {
-            "sun": "太阳", "moon": "太阴", "mercury": "水星", "venus": "金星",
-            "mars": "火星", "jupiter": "木星", "saturn": "土星",
-            "rahu": "罗睺", "ketu": "计都", "apogee": "月孛", "ziqi": "紫炁",
-        }
         by_key = {body.body: body for body in traditional.bodies}
         qz_texts: list[str] = []
         if traditional.is_day_chart is not None:
@@ -287,25 +321,25 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             )
         if traditional.life_lord:
             qz_texts.append(
-                f"命主{qz_names[traditional.life_lord]}（命宫{traditional.houses.life_branch}的宫主）、"
-                f"身主{qz_names[traditional.body_lord]}（身宫{traditional.houses.body_branch}的宫主）"
+                f"命主{QIZHENG_STAR_NAMES[traditional.life_lord]}（命宫{traditional.houses.life_branch}的宫主）、"
+                f"身主{QIZHENG_STAR_NAMES[traditional.body_lord]}（身宫{traditional.houses.body_branch}的宫主）"
             )
         for key in ("sun", "moon"):
             body = by_key.get(key)
             if body:
                 extras = "，居垣" if body.dignity == "居垣" else ("，升殿" if body.dignity == "升殿" else "")
                 qz_texts.append(
-                    f"{qz_names[key]}入{body.mansion}宿{body.mansion_offset_deg:.0f}度（{body.mansion_branch}宫{extras}）"
+                    f"{QIZHENG_STAR_NAMES[key]}入{body.mansion}宿{body.mansion_offset_deg:.0f}度（{body.mansion_branch}宫{extras}）"
                 )
         others = [
-            f"{qz_names[body.body]}入{body.mansion}宿"
+            f"{QIZHENG_STAR_NAMES[body.body]}入{body.mansion}宿"
             for body in traditional.bodies
             if body.body not in ("sun", "moon")
         ]
         if others:
             qz_texts.append("其余星曜入宿：" + "、".join(others))
         dignified = [
-            f"{qz_names[body.body]}{body.dignity}于{'本垣' if body.dignity == '居垣' else '本宿'}"
+            f"{QIZHENG_STAR_NAMES[body.body]}{body.dignity}于{'本垣' if body.dignity == '居垣' else '本宿'}"
             for body in traditional.bodies if body.dignity
         ]
         if dignified:
@@ -313,7 +347,7 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
         grouped: dict[str, list[str]] = {}
         for body in traditional.bodies:
             if body.relation:
-                grouped.setdefault(body.relation, []).append(qz_names[body.body])
+                grouped.setdefault(body.relation, []).append(QIZHENG_STAR_NAMES[body.body])
         if grouped:
             qz_texts.append(
                 "相对命主五星的恩难仇用（恩=生我助力，难=克我压力，用=我克可控之财，仇=我生泄耗）："
@@ -506,6 +540,13 @@ async def unexpected_error_handler(request: Request, error: Exception) -> JSONRe
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "engine": "bazi-v1"}
+
+
+QIZHENG_STAR_NAMES = {
+    "sun": "太阳", "moon": "太阴", "mercury": "水星", "venus": "金星",
+    "mars": "火星", "jupiter": "木星", "saturn": "土星",
+    "rahu": "罗睺", "ketu": "计都", "apogee": "月孛", "ziqi": "紫炁",
+}
 
 
 @app.get("/v1/ai/status", response_model=AiStatusResponse)

@@ -371,7 +371,7 @@ USER_DATA_JSON.history（如存在）是本次会话此前的问答摘录，仅�
             {"role": "user", "content": "USER_DATA_JSON\n" + json.dumps(untrusted_data, ensure_ascii=False, separators=(",", ":"))},
         ],
         "temperature": 0.2,
-        "max_tokens": 2000,
+        "max_tokens": 2600,
     }
     response_format = _response_format(config)
     if response_format is not None:

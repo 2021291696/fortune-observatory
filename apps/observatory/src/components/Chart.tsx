@@ -267,18 +267,6 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
           </table>
           <small title={termGlossary['二十八宿']}>{trad.notes.join('；')} · 口径见规则包 {trad.profile_id}</small>
         </details>
-        {chart.ai_contexts.qizheng && <AiExplainPanel
-          cacheKey={`ai-qizheng-${chart.trace_id}`}
-          source={{
-            key: `qizheng-${chart.trace_id}`,
-            kind: 'domain',
-            title: `七政四余盘 · 命宫${trad.houses?.life_branch ?? ''}${trad.is_day_chart === false ? ' · 夜盘' : trad.is_day_chart === true ? ' · 昼盘' : ''}`,
-            summary: `命主${trad.life_lord ? traditionalLabels[trad.life_lord] : ''}，十一曜入宿与庙旺恩难`,
-            facts: chart.ai_contexts.qizheng.facts,
-            contextTokens: [chart.ai_contexts.qizheng.token],
-          }}
-          defaultQuestion="请基于我的七政四余盘（星曜入宿、命主身主、庙旺、恩难仇用、昼夜盘），写一篇完整的白话解读：先用一句话结论加一个比喻；然后分2-3段展开——我这张七政盘的整体格局特点、命主与庙旺星曜提示的强项、恩难星曜提示的挑战，每个命理术语第一次出现都立刻解释成白话；最后给2-4条建议，每条说清为什么、怎么做、怎么算做到了。"
-        />}
       </section>
     })()}
 
