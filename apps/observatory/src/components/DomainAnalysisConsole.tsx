@@ -168,7 +168,7 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
           <AiExplainPanel
             auto
             splitQuestions={lifePhaseQuestions(chart, domainActive)}
-            cacheKey={`ai-${aiOwner}-${domainActive}-merged`}
+            cacheKey={`ai-${aiOwner}-${domainActive}-life`}
             source={{
               key: `${chart.trace_id}-${domainActive}-analysis`,
               kind: 'domain',
