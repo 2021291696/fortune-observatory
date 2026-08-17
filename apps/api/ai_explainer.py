@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import asyncio
 import hashlib
 import hmac
 import ipaddress
@@ -43,6 +44,7 @@ class ChatTurn(StrictModel):
 
 class AiExplainRequest(StrictModel):
     question: str = Field(min_length=1, max_length=300)
+    split_question: str | None = Field(default=None, max_length=300)
     context_tokens: list[str] = Field(min_length=1, max_length=4)
     history: list[ChatTurn] = Field(default_factory=list, max_length=12)
 
@@ -57,7 +59,7 @@ class AiExplainRequest(StrictModel):
 
 
 class AiGroundedClaim(StrictModel):
-    text: str = Field(min_length=1, max_length=900)
+    text: str = Field(min_length=1, max_length=2000)
     # General traditional knowledge needs no citation; a cited id must be real (checked in _parse_answer).
     fact_ids: list[str] = Field(default_factory=list, max_length=12)
 
@@ -469,28 +471,24 @@ async def _read_limited_json_response(response: Any) -> Any:
         raise AiProviderError("provider response is not valid JSON") from error
 
 
-async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
-    config = get_provider_config()
-    if config is None:
-        raise AiConfigurationError("AI provider is not configured")
-    facts, bundle_types = _verified_context(request, config.context_secret)
-    _reserve_daily_budget(config.daily_limit)
-    headers = {
-        "authorization": f"Bearer {config.api_key}",
-        "content-type": "application/json",
-        "accept": "application/json",
-    }
-    timeout = httpx.Timeout(config.timeout_seconds, connect=min(3.0, config.timeout_seconds))
+async def _complete_once(
+    client: httpx.AsyncClient,
+    question: str,
+    facts: list[AiFact],
+    config: AiProviderConfig,
+    bundle_types: set[str],
+    headers: dict[str, str],
+    history: list[ChatTurn] | None = None,
+) -> AiExplainResponse:
     try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
-            async with client.stream(
-                "POST",
-                f"{config.base_url}/chat/completions",
-                headers=headers,
-                json=_provider_payload(request.question, facts, config, request.history),
-            ) as response:
-                response.raise_for_status()
-                body = await _read_limited_json_response(response)
+        async with client.stream(
+            "POST",
+            f"{config.base_url}/chat/completions",
+            headers=headers,
+            json=_provider_payload(question, facts, config, history),
+        ) as response:
+            response.raise_for_status()
+            body = await _read_limited_json_response(response)
     except AiProviderError:
         raise
     except (httpx.HTTPError, ValueError) as error:
@@ -508,3 +506,48 @@ async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
         finish_reason,
     )
     return _parse_answer(_message_text(body), {fact.id for fact in facts}, bundle_types)
+
+
+async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
+    config = get_provider_config()
+    if config is None:
+        raise AiConfigurationError("AI provider is not configured")
+    facts, bundle_types = _verified_context(request, config.context_secret)
+    _reserve_daily_budget(config.daily_limit)
+    if request.split_question:
+        _reserve_daily_budget(config.daily_limit)
+    headers = {
+        "authorization": f"Bearer {config.api_key}",
+        "content-type": "application/json",
+        "accept": "application/json",
+    }
+    timeout = httpx.Timeout(config.timeout_seconds, connect=min(3.0, config.timeout_seconds))
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
+            if not request.split_question:
+                return await _complete_once(
+                    client, request.question, facts, config, bundle_types, headers, request.history
+                )
+            # 分段并行：分析篇与行动篇各自拥有独立思考预算，墙钟≈较慢一侧；合并成一份答案。
+            part_analysis, part_actions = await asyncio.gather(
+                _complete_once(client, request.question, facts, config, bundle_types, headers),
+                _complete_once(client, request.split_question, facts, config, bundle_types, headers),
+            )
+    except AiProviderError:
+        raise
+    except (httpx.HTTPError, ValueError) as error:
+        raise AiProviderError("AI provider request failed") from error
+    summary_text = part_analysis.summary.text
+    if part_analysis.actions:
+        summary_text += "\n\n" + "\n\n".join(claim.text for claim in part_analysis.actions)
+    merged_fact_ids: list[str] = list(part_analysis.summary.fact_ids)
+    for claim in part_analysis.actions:
+        merged_fact_ids.extend(claim.fact_ids)
+    return AiExplainResponse(
+        summary=AiGroundedClaim(
+            text=summary_text,
+            fact_ids=list(dict.fromkeys(merged_fact_ids))[:12],
+        ),
+        actions=part_actions.actions,
+        caveats=part_actions.caveats,
+    )

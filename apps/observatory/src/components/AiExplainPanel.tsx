@@ -59,11 +59,15 @@ function isAnswer(value: unknown): value is AiExplainResponse {
     && Array.isArray(candidate.caveats) && candidate.caveats.every(isClaim)
 }
 
-async function fetchExplanation(question: string, contextTokens: string[]): Promise<AiExplainResponse> {
+async function fetchExplanation(
+  question: string,
+  contextTokens: string[],
+  splitQuestion?: string,
+): Promise<AiExplainResponse> {
   const response = await fetch(`${API_BASE}/v1/ai/explain`, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify({ question, context_tokens: contextTokens }),
+    body: JSON.stringify({ question, split_question: splitQuestion || undefined, context_tokens: contextTokens }),
     credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
   })
   const body: unknown = await response.json().catch(() => null)
@@ -80,10 +84,15 @@ type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
 type InflightGeneration = { task: Promise<GenerationOutcome>; startedAt: number }
 const inflightGenerations = new Map<string, InflightGeneration>()
 
-function joinBackgroundGeneration(cacheKey: string, question: string, contextTokens: string[]): InflightGeneration {
+function joinBackgroundGeneration(
+  cacheKey: string,
+  question: string,
+  contextTokens: string[],
+  splitQuestion?: string,
+): InflightGeneration {
   const existing = inflightGenerations.get(cacheKey)
   if (existing) return existing
-  const attempt = () => fetchExplanation(question, contextTokens).then((answer) => {
+  const attempt = () => fetchExplanation(question, contextTokens, splitQuestion).then((answer) => {
     writeCache(cacheKey, answer)
     return answer
   })
@@ -115,13 +124,12 @@ export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
 }
 
-export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, hideProgress = false, onBusyChange }: {
+export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, splitQuestion }: {
   source: AiExplainSource
   defaultQuestion?: string
   auto?: boolean
   cacheKey?: string
-  hideProgress?: boolean
-  onBusyChange?: (busy: boolean) => void
+  splitQuestion?: string
 }) {
   const [expanded, setExpanded] = useState(auto)
   const [availability, setAvailability] = useState<Availability>(auto ? 'checking' : 'idle')
@@ -134,11 +142,6 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
-
-  useEffect(() => {
-    onBusyChange?.(isLoading)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading])
 
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
@@ -199,7 +202,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     setError(null)
     setAnswer(null)
     setIsLoading(true)
-    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens)
+    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens, splitQuestion)
     startProgress(generation.startedAt)
     void generation.task
       .then((result) => {
@@ -327,14 +330,14 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         {!followUp && !isLoading && !error && answer && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
         {!followUp && !isLoading && !answer && error && cacheKey && <button type="button" className="ai-followup-toggle" onClick={runAutoGeneration}>重新生成 AI 解读</button>}
 
-        {isLoading && !hideProgress && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        {isLoading && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
           <span>AI 正在结合你的盘思考… {progress}%</span>
         </div>}
         {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {answer && !isLoading && <article className="ai-answer">
           <header><CheckCircle size={21} weight="fill" /><div><strong>AI 解读</strong></div></header>
-          <p>{answer.summary.text}</p>
+          {answer.summary.text.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
           {answer.actions.length > 0 && <div><strong>可以先做</strong><ul>{answer.actions.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
           {answer.caveats.length > 0 && <div className="ai-caveats"><strong>注意</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
           <details><summary>查看 AI 使用的 {citedFacts.length} 条依据</summary><ul>{citedFacts.map((fact, index) => <li key={fact.id}><b>依据 {index + 1}</b>{fact.text}</li>)}</ul></details>

@@ -215,6 +215,32 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             bits.append("恩难仇用：" + "，".join(f"{key}星{'、'.join(names)}" for key, names in grouped.items()))
         if bits:
             qizheng_anchors.append("七政星曜：" + "；".join(bits))
+    # 当前人生阶段锚（治"泛泛一生描述"：让解读聚焦当下大限/行限阶段）。
+    current_stage_anchor = ""
+    birth_year = chart.bazi.calculation_datetime.year
+    nominal_age = datetime.now(tzone.utc).year - birth_year + 1
+    stage_bits = [f"当前虚岁{nominal_age}"]
+    decadal_palace = next(
+        (item for item in chart.ziwei.palaces if item.decadal_range[0] <= nominal_age <= item.decadal_range[1]),
+        None,
+    )
+    if decadal_palace is not None:
+        stage_bits.append(
+            f"紫微大限行{decadal_palace.name}宫（{decadal_palace.decadal_range[0]}-{decadal_palace.decadal_range[1]}岁）"
+        )
+    if traditional is not None and traditional.limit_rows:
+        limit_row = next(
+            (row for row in traditional.limit_rows if row.start_age <= nominal_age < row.end_age),
+            None,
+        )
+        if limit_row is not None:
+            palace_label = limit_row.palace if limit_row.palace.endswith("宫") else f"{limit_row.palace}宫"
+            stage_bits.append(
+                f"七政洞微行限在{palace_label}（{limit_row.branch}支，"
+                f"{limit_row.start_age:.0f}-{limit_row.end_age:.0f}岁，{limit_row.segment}段）"
+            )
+    if len(stage_bits) > 1:
+        current_stage_anchor = "当前人生阶段：" + "，".join(stage_bits) + "（解读必须聚焦此阶段，不要泛泛描述一生）"
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
@@ -263,6 +289,8 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             palace_anchors.append(life_anchor or body_anchor)
         if daymaster_anchor:
             palace_anchors.append(daymaster_anchor)
+        if current_stage_anchor:
+            palace_anchors.append(current_stage_anchor)
         if mutagen_anchor:
             palace_anchors.append(mutagen_anchor)
         fact_texts.extend(palace_anchors)

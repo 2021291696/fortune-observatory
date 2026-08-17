@@ -4,7 +4,7 @@ import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
-import { AiExplainPanel, estimatedProgress } from './AiExplainPanel'
+import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
 type DomainResult = {
@@ -26,26 +26,26 @@ const domainConfig: Record<AnalysisDomain, {
   health: {
     palace: '疾厄', label: '健康', icon: Heartbeat,
     action: '把睡眠、饮食、活动量与不适记录成可复查的时间线；持续或明显不适请优先交给专业医生。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘与庙旺恩难）只做盘面分析、不用给建议，分四段写：①结论一句话加一个日常比喻；②我的体质与精力特点——结合日主五行与疾厄宫主星讲清为什么；③最该留意的身体信号与生活习惯诱因——结合对宫三合星曜与藏干；④七政线索——结合昼夜盘、命主与庙旺恩难星曜讲调节方向。每段都要引用具体盘面依据，每个命理术语第一次出现都立刻解释成白话。不涉及任何诊断或用药。',
-    actionQuestion: '请基于我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘与庙旺恩难）只输出行动方案：2-4条行动建议，每条分"为什么（对应哪张盘的哪个依据）/怎么做（具体到本周能执行的动作）/怎么算做到了（可检查的信号）"三层来写；最后补1-2条提醒，其中一条写成"只需记住这一条"式的单句规则。每个命理术语第一次出现都立刻解释成白话。不涉及任何诊断或用药。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写一篇聚焦"我当前这个阶段"的白话健康分析，分四段：①结论一句话加一个日常比喻；②当前阶段的体质与精力特点——从日主五行与疾厄宫主星推导，先引具体盘面（如"天府（旺）在酉宫"）再下结论；③当前阶段最该留意的身体信号与诱因——结合对宫三合星曜与当前大限行限讲"为什么是现在"；④七政调节线索——结合昼夜盘、命主与庙旺恩难星曜。禁止不引用盘面数据的泛泛人生建议，每个术语第一次出现都解释成白话。不涉及任何诊断或用药。',
+    actionQuestion: '请基于我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。不涉及任何诊断或用药。',
   },
   relationship: {
     palace: '夫妻', label: '姻缘', icon: Heart,
     action: '把沟通节奏、个人边界与冲突后的恢复方式分开观察，用真实互动校准命盘语言。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘与庙旺恩难）只做盘面分析、不用给建议，分四段写：①结论一句话加一个日常比喻；②我在亲密关系里的天然模式——结合日主五行与夫妻宫主星讲清为什么；③最容易卡住的环节——结合对宫三合星曜与藏干；④七政线索——结合昼夜盘、命主与庙旺恩难星曜讲相处方向。每段都要引用具体盘面依据，每个命理术语第一次出现都立刻解释成白话。',
-    actionQuestion: '请基于我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘与庙旺恩难）只输出行动方案：2-4条行动建议，每条分"为什么（对应哪张盘的哪个依据）/怎么做（具体到本周能执行的动作）/怎么算做到了（可检查的信号）"三层来写；最后补1-2条提醒，其中一条写成"只需记住这一条"式的单句规则。每个命理术语第一次出现都立刻解释成白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写一篇聚焦"我当前这个阶段"的白话姻缘分析，分四段：①结论一句话加一个日常比喻；②当前阶段我在亲密关系里的模式——从日主五行与夫妻宫主星推导，先引具体盘面再下结论；③当前阶段最容易卡住的环节——结合对宫三合星曜与当前大限行限讲"为什么是现在"；④七政相处线索——结合昼夜盘、命主与庙旺恩难星曜。禁止不引用盘面数据的泛泛人生建议，每个术语第一次出现都解释成白话。',
+    actionQuestion: '请基于我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
   career: {
     palace: '官禄', label: '事业', icon: Briefcase,
     action: '把专业能力、责任边界与下一阶段作品拆开列出，先推进一个可以被验证的最小成果。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘与庙旺恩难）只做盘面分析、不用给建议，分四段写：①结论一句话加一个日常比喻；②我的职业优势从哪来——结合日主五行与官禄宫主星讲清为什么；③容易踩的坑——结合对宫三合星曜与藏干；④七政线索——结合昼夜盘、命主与庙旺恩难星曜讲发力方向。每段都要引用具体盘面依据，每个命理术语第一次出现都立刻解释成白话。',
-    actionQuestion: '请基于我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘与庙旺恩难）只输出行动方案：2-4条行动建议，每条分"为什么（对应哪张盘的哪个依据）/怎么做（具体到本周能执行的动作）/怎么算做到了（可检查的信号）"三层来写；最后补1-2条提醒，其中一条写成"只需记住这一条"式的单句规则。每个命理术语第一次出现都立刻解释成白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写一篇聚焦"我当前这个阶段"的白话事业分析，分四段：①结论一句话加一个日常比喻；②当前阶段的职业优势——从日主五行与官禄宫主星推导，先引具体盘面再下结论；③当前阶段容易踩的坑——结合对宫三合星曜与当前大限行限讲"为什么是现在"；④七政发力线索——结合昼夜盘、命主与庙旺恩难星曜。禁止不引用盘面数据的泛泛人生建议，每个术语第一次出现都解释成白话。',
+    actionQuestion: '请基于我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
   wealth: {
     palace: '财帛', label: '财运', icon: Coins,
     action: '先定义现金流、风险上限和不可承受损失，再讨论机会；命盘不能替代具体财务数据。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘与庙旺恩难）只做盘面分析、不用给建议，分四段写：①结论一句话加一个日常比喻；②我的用钱与赚钱习惯——结合日主五行与财帛宫主星讲清为什么；③容易漏财或误判的环节——结合对宫三合星曜与藏干；④七政线索——结合昼夜盘、命主与庙旺恩难星曜讲改善方向。每段都要引用具体盘面依据，每个命理术语第一次出现都立刻解释成白话。',
-    actionQuestion: '请基于我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘与庙旺恩难）只输出行动方案：2-4条行动建议，每条分"为什么（对应哪张盘的哪个依据）/怎么做（具体到本周能执行的动作）/怎么算做到了（可检查的信号）"三层来写；最后补1-2条提醒，其中一条写成"只需记住这一条"式的单句规则。命盘不能替代具体财务数据。每个命理术语第一次出现都立刻解释成白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写一篇聚焦"我当前这个阶段"的白话财运分析，分四段：①结论一句话加一个日常比喻；②当前阶段的用钱与赚钱习惯——从日主五行与财帛宫主星推导，先引具体盘面再下结论；③当前阶段容易漏财或误判的环节——结合对宫三合星曜与当前大限行限讲"为什么是现在"；④七政改善线索——结合昼夜盘、命主与庙旺恩难星曜。禁止不引用盘面数据的泛泛人生建议，每个术语第一次出现都解释成白话。',
+    actionQuestion: '请基于我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。命盘不能替代具体财务数据，禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
 }
 
@@ -91,24 +91,6 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
 }) {
   const [active, setActive] = useState<AnalysisDomain | 'chat' | null>(null)
   const [results, setResults] = useState<Partial<Record<AnalysisDomain, DomainResult>>>({})
-  // 分段并行生成共用一条进度条：任一篇在生成中即显示，进度按整体起算时间估计。
-  const [busyPanels, setBusyPanels] = useState<[boolean, boolean]>([false, false])
-  const [busySince, setBusySince] = useState<number | null>(null)
-  const [, setProgressTick] = useState(0)
-  const mergedBusy = busyPanels[0] || busyPanels[1]
-
-  useEffect(() => {
-    if (mergedBusy && busySince === null) setBusySince(Date.now())
-    if (!mergedBusy && busySince !== null) setBusySince(null)
-  }, [mergedBusy, busySince])
-
-  useEffect(() => {
-    if (!mergedBusy) return
-    const timer = window.setInterval(() => setProgressTick((value) => value + 1), 200)
-    return () => window.clearInterval(timer)
-  }, [mergedBusy])
-
-  const mergedProgress = busySince === null ? 0 : estimatedProgress(Date.now() - busySince)
 
   useEffect(() => {
     setActive(null)
@@ -158,16 +140,11 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
         {result && activeConfig && domainActive && <article className="domain-reading">
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
-          {/* 分段并行生成：分析篇与行动篇各自独立请求，思考预算互不挤占，总时长不变；共用一条进度条 */}
-          {mergedBusy && <div className="ai-progress" role="status" aria-label={`AI 正在生成，进度 ${mergedProgress}%`}>
-            <div className="ai-progress-line"><i style={{ width: `${mergedProgress}%` }} /></div>
-            <span>AI 正在结合你的三张盘生成分析与行动方案… {mergedProgress}%</span>
-          </div>}
+          {/* 分段并行在后端完成：主问题（分析篇）+ splitQuestion（行动篇）一次请求内并行生成并合并，页面只有一份答案 */}
           <AiExplainPanel
             auto
-            hideProgress
-            onBusyChange={(busy) => setBusyPanels(([a, b]) => [busy, b])}
-            cacheKey={`ai-${aiOwner}-${domainActive}-analysis`}
+            splitQuestion={activeConfig.actionQuestion}
+            cacheKey={`ai-${aiOwner}-${domainActive}-merged`}
             source={{
               key: `${chart.trace_id}-${domainActive}-analysis`,
               kind: 'domain',
@@ -178,22 +155,6 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
               contextTokens: chart.ai_contexts[domainActive] ? [chart.ai_contexts[domainActive].token] : [],
             }}
             defaultQuestion={activeConfig.analysisQuestion}
-          />
-          <AiExplainPanel
-            auto
-            hideProgress
-            onBusyChange={(busy) => setBusyPanels(([a, b]) => [a, busy])}
-            cacheKey={`ai-${aiOwner}-${domainActive}-actions`}
-            source={{
-              key: `${chart.trace_id}-${domainActive}-actions`,
-              kind: 'domain',
-              title: `${result.title} · 行动方案`,
-              summary: result.lead,
-              facts: chart.ai_contexts[domainActive]?.facts
-                ?? result.evidence.map((text, index) => ({ id: `domain-${index + 1}`, text })),
-              contextTokens: chart.ai_contexts[domainActive] ? [chart.ai_contexts[domainActive].token] : [],
-            }}
-            defaultQuestion={activeConfig.actionQuestion}
           />
           <details className="fact-details"><summary>查看命盘依据与规则建议</summary>
             <p>{result.lead}</p>
