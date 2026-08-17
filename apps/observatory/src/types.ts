@@ -77,8 +77,15 @@ export type ChartResponse = {
         mansion: string
         mansion_branch: string
         mansion_offset_deg: number
+        dignity?: '居垣' | '升殿' | null
+        relation?: '恩' | '难' | '用' | '仇' | null
       }>
       houses?: { life_branch: string; body_branch: string; houses: Array<[string, string]> }
+      life_lord?: string | null
+      body_lord?: string | null
+      is_day_chart?: boolean | null
+      childhood_exit_age?: number | null
+      limit_rows?: Array<{ palace: string; branch: string; years: number; start_age: number; end_age: number; segment: '昼' | '夜' }>
       notes: string[]
       scope_limits: string[]
       verification_status: VerificationStatus
@@ -102,7 +109,7 @@ export type ChartResponse = {
   }
   natal_insights: Array<{ insight_id: string; title: string; summary: string; action: string; fact_ids: string[] }>
   trace_id: string
-  ai_contexts: Partial<Record<AnalysisDomain | 'ziwei', AiContextBundle>>
+  ai_contexts: Partial<Record<AnalysisDomain | 'ziwei' | 'qizheng', AiContextBundle>>
 }
 
 export type ZiweiMutagenPlacement = {

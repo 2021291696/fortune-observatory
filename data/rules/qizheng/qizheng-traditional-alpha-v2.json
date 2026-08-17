@@ -1,0 +1,66 @@
+{
+  "schema_version": "1.0.0",
+  "profile_id": "qizheng-traditional-alpha-v2",
+  "system": "qizheng",
+  "status": "alpha",
+  "display_name": "七政四余传统层 3B — 庙旺+昼夜+恩难仇用+洞微大限+进AI解读",
+  "extends": "qizheng-traditional-alpha-v1",
+  "frozen_conventions_3b": {
+    "palace_lords": {
+      "table": "子丑土、寅亥木、卯戌火、辰酉金、巳申水、午日、未月",
+      "life_lord": "命宫支宫主星", "body_lord": "身宫支宫主星",
+      "source": "果老星宗通行宫主表"
+    },
+    "dignities": {
+      "ju_yuan_home": "水巳申、金辰酉、火卯戌、木寅亥、土子丑、日午、月未（择日讲义+宫主表互证）",
+      "yu_yuan_mansions": "木角斗奎井、金亢牛娄鬼、土氐女胃柳、日房虚昴星、月心危毕张、火尾室觜翼、水箕壁参轸",
+      "remainders_home": "四余随五行（罗火卯戌、计土子丑、孛水巳申、炁木寅亥）——派生约定",
+      "remainders_mansion_dignity": "不做（无统一典源）",
+      "source": "《七政四余天星择日讲义》（新浪博客存文）升殿/居垣条目"
+    },
+    "elements": {
+      "planets": "木火土金水本行；炁木、孛水、罗火、计土",
+      "sun_moon": "不参与生克（古典以辅从/掩蔽论，杰赫星命辑《七政四餘基礎》）"
+    },
+    "en_nan_chou_yong": {
+      "definition": "相对命主星五行：恩=生我、难=克我、用=我克（财）、仇=我生（泄）",
+      "en_nan": "典源（杰赫星命辑古：水星喜金…金星怕火…）",
+      "yong_chou": "通行读法（子平式我克为财），派生标注",
+      "sun_moon_excluded": true
+    },
+    "dongwei_limits": {
+      "childhood_exit": "出童限虚岁 = 10 + 太阳躔本宫度数/3（果老星宗站修正公式，不加月；宫度按宿界宫支口径）",
+      "years_table": "命15 相10 福11 官15 迁8 疾7 妻11 奴4.5 男(子女)4.5 田4.5 兄5 财5",
+      "sum": "100.5（昼段命至疾厄66年、夜段夫妻至财帛34.5年，果老星宗站《洞微百六限说》自洽）",
+      "direction": "自命宫顺宫支而行（命→相→福→官→迁→疾→妻→奴→男→田→兄→财）",
+      "sources": ["百度百科·七政四余（十二宫年分歌）", "果老星宗站 guolaoxing.com/archives/217", "古今图书集成·艺术典567卷"],
+      "not_computed": ["竹罗三限", "飞限", "月限", "行年细化"]
+    },
+    "day_night_chart": "太阳站心视高度>0（skyfield altaz，无折光）判昼盘",
+    "ziwei_nianjie_added": {
+      "rule": "解神从戌上起子逆数至太岁（iztro getNianjieIndex 同源）",
+      "differential": "300盘对齐 iztro 2.5.8（含年解的11流曜全量）"
+    },
+    "ai_integration": {
+      "qizheng_chart_bundle": "facts: 昼夜/命主身主/日月入宿/其余星曜/庙旺/恩难仇用/洞微大限首段（≤12条）",
+      "daily_transit_fact": "流日太阳月亮入宿（当日正午+08:00 地心口径）",
+      "gate": "用户 2026-08-17 授权『都解决一下』放开；golden 样本交付人工复核，异常即回滚 qizheng.chart bundle"
+    }
+  },
+  "feature_flags": {
+    "natal_physical_positions": true,
+    "traditional_chart": true,
+    "traditional_dignities": true,
+    "day_night_chart": true,
+    "dongwei_limits": true,
+    "ai_qizheng_bundle": true,
+    "dynamic_fortune": "limited_daily_fact_only"
+  },
+  "verification": {
+    "star_table": "cross_checked_hyg_v41_wikipedia（承v1）",
+    "yearly_flowing_stars": "iztro_2_5_8_differential_300_charts_including_nianjie",
+    "day_night": "skyfield_altaz_self_consistent",
+    "dignities_en_nan_limits": "candidates_not_golden_pending_human_review",
+    "adr_gate_note": "golden 样本随 3B 交付，人工复核通过前 AI 输出仅作参考层"
+  }
+}

@@ -94,6 +94,9 @@
 .qizheng-board .qz-details[open] > summary::before { content: '－'; }
 .qizheng-board .qz-details > summary::-webkit-details-marker { display: none; }
 .qizheng-board .qz-details small { display: block; margin: 6px 0 0; color: var(--muted); font-size: 10px; line-height: 1.7; }
+.qz-lords { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.9; }
+.qz-lords b { margin: 0 2px; padding: 1px 6px; border: 1px solid var(--soft-line); border-radius: 6px; color: var(--ink); background: rgba(255,255,255,.6); font-size: 11px; }
+.star-chip b.is-dignity { background: none; border: 1px solid currentColor; color: var(--accent); }
 .insight-list { border-top: 1px solid var(--soft-line); }
 .insight-list article { display: grid; grid-template-columns: 42px 1fr; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--soft-line); }
 .insight-list article > b { color: var(--accent); font-size: 23px; }

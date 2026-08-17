@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+from datetime import datetime, time as dtime, timedelta, timezone as tzone
 from collections import Counter
 from typing import Any
 from uuid import uuid4
@@ -52,7 +53,7 @@ from fortune_core.models import (
     ZiweiYearlySnapshot,
 )
 from fortune_core.qizheng import calculate_physical_baseline
-from fortune_core.qizheng.traditional import calculate_traditional
+from fortune_core.qizheng.traditional import calculate_traditional, sun_moon_mansions
 from fortune_core.signals import build_natal_insights
 from fortune_core.time_location import build_time_trace
 from fortune_core.transit import calculate_daily_transit, calculate_transit, calculate_transit_window
@@ -269,6 +270,70 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
     )
     if ziwei_bundle is not None:
         contexts["ziwei"] = ziwei_bundle
+
+    traditional = chart.qizheng.traditional
+    if traditional is not None and traditional.bodies:
+        qz_names = {
+            "sun": "太阳", "moon": "太阴", "mercury": "水星", "venus": "金星",
+            "mars": "火星", "jupiter": "木星", "saturn": "土星",
+            "rahu": "罗睺", "ketu": "计都", "apogee": "月孛", "ziqi": "紫炁",
+        }
+        by_key = {body.body: body for body in traditional.bodies}
+        qz_texts: list[str] = []
+        if traditional.is_day_chart is not None:
+            qz_texts.append(
+                f"七政昼夜盘：{'昼' if traditional.is_day_chart else '夜'}生"
+                f"（太阳{'在地平之上' if traditional.is_day_chart else '在地平之下'}，昼盘重太阳、夜盘重太阴）"
+            )
+        if traditional.life_lord:
+            qz_texts.append(
+                f"命主{qz_names[traditional.life_lord]}（命宫{traditional.houses.life_branch}的宫主）、"
+                f"身主{qz_names[traditional.body_lord]}（身宫{traditional.houses.body_branch}的宫主）"
+            )
+        for key in ("sun", "moon"):
+            body = by_key.get(key)
+            if body:
+                extras = "，居垣" if body.dignity == "居垣" else ("，升殿" if body.dignity == "升殿" else "")
+                qz_texts.append(
+                    f"{qz_names[key]}入{body.mansion}宿{body.mansion_offset_deg:.0f}度（{body.mansion_branch}宫{extras}）"
+                )
+        others = [
+            f"{qz_names[body.body]}入{body.mansion}宿"
+            for body in traditional.bodies
+            if body.body not in ("sun", "moon")
+        ]
+        if others:
+            qz_texts.append("其余星曜入宿：" + "、".join(others))
+        dignified = [
+            f"{qz_names[body.body]}{body.dignity}于{'本垣' if body.dignity == '居垣' else '本宿'}"
+            for body in traditional.bodies if body.dignity
+        ]
+        if dignified:
+            qz_texts.append("庙旺（居垣=在本命宫最有力，升殿=躔本属宿）：" + "、".join(dignified))
+        grouped: dict[str, list[str]] = {}
+        for body in traditional.bodies:
+            if body.relation:
+                grouped.setdefault(body.relation, []).append(qz_names[body.body])
+        if grouped:
+            qz_texts.append(
+                "相对命主五星的恩难仇用（恩=生我助力，难=克我压力，用=我克可控之财，仇=我生泄耗）："
+                + "；".join(f"{relation}星{'、'.join(names)}" for relation, names in grouped.items())
+            )
+        if traditional.childhood_exit_age is not None and traditional.limit_rows:
+            first = traditional.limit_rows[0]
+            qz_texts.append(
+                f"洞微大限：{traditional.childhood_exit_age:.1f}虚岁出童限入命宫限"
+                f"（{first.years:.0f}年），此后行限为"
+                + "→".join(f"{row.palace}{row.years:g}年" for row in traditional.limit_rows[1:5])
+            )
+        qz_bundle = build_signed_context(
+            "domain",
+            [AiFact(id=f"qizheng-{index + 1}", text=text) for index, text in enumerate(qz_texts[:12])],
+            bundle_type="qizheng.chart",
+            context_group=chart.trace_id,
+        )
+        if qz_bundle is not None:
+            contexts["qizheng"] = qz_bundle
     return contexts
 
 
@@ -305,6 +370,7 @@ def _daily_ai_context(
     response: DailyTransitResponse,
     context_group: str,
     internal: Any = None,
+    transit_qizheng_fact: str | None = None,
 ) -> AiContextBundle | None:
     transit = response.transit
     if transit.verification_status != "verified":
@@ -350,6 +416,9 @@ def _daily_ai_context(
             f"当前{'童限' if decadal.is_childhood else '大限'}{decadal.branch}宫（{decadal.stem}{decadal.branch}，"
             f"{decadal.start_age}-{decadal.end_age}岁），限内四化：{decadal_mutagens}"
         )
+    # period 上下文最多 7 条、两包合并上限 12：daily 已达 8 条时不再追加七政流日。
+    if transit_qizheng_fact and len(texts) < 8:
+        texts.insert(1, transit_qizheng_fact)
     return build_signed_context(
         "fortune",
         [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
@@ -482,7 +551,9 @@ def create_chart(birth: BirthInput) -> ChartApiResponse:
             calculate_palaces(birth), from_attributes=True
         )
         qizheng = calculate_physical_baseline(birth.civil_datetime)
-        traditional = calculate_traditional(birth.civil_datetime, snapshot.pillars.hour[1])
+        traditional = calculate_traditional(
+            birth.civil_datetime, snapshot.pillars.hour[1], birth.latitude, birth.longitude
+        )
         qizheng = qizheng.model_copy(update={"traditional": traditional})
     except ValueError as error:
         raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
@@ -527,6 +598,16 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     except ValueError:
         ziwei_yearly = None
     response = DailyTransitResponse(transit=transit, trace_id=str(uuid4()), ziwei_yearly=ziwei_yearly)
+    try:
+        transit_noon = datetime.combine(
+            request.transit_date, dtime(12, 0), tzinfo=tzone(timedelta(hours=8))
+        )
+        sun_mansion, sun_branch, moon_mansion, _moon_branch = sun_moon_mansions(transit_noon)
+        transit_qizheng_fact = (
+            f"七政流日：太阳入{sun_mansion}宿（{sun_branch}宫）、月亮入{moon_mansion}宿（恒星黄道口径）"
+        )
+    except ValueError:
+        transit_qizheng_fact = None
     context_group = _fortune_context_group(
         bazi.calculation_datetime.isoformat(),
         (pillars.year, pillars.month, pillars.day, pillars.hour),
@@ -535,7 +616,9 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     )
     return DailyTransitApiResponse(
         **response.model_dump(),
-        ai_context=_daily_ai_context(response, context_group, daily_internal),
+        ai_context=_daily_ai_context(
+            response, context_group, daily_internal, transit_qizheng_fact
+        ),
     )
 
 

@@ -92,6 +92,7 @@ class _SignedContext(StrictModel):
     bundle_type: Literal[
         "domain.health", "domain.relationship", "domain.career", "domain.wealth",
         "fortune.daily", "fortune.period", "fortune.window", "ziwei.chart",
+        "qizheng.chart",
     ]
     context_group: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     facts: list[AiFact] = Field(min_length=1, max_length=12)
@@ -223,6 +224,7 @@ def build_signed_context(
     bundle_type: Literal[
         "domain.health", "domain.relationship", "domain.career", "domain.wealth",
         "fortune.daily", "fortune.period", "fortune.window", "ziwei.chart",
+        "qizheng.chart",
     ],
     context_group: str,
 ) -> AiContextBundle | None:
@@ -284,7 +286,7 @@ def _verified_context(request: AiExplainRequest, secret: bytes) -> tuple[list[Ai
         raise AiProviderError("only matching daily and period contexts can be combined")
     facts = [fact for context in contexts for fact in context.facts]
     ids = [fact.id for fact in facts]
-    if len(facts) > 12 or len(ids) != len(set(ids)):
+    if len(facts) > 16 or len(ids) != len(set(ids)):
         raise AiProviderError("AI contexts contain too many or duplicate facts")
     return facts, bundle_types
 

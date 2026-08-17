@@ -198,9 +198,21 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
         starsByBranch.set(body.mansion_branch, group)
       }
       const chipTitle = (body: typeof trad.bodies[number]) =>
-        `${body.mansion}宿${body.mansion_offset_deg.toFixed(1)}度 · 黄经${body.longitude_deg.toFixed(2)}° · ${body.motion === 'retrograde' ? '逆行' : '顺行'} · ${termGlossary[traditionalLabels[body.body]] ?? ''}`
+        `${body.mansion}宿${body.mansion_offset_deg.toFixed(1)}度 · 黄经${body.longitude_deg.toFixed(2)}° · ${body.motion === 'retrograde' ? '逆行' : '顺行'}`
+        + (body.dignity ? ` · ${body.dignity}${termGlossary[body.dignity] ? `（${termGlossary[body.dignity]}）` : ''}` : '')
+        + (body.relation ? ` · ${body.relation}星` : '')
+        + ` · ${termGlossary[traditionalLabels[body.body]] ?? ''}`
+      const relationGroups = new Map<string, string[]>()
+      for (const body of trad.bodies) {
+        if (body.relation) relationGroups.set(body.relation, [...(relationGroups.get(body.relation) ?? []), traditionalLabels[body.body]])
+      }
       return <section className="ziwei-section qizheng-board">
-        <div className="section-kicker"><span>盘三 · 七政四余（恒星黄道）<em className="alpha-badge">传统层 alpha</em></span><small>十一星曜按十二地支宫分布 · 悬停星标看入宿度 · 命宫身宫安法见术语</small></div>
+        <div className="section-kicker"><span>盘三 · 七政四余（恒星黄道）<em className="alpha-badge">传统层 alpha</em>{trad.is_day_chart !== null && trad.is_day_chart !== undefined && <em className="alpha-badge" title={termGlossary[trad.is_day_chart ? '昼盘' : '夜盘']}>{trad.is_day_chart ? '昼盘' : '夜盘'}</em>}</span><small>十一星曜按十二地支宫分布 · 悬停星标看入宿庙旺 · 命宫身宫安法见术语</small></div>
+        <p className="qz-lords" title={termGlossary['命主']}>
+          {trad.life_lord && <>命主<b>{traditionalLabels[trad.life_lord]}</b> · 身主<b>{traditionalLabels[trad.body_lord ?? trad.life_lord]}</b>　</>}
+          {trad.childhood_exit_age != null && <span title={termGlossary['洞微大限']}>{trad.childhood_exit_age.toFixed(1)}岁出童限</span>}
+          {relationGroups.size > 0 && <span title={termGlossary['恩难仇用']}>　{[...relationGroups.entries()].map(([relation, names]) => `${relation}：${names.join('、')}`).join('　')}</span>}
+        </p>
         <div className="palace-grid is-qizheng">
           {branchOrder.map((branch) => {
             const stars = starsByBranch.get(branch) ?? []
@@ -212,23 +224,43 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
               <div className="palace-stars">
                 {stars.length ? stars.map((body) => (
                   <i key={body.body} className="star-chip" title={chipTitle(body)}>
-                    {traditionalLabels[body.body]}<em>{body.mansion}</em>{body.motion === 'retrograde' ? <b title="逆行">逆</b> : null}
+                    {traditionalLabels[body.body]}<em>{body.mansion}</em>{body.dignity ? <b className="is-dignity" title={termGlossary[body.dignity]}>{body.dignity === '居垣' ? '垣' : '殿'}</b> : null}{body.motion === 'retrograde' ? <b title="逆行">逆</b> : null}
                   </i>
                 )) : <i className="star-chip is-empty">无星曜</i>}
               </div>
             </article>
           })}
         </div>
+        {trad.limit_rows && trad.limit_rows.length > 0 && (
+          <details className="qz-details">
+            <summary>洞微大限行限表（出童限后行宫年数）</summary>
+            <table className="qz-table qz-limit-table">
+              <thead><tr><th>限宫</th><th>宫支</th><th>年数</th><th>起讫虚岁</th><th>昼夜段</th></tr></thead>
+              <tbody>
+                {trad.limit_rows.map((row) => (
+                  <tr key={row.palace + row.branch}>
+                    <td>{row.palace}</td>
+                    <td>{row.branch}</td>
+                    <td>{row.years % 1 === 0 ? row.years : row.years.toFixed(1)}</td>
+                    <td>{row.start_age.toFixed(1)} – {row.end_age.toFixed(1)}</td>
+                    <td title={termGlossary[row.segment === '昼' ? '昼盘' : '夜盘']}>{row.segment}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </details>
+        )}
         <details className="qz-details">
           <summary>星曜入宿与行度明细</summary>
           <table className="qz-table">
-            <thead><tr><th>星曜</th><th>黄经</th><th>入宿</th><th>行度</th></tr></thead>
+            <thead><tr><th>星曜</th><th>黄经</th><th>入宿</th><th>庙旺</th><th>行度</th></tr></thead>
             <tbody>
               {trad.bodies.map((body) => (
                 <tr key={body.body}>
                   <td title={termGlossary[traditionalLabels[body.body]] ?? ''}>{traditionalLabels[body.body]}</td>
                   <td title={termGlossary['恒星黄道']}>{body.longitude_deg.toFixed(2)}°</td>
                   <td title={termGlossary['入宿']}>入{body.mansion}宿 {body.mansion_offset_deg.toFixed(1)}°</td>
+                  <td>{body.dignity ?? '—'}</td>
                   <td>{body.motion === 'retrograde' ? '逆行' : '顺行'}</td>
                 </tr>
               ))}
@@ -236,6 +268,18 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
           </table>
           <small title={termGlossary['二十八宿']}>{trad.notes.join('；')} · 口径见规则包 {trad.profile_id}</small>
         </details>
+        {chart.ai_contexts.qizheng && <AiExplainPanel
+          cacheKey={`ai-qizheng-${chart.trace_id}`}
+          source={{
+            key: `qizheng-${chart.trace_id}`,
+            kind: 'domain',
+            title: `七政四余盘 · 命宫${trad.houses?.life_branch ?? ''}${trad.is_day_chart === false ? ' · 夜盘' : trad.is_day_chart === true ? ' · 昼盘' : ''}`,
+            summary: `命主${trad.life_lord ? traditionalLabels[trad.life_lord] : ''}，十一曜入宿与庙旺恩难`,
+            facts: chart.ai_contexts.qizheng.facts,
+            contextTokens: [chart.ai_contexts.qizheng.token],
+          }}
+          defaultQuestion="请基于我的七政四余盘（星曜入宿、命主身主、庙旺、恩难仇用、昼夜盘），写一篇完整的白话解读：先用一句话结论加一个比喻；然后分2-3段展开——我这张七政盘的整体格局特点、命主与庙旺星曜提示的强项、恩难星曜提示的挑战，每个命理术语第一次出现都立刻解释成白话；最后给2-4条建议，每条说清为什么、怎么做、怎么算做到了。"
+        />}
       </section>
     })()}
 
