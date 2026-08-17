@@ -4,7 +4,7 @@ import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
-import { AiExplainPanel } from './AiExplainPanel'
+import { AiExplainPanel, estimatedProgress } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
 type DomainResult = {
@@ -91,6 +91,24 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
 }) {
   const [active, setActive] = useState<AnalysisDomain | 'chat' | null>(null)
   const [results, setResults] = useState<Partial<Record<AnalysisDomain, DomainResult>>>({})
+  // 分段并行生成共用一条进度条：任一篇在生成中即显示，进度按整体起算时间估计。
+  const [busyPanels, setBusyPanels] = useState<[boolean, boolean]>([false, false])
+  const [busySince, setBusySince] = useState<number | null>(null)
+  const [, setProgressTick] = useState(0)
+  const mergedBusy = busyPanels[0] || busyPanels[1]
+
+  useEffect(() => {
+    if (mergedBusy && busySince === null) setBusySince(Date.now())
+    if (!mergedBusy && busySince !== null) setBusySince(null)
+  }, [mergedBusy, busySince])
+
+  useEffect(() => {
+    if (!mergedBusy) return
+    const timer = window.setInterval(() => setProgressTick((value) => value + 1), 200)
+    return () => window.clearInterval(timer)
+  }, [mergedBusy])
+
+  const mergedProgress = busySince === null ? 0 : estimatedProgress(Date.now() - busySince)
 
   useEffect(() => {
     setActive(null)
@@ -140,9 +158,15 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
         {result && activeConfig && domainActive && <article className="domain-reading">
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
-          {/* 分段并行生成：分析篇与行动篇各自独立请求，思考预算互不挤占，总时长不变 */}
+          {/* 分段并行生成：分析篇与行动篇各自独立请求，思考预算互不挤占，总时长不变；共用一条进度条 */}
+          {mergedBusy && <div className="ai-progress" role="status" aria-label={`AI 正在生成，进度 ${mergedProgress}%`}>
+            <div className="ai-progress-line"><i style={{ width: `${mergedProgress}%` }} /></div>
+            <span>AI 正在结合你的三张盘生成分析与行动方案… {mergedProgress}%</span>
+          </div>}
           <AiExplainPanel
             auto
+            hideProgress
+            onBusyChange={(busy) => setBusyPanels(([a, b]) => [busy, b])}
             cacheKey={`ai-${aiOwner}-${domainActive}-analysis`}
             source={{
               key: `${chart.trace_id}-${domainActive}-analysis`,
@@ -157,6 +181,8 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
           />
           <AiExplainPanel
             auto
+            hideProgress
+            onBusyChange={(busy) => setBusyPanels(([a, b]) => [a, busy])}
             cacheKey={`ai-${aiOwner}-${domainActive}-actions`}
             source={{
               key: `${chart.trace_id}-${domainActive}-actions`,

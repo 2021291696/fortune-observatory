@@ -111,15 +111,17 @@ function joinBackgroundGeneration(cacheKey: string, question: string, contextTok
 }
 
 // Estimated progress eases toward 96% and only reaches 100% on completion.
-function estimatedProgress(elapsedMs: number): number {
+export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
 }
 
-export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey }: {
+export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, hideProgress = false, onBusyChange }: {
   source: AiExplainSource
   defaultQuestion?: string
   auto?: boolean
   cacheKey?: string
+  hideProgress?: boolean
+  onBusyChange?: (busy: boolean) => void
 }) {
   const [expanded, setExpanded] = useState(auto)
   const [availability, setAvailability] = useState<Availability>(auto ? 'checking' : 'idle')
@@ -132,6 +134,11 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
+
+  useEffect(() => {
+    onBusyChange?.(isLoading)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading])
 
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
@@ -320,7 +327,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         {!followUp && !isLoading && !error && answer && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
         {!followUp && !isLoading && !answer && error && cacheKey && <button type="button" className="ai-followup-toggle" onClick={runAutoGeneration}>重新生成 AI 解读</button>}
 
-        {isLoading && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        {isLoading && !hideProgress && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
           <span>AI 正在结合你的盘思考… {progress}%</span>
         </div>}

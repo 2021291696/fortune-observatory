@@ -2,7 +2,6 @@ import { useState } from 'react'
 import type { ThemeConfig } from '../themes'
 import type { ChartResponse } from '../types'
 import { termGlossary, branchesFromYin } from '../terminology'
-import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
 const pillarLabels = ['年柱', '月柱', '日柱', '时柱']
@@ -154,34 +153,8 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
           </header>
           <p title={termGlossary['三方四正']}>三方四正会照：{surrounds.map((item) => `${item.name}宫（${item.major_stars.join('、') || '无主星'}）`).join('；')}</p>
           {flying.length > 0 && <p title={termGlossary['飞化']}>宫干飞化：{flying.map((entry) => `${entry.star}化${entry.mutagen}→${nameOf(entry.to_branch)}宫${entry.is_self ? `（${termGlossary['自化']}）` : ''}`).join('；')}</p>}
-          {chart.ai_contexts.ziwei && <AiExplainPanel
-            auto
-            cacheKey={`ai-ziwei-${chart.trace_id}-${target.branch}`}
-            source={{
-              key: `ziwei-${chart.trace_id}-${target.branch}`,
-              kind: 'domain',
-              title: `${target.name}宫详解`,
-              summary: `${target.stem}${target.branch}宫，主星：${target.major_stars.join('、') || '无主星'}`,
-              facts: chart.ai_contexts.ziwei.facts,
-              contextTokens: [chart.ai_contexts.ziwei.token],
-            }}
-            defaultQuestion={`请详解我的${target.name}宫（${target.stem}${target.branch}，主星：${target.major_stars.join('、') || '无主星'}；三方四正：${surrounds.map((item) => item.name + '宫').join('、')}）：先一句话结论加一个比喻，再讲这个宫位管辖的生活领域在我身上的典型表现（每个术语配一句白话），最后给2条具体行动建议。`}
-          />}
         </div>
       })()}
-      {chart.ai_contexts.ziwei && <AiExplainPanel
-        auto
-        cacheKey={`ai-ziwei-${chart.trace_id}`}
-        source={{
-          key: `ziwei-${chart.trace_id}`,
-          kind: 'domain',
-          title: `紫微命盘 · 命宫${chart.ziwei.life_branch} 身宫${chart.ziwei.body_branch}`,
-          summary: `${chart.ziwei.five_elements_bureau}局十二宫整盘解读`,
-          facts: chart.ai_contexts.ziwei.facts,
-          contextTokens: [chart.ai_contexts.ziwei.token],
-        }}
-        defaultQuestion="请用白话解读我的紫微命盘整体格局：先一句话结论加一个比喻；再讲命宫和身宫的星曜组合各意味着什么（每个术语都配一句白话）；最后给我2到4条今天就能做的具体行动建议。"
-      />}
     </section>
 
     {chart.qizheng.traditional && (() => {
