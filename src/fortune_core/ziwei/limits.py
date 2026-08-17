@@ -128,10 +128,15 @@ def _flowing_stars(year_stem: str, year_branch: str) -> tuple[ZiweiFlowingStar, 
     ma = MA_BRANCH_BY_YEAR_BRANCH[year_branch]
     luan = (1 - BRANCHES_FROM_ZI.index(year_branch)) % 12
     xi = (luan + 6) % 12
+    # 年解：解神从戌上起子，逆数至太岁（iztro getNianjieIndex 同源）。
+    nianjie_name = ("戌", "酉", "申", "未", "午", "巳", "辰", "卯", "寅", "丑", "子", "亥")[
+        BRANCHES_FROM_ZI.index(year_branch)
+    ]
+    nianjie = BRANCHES_FROM_YIN.index(nianjie_name)
     entries = (
         ("流魁", kui), ("流钺", yue), ("流昌", chang), ("流曲", qu),
         ("流禄", lu), ("流羊", (lu + 1) % 12), ("流陀", (lu - 1) % 12),
-        ("流马", ma), ("流鸾", luan), ("流喜", xi),
+        ("流马", ma), ("流鸾", luan), ("流喜", xi), ("年解", nianjie),
     )
     return tuple(ZiweiFlowingStar(star=star, branch=BRANCHES_FROM_YIN[index]) for star, index in entries)
 

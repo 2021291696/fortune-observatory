@@ -116,7 +116,7 @@ def test_arrange_houses_textbook_samples():
 def test_traditional_snapshot_fixture_2026_08_16():
     """集成 fixture（candidates_not_golden：未对在线排盘，仅 de440s+口径自洽）。"""
     instant = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)
-    snap = calculate_traditional(instant, "午")
+    snap = calculate_traditional(instant, "午", 39.9042, 116.4074)
     by_key = {body.body: body for body in snap.bodies}
     assert len(snap.bodies) == 11
     assert by_key["sun"].mansion == "柳"
@@ -134,8 +134,35 @@ def test_traditional_snapshot_fixture_2026_08_16():
     assert snap.houses.life_branch == "卯"
     assert snap.houses.body_branch == "酉"
     assert snap.anchor == "j2000_mean_ecliptic"
-    assert "dynamic_fortune_disabled" in snap.scope_limits
+    assert "dynamic_fortune_limited" in snap.scope_limits
     assert snap.verification_status == "ambiguous"
+
+
+def test_traditional_3b_fixture_2026_08_16():
+    """3B：昼夜/命主/庙旺/恩难/洞微大限（candidates_not_golden，口径自洽）。"""
+    instant = datetime(2026, 8, 16, 12, 0, tzinfo=UTC)  # 北京时间 20:00，八月日落后
+    night = calculate_traditional(instant, "午", 39.9042, 116.4074)
+    assert night.is_day_chart is False
+    noon = calculate_traditional(datetime(2026, 8, 16, 4, 0, tzinfo=UTC), "辰", 39.9042, 116.4074)
+    assert noon.is_day_chart is True
+    # 命宫卯 → 宫主火星；身宫酉 → 宫主金星。
+    assert night.life_lord == "mars"
+    assert night.body_lord == "venus"
+    # 太阳入柳宿（午宫）→ 居垣（日垣在午）。
+    by_key = {body.body: body for body in night.bodies}
+    assert by_key["sun"].dignity == "居垣"
+    # 命主火星（火）五行：木生火=恩，水克火=难，火克金=用，火生土=仇。
+    assert by_key["jupiter"].relation == "恩"
+    assert by_key["mercury"].relation == "难"
+    assert by_key["venus"].relation == "用"
+    assert by_key["saturn"].relation == "仇"
+    # 出童限与行限表。
+    assert night.childhood_exit_age == pytest.approx(10 + by_key["sun"].mansion_offset_deg / 3, abs=0.05)
+    assert len(night.limit_rows) == 12
+    assert [row.palace for row in night.limit_rows][:4] == ["命宫", "相貌", "福德", "官禄"]
+    assert [row.branch for row in night.limit_rows][:3] == ["卯", "辰", "巳"]
+    assert sum(row.years for row in night.limit_rows) == pytest.approx(100.5)
+    assert [row.segment for row in night.limit_rows] == ["昼"] * 6 + ["夜"] * 6
 
 
 def test_mansion_star_table_matches_rule_pack_dedication():

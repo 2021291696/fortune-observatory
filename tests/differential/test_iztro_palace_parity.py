@@ -176,9 +176,8 @@ def test_iztro_2_5_8_yearly_limit_parity_for_300_charts() -> None:
         for star in actual.flowing_stars:
             flowing_buckets.setdefault(star.branch, []).append(star.star)
         iztro_buckets = {
-            BRANCHES_FROM_YIN[index]: filtered
+            BRANCHES_FROM_YIN[index]: sorted(name for name in bucket)
             for index, bucket in enumerate(horo["yearly"]["stars"])
-            # Skip 年解 (rule table not frozen in this profile) and buckets left empty by that filter.
-            if (filtered := sorted(name for name in bucket if name != "年解"))
+            if bucket
         }
         assert {branch: sorted(names) for branch, names in flowing_buckets.items()} == iztro_buckets, item

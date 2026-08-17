@@ -205,6 +205,17 @@ class QizhengTraditionalBody(BaseModel):
     mansion: str
     mansion_branch: str
     mansion_offset_deg: float
+    dignity: Literal["居垣", "升殿"] | None = None
+    relation: Literal["恩", "难", "用", "仇"] | None = None
+
+
+class QizhengLimitRow(BaseModel):
+    palace: str
+    branch: str
+    years: float
+    start_age: float
+    end_age: float
+    segment: Literal["昼", "夜"]
 
 
 class QizhengTraditionalHouses(BaseModel):
@@ -218,6 +229,11 @@ class QizhengTraditionalSnapshot(BaseModel):
     anchor: Literal["j2000_mean_ecliptic"]
     bodies: tuple[QizhengTraditionalBody, ...]
     houses: QizhengTraditionalHouses | None = None
+    life_lord: str | None = None
+    body_lord: str | None = None
+    is_day_chart: bool | None = None
+    childhood_exit_age: float | None = None
+    limit_rows: tuple[QizhengLimitRow, ...] = ()
     notes: tuple[str, ...] = ()
     scope_limits: tuple[str, ...]
     verification_status: Literal["verified", "ambiguous", "unsupported"]
