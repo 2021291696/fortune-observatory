@@ -46,12 +46,11 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
       <MemeCompanion theme={theme} />
       <div>
         <span>命盘</span>
-        <h2>{pillars.join(' · ')}</h2>
         <p>农历 {chart.bazi.lunar_date}，{chart.bazi.input_time_basis === 'apparent_solar' ? '真太阳时口径' : '民用时间口径'}</p>
       </div>
     </header>
 
-    <div className="section-kicker board-kicker"><span>盘一 · 四柱八字</span><small>天干地支 · 藏干 · 纳音 · 大运</small></div>
+    <div className="section-kicker board-kicker board-title"><span>盘一 · 四柱八字</span><small>天干地支 · 藏干 · 纳音 · 大运</small></div>
     <div className="pillars-board" aria-label="四柱八字">
       <div className="board-row board-head">
         <span className="row-label" />
@@ -108,7 +107,7 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
     </section>
 
     <section className="ziwei-section">
-      <div className="section-kicker"><span>盘二 · 紫微斗数（十二宫）</span><small>点击宫位看三方四正与飞化 · 禄/权/科/忌 = 生年四化</small></div>
+      <div className="section-kicker board-title"><span>盘二 · 紫微斗数（十二宫）</span><small>点击宫位看三方四正与飞化 · 禄/权/科/忌 = 生年四化</small></div>
       <div className="palace-grid">
         {chart.ziwei.palaces.map((palace, index) => {
           const targetBranch = inspectIndex !== null ? chart.ziwei.palaces[inspectIndex].branch : null
@@ -207,7 +206,7 @@ export function Chart({ chart, theme }: { chart: ChartResponse; theme: ThemeConf
         if (body.relation) relationGroups.set(body.relation, [...(relationGroups.get(body.relation) ?? []), traditionalLabels[body.body]])
       }
       return <section className="ziwei-section qizheng-board">
-        <div className="section-kicker"><span>盘三 · 七政四余（恒星黄道）<em className="alpha-badge">传统层 alpha</em>{trad.is_day_chart !== null && trad.is_day_chart !== undefined && <em className="alpha-badge" title={termGlossary[trad.is_day_chart ? '昼盘' : '夜盘']}>{trad.is_day_chart ? '昼盘' : '夜盘'}</em>}</span><small>十一星曜按十二地支宫分布 · 悬停星标看入宿庙旺 · 命宫身宫安法见术语</small></div>
+        <div className="section-kicker board-title"><span>盘三 · 七政四余（恒星黄道）<em className="alpha-badge">传统层 alpha</em>{trad.is_day_chart !== null && trad.is_day_chart !== undefined && <em className="alpha-badge" title={termGlossary[trad.is_day_chart ? '昼盘' : '夜盘']}>{trad.is_day_chart ? '昼盘' : '夜盘'}</em>}</span><small>十一星曜按十二地支宫分布 · 悬停星标看入宿庙旺 · 命宫身宫安法见术语</small></div>
         <p className="qz-lords" title={termGlossary['命主']}>
           {trad.life_lord && <>命主<b>{traditionalLabels[trad.life_lord]}</b> · 身主<b>{traditionalLabels[trad.body_lord ?? trad.life_lord]}</b>　</>}
           {trad.childhood_exit_age != null && <span title={termGlossary['洞微大限']}>{trad.childhood_exit_age.toFixed(1)}岁出童限</span>}
