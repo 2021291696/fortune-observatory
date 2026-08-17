@@ -34,7 +34,7 @@ class AiFact(StrictModel):
 
 class AiContextBundle(StrictModel):
     token: str = Field(min_length=32, max_length=12_000)
-    facts: list[AiFact] = Field(min_length=1, max_length=12)
+    facts: list[AiFact] = Field(min_length=1, max_length=16)
 
 
 class ChatTurn(StrictModel):
@@ -44,7 +44,7 @@ class ChatTurn(StrictModel):
 
 class AiExplainRequest(StrictModel):
     question: str = Field(min_length=1, max_length=300)
-    split_question: str | None = Field(default=None, max_length=300)
+    split_questions: list[str] = Field(default_factory=list, max_length=3)
     context_tokens: list[str] = Field(min_length=1, max_length=4)
     history: list[ChatTurn] = Field(default_factory=list, max_length=12)
 
@@ -100,7 +100,7 @@ class _SignedContext(StrictModel):
         "qizheng.chart",
     ]
     context_group: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    facts: list[AiFact] = Field(min_length=1, max_length=12)
+    facts: list[AiFact] = Field(min_length=1, max_length=16)
 
 
 @dataclass(frozen=True)
@@ -514,7 +514,8 @@ async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
         raise AiConfigurationError("AI provider is not configured")
     facts, bundle_types = _verified_context(request, config.context_secret)
     _reserve_daily_budget(config.daily_limit)
-    if request.split_question:
+    # 每个 split 都是独立的一次 provider 调用（各自拥有独立思考预算）。
+    for _ in range(len(request.split_questions)):
         _reserve_daily_budget(config.daily_limit)
     headers = {
         "authorization": f"Bearer {config.api_key}",
@@ -524,30 +525,47 @@ async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
     timeout = httpx.Timeout(config.timeout_seconds, connect=min(3.0, config.timeout_seconds))
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
-            if not request.split_question:
+            if not request.split_questions:
                 return await _complete_once(
                     client, request.question, facts, config, bundle_types, headers, request.history
                 )
-            # 分段并行：分析篇与行动篇各自拥有独立思考预算，墙钟≈较慢一侧；合并成一份答案。
-            part_analysis, part_actions = await asyncio.gather(
+            # 分段并行：主问+各分段各自独立请求，墙钟≈最慢一侧；合并成一份答案。
+            # 单个分段失败只降级丢弃（日志留痕），主问成功仍返回完整可用答案。
+            results = await asyncio.gather(
                 _complete_once(client, request.question, facts, config, bundle_types, headers),
-                _complete_once(client, request.split_question, facts, config, bundle_types, headers),
+                *(
+                    _complete_once(client, question, facts, config, bundle_types, headers)
+                    for question in request.split_questions
+                ),
+                return_exceptions=True,
             )
     except AiProviderError:
         raise
     except (httpx.HTTPError, ValueError) as error:
         raise AiProviderError("AI provider request failed") from error
-    summary_text = part_analysis.summary.text
-    if part_analysis.actions:
-        summary_text += "\n\n" + "\n\n".join(claim.text for claim in part_analysis.actions)
-    merged_fact_ids: list[str] = list(part_analysis.summary.fact_ids)
-    for claim in part_analysis.actions:
-        merged_fact_ids.extend(claim.fact_ids)
+    main = results[0]
+    if isinstance(main, BaseException):
+        raise main
+    parts = [result for result in results[1:] if not isinstance(result, BaseException)]
+    for failure in results[1:]:
+        if isinstance(failure, BaseException):
+            logger.warning("ai split part failed and dropped: %s", failure)
+    # summary = 主问总论 + 各分段（一生大限运程等）的 summary 及其残留段落；
+    # actions/caveats 保持为主问的行动清单与提醒。
+    summary_blocks = [main.summary.text]
+    merged_fact_ids: list[str] = list(main.summary.fact_ids)
+    for part in parts[1:]:
+        summary_blocks.append(part.summary.text)
+        summary_blocks.extend(claim.text for claim in part.actions)
+        merged_fact_ids.extend(part.summary.fact_ids)
+        for claim in part.actions:
+            merged_fact_ids.extend(claim.fact_ids)
+    summary_text = "\n\n".join(block for block in summary_blocks if block)[:2000]
     return AiExplainResponse(
         summary=AiGroundedClaim(
             text=summary_text,
             fact_ids=list(dict.fromkeys(merged_fact_ids))[:12],
         ),
-        actions=part_actions.actions,
-        caveats=part_actions.caveats,
+        actions=main.actions,
+        caveats=main.caveats,
     )

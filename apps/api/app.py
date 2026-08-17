@@ -241,6 +241,24 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             )
     if len(stage_bits) > 1:
         current_stage_anchor = "当前人生阶段：" + "，".join(stage_bits) + "（解读必须聚焦此阶段，不要泛泛描述一生）"
+    # 一生大限总表（紫微十二大限按起讫虚岁排序，4 限一组共 3 条）——供"逐大限一生运程"解读。
+    decadal_sorted = sorted(
+        chart.ziwei.palaces, key=lambda item: item.decadal_range[0]
+    )
+    decadal_rows: list[str] = []
+    for group_index in range(0, len(decadal_sorted), 4):
+        group = decadal_sorted[group_index:group_index + 4]
+        if not group:
+            continue
+        label = "早年大限" if not decadal_rows else ("中年大限" if len(decadal_rows) == 1 else "晚年大限")
+        decadal_rows.append(
+            label + "："
+            + "；".join(
+                f"{item.decadal_range[0]}-{item.decadal_range[1]}岁{item.name}宫（{item.branch}支）"
+                f"坐{'、'.join(item.major_stars[:2]) or '无主星'}"
+                for item in group
+            )
+        )
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
@@ -295,9 +313,10 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             palace_anchors.append(mutagen_anchor)
         fact_texts.extend(palace_anchors)
         fact_texts.extend(qizheng_anchors)
+        fact_texts.extend(decadal_rows)
         bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:12])],
+            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:16])],
             bundle_type=f"domain.{domain}",
             context_group=chart.trace_id,
         )

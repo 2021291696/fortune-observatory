@@ -62,12 +62,12 @@ function isAnswer(value: unknown): value is AiExplainResponse {
 async function fetchExplanation(
   question: string,
   contextTokens: string[],
-  splitQuestion?: string,
+  splitQuestions: string[] = [],
 ): Promise<AiExplainResponse> {
   const response = await fetch(`${API_BASE}/v1/ai/explain`, {
     method: 'POST',
     headers: { accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify({ question, split_question: splitQuestion || undefined, context_tokens: contextTokens }),
+    body: JSON.stringify({ question, split_questions: splitQuestions.length ? splitQuestions : undefined, context_tokens: contextTokens }),
     credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
   })
   const body: unknown = await response.json().catch(() => null)
@@ -88,11 +88,11 @@ function joinBackgroundGeneration(
   cacheKey: string,
   question: string,
   contextTokens: string[],
-  splitQuestion?: string,
+  splitQuestions: string[] = [],
 ): InflightGeneration {
   const existing = inflightGenerations.get(cacheKey)
   if (existing) return existing
-  const attempt = () => fetchExplanation(question, contextTokens, splitQuestion).then((answer) => {
+  const attempt = () => fetchExplanation(question, contextTokens, splitQuestions).then((answer) => {
     writeCache(cacheKey, answer)
     return answer
   })
@@ -124,12 +124,12 @@ export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
 }
 
-export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, splitQuestion }: {
+export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, splitQuestions }: {
   source: AiExplainSource
   defaultQuestion?: string
   auto?: boolean
   cacheKey?: string
-  splitQuestion?: string
+  splitQuestions?: string[]
 }) {
   const [expanded, setExpanded] = useState(auto)
   const [availability, setAvailability] = useState<Availability>(auto ? 'checking' : 'idle')
@@ -202,7 +202,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     setError(null)
     setAnswer(null)
     setIsLoading(true)
-    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens, splitQuestion)
+    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens, splitQuestions)
     startProgress(generation.startedAt)
     void generation.task
       .then((result) => {
