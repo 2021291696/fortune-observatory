@@ -4,6 +4,7 @@ import { AppNavigation, viewFromHash, type AppView } from './components/AppNavig
 import { BirthForm, UserBar, type BirthInitial, type StoredUser } from './components/BirthForm'
 import { Chart } from './components/Chart'
 import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
+import { DreamConsole } from './components/DreamConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
@@ -119,7 +120,7 @@ function initialSavedReadings(): SavedReading[] {
     const sanitized = parsed.filter((item): item is SavedReading => Boolean(
       item && typeof item === 'object'
       && typeof item.id === 'string' && typeof item.savedAt === 'string'
-      && (item.kind === 'domain' || item.kind === 'fortune')
+      && (item.kind === 'domain' || item.kind === 'fortune' || item.kind === 'dream')
       && typeof item.title === 'string' && typeof item.summary === 'string'
       && Array.isArray(item.details) && item.details.every((detail: unknown) => typeof detail === 'string'),
     )).slice(0, 24).map((item) => ({
@@ -518,9 +519,9 @@ export function App() {
     }
   }
 
-  async function loadFortune(scope: FortuneScope, payloadOverride?: BirthPayload) {
+  async function loadFortune(scope: FortuneScope, payloadOverride?: BirthPayload): Promise<DailyTransitResponse | null> {
     const payload = payloadOverride ?? currentUser?.birth
-    if (!payload) return
+    if (!payload) return null
     const period = fortuneWindow(scope)
     const startDate = dateKey(period.start)
     const endDate = dateKey(period.end)
@@ -535,7 +536,7 @@ export function App() {
       setPeriods(cachedFortune.periods)
       setWindowTransit(cachedFortune.windowTransit)
       setFortuneScope(scope)
-      return
+      return cachedFortune.daily
     }
     fortuneRequest.current?.abort('superseded')
     const controller = new AbortController()
@@ -548,19 +549,19 @@ export function App() {
         const result = await postJson<TransitWindowResponse>('/v1/transits/window', {
           birth: payload, start_date: startDate, end_date: endDate,
         }, controller, '周期运势服务暂时不可用。')
-        if (fortuneRequest.current !== controller) return
+        if (fortuneRequest.current !== controller) return null
         fortuneMemoryCache.set(fortuneKey, { daily: null, periods: null, windowTransit: result, expiresAt: Date.now() + CHART_CACHE_TTL_MS })
         setWindowTransit(result)
         setDaily(null)
         setPeriods(null)
         setFortuneScope(scope)
-        return
+        return null
       }
       const [nextDaily, nextPeriods] = await Promise.allSettled([
         postJson<DailyTransitResponse>('/v1/transits/daily', { birth: payload, transit_date: startDate }, controller, '运势事实服务暂时不可用。'),
         postJson<TransitResponse>('/v1/transits', { birth: payload, transit_date: startDate }, controller, '时间层事实服务暂时不可用。'),
       ])
-      if (fortuneRequest.current !== controller) return
+      if (fortuneRequest.current !== controller) return null
       if (nextDaily.status === 'rejected') throw nextDaily.reason
       fortuneMemoryCache.set(fortuneKey, {
         daily: nextDaily.value,
@@ -577,10 +578,12 @@ export function App() {
       setWindowTransit(null)
       setFortuneScope(scope)
       if (nextPeriods.status === 'rejected') setFortuneError(`${period.label}基础结果已生成，时间层补充暂时不可用。`)
+      return nextDaily.value
     } catch (reason) {
-      if (fortuneRequest.current !== controller) return
+      if (fortuneRequest.current !== controller) return null
       const message = requestError(reason, controller, '无法连接运势服务。')
       if (message) setFortuneError(message)
+      return null
     } finally {
       if (fortuneRequest.current === controller) {
         fortuneRequest.current = null
@@ -597,7 +600,7 @@ export function App() {
     ? `${currentUser?.name ?? ''}的盘已就绪`
     : users.length
       ? `正在读取${currentUser?.name ?? ''}的盘`
-      : '资料只存本机'
+      : '资料只存本机，计算时会发送'
 
   return <div className="app-shell" data-theme={theme.id} data-palette={theme.palette} data-layout={theme.layout} data-motion={theme.motion} data-motion-paused={motionPaused || undefined}>
     <a className="skip-link" href="#main-content">跳到主要内容</a>
@@ -664,6 +667,13 @@ export function App() {
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
           : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} theme={theme} onSave={saveReading} />}
       </section>}
+
+      {activeView === 'dream' && <DreamConsole
+        chart={chart}
+        daily={daily}
+        onEnsureDaily={() => loadFortune('today')}
+        onSave={saveReading}
+      />}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
         <header className="task-heading"><h1 id="chart-title">命盘</h1></header>

@@ -1,5 +1,5 @@
 /* Glass cards: layered translucency, top highlight, floating shadow. */
-.chart-result, .domain-console, .fortune-console, .saved-panel {
+.chart-result, .domain-console, .fortune-console, .dream-console, .saved-panel {
   position: relative;
   border: 1px solid rgba(255,255,255,.75);
   border-radius: 18px;
@@ -14,7 +14,7 @@
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
-.chart-result::before, .domain-console::before, .fortune-console::before {
+.chart-result::before, .domain-console::before, .fortune-console::before, .dream-console::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
@@ -23,7 +23,7 @@
   border-radius: 18px 18px 0 0;
   pointer-events: none;
 }
-.chart-result:hover, .domain-console:hover, .fortune-console:hover {
+.chart-result:hover, .domain-console:hover, .fortune-console:hover, .dream-console:hover {
   transform: translateY(-2px);
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.95),
@@ -306,9 +306,9 @@
 .saved-grid ul { margin: 0 0 12px; padding-left: 17px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 .saved-grid article > footer { display: flex; align-items: center; gap: 5px; margin-top: 12px; color: var(--muted); font-size: 10px; }
 
-[data-theme='ggbond'] .chart-result, [data-theme='ggbond'] .domain-console, [data-theme='ggbond'] .fortune-console, [data-theme='ggbond'] .saved-panel { border: 3px solid #111820; border-radius: 5px; box-shadow: 9px 9px 0 #dd1825; }
+[data-theme='ggbond'] .chart-result, [data-theme='ggbond'] .domain-console, [data-theme='ggbond'] .fortune-console, [data-theme='ggbond'] .dream-console, [data-theme='ggbond'] .saved-panel { border: 3px solid #111820; border-radius: 5px; box-shadow: 9px 9px 0 #dd1825; }
 [data-theme='nailong'] .board-head b { color: #fff; background: var(--accent); border-radius: 6px; }
-[data-theme='kawaii'] .chart-result, [data-theme='kawaii'] .domain-console, [data-theme='kawaii'] .fortune-console { transform: rotate(.12deg); }
+[data-theme='kawaii'] .chart-result, [data-theme='kawaii'] .domain-console, [data-theme='kawaii'] .fortune-console, [data-theme='kawaii'] .dream-console { transform: rotate(.12deg); }
 [data-theme='phoebe'] .domain-choices button:first-child { border-radius: 50% 0 0; }
 
 /* Theme sticker companion: hidden on desktop, revealed in the 820px block below. */
@@ -447,3 +447,17 @@
 .ai-progress-line { position: relative; height: 8px; border-radius: 99px; background: color-mix(in srgb, var(--accent) 12%, #fff); overflow: hidden; }
 .ai-progress-line > i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, var(--wash))); transition: width 160ms linear; }
 .is-typing .ai-progress-line { height: 5px; margin-top: 4px; width: 100%; }
+
+.dream-composer, .dream-result { margin: 0; padding: 22px 26px; }
+.dream-result { border-top: 1px solid var(--soft-line); }
+.dream-composer label, .dream-questions label { display: grid; gap: 6px; margin: 0 0 12px; font-size: 13px; font-weight: 750; }
+.dream-composer textarea, .dream-questions input { width: 100%; padding: 12px; border: 1px solid var(--soft-line); border-radius: 9px; font-size: 14px; line-height: 1.65; }
+.dream-flags { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 13px; }
+.dream-flags label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 700; }
+.dream-hint, .dream-error { color: var(--muted); font-size: 12px; }
+.dream-error { color: #9c2d24; }
+.dream-composer > button, .dream-result > button, .dream-error button { min-height: 44px; margin-top: 8px; padding: 0 14px; border: 1px solid var(--ink); border-radius: 9px; background: #fff; font-size: 13px; font-weight: 850; }
+.dream-result dl { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; margin: 14px 0; }
+.dream-result dt { color: var(--accent); font-size: 12px; font-weight: 850; }
+.dream-referral { padding: 12px; border-left: 3px solid #e2a100; background: #fff8de; }
+.saved-kind.is-dream { color: #4338ca; background: #eef2ff; }

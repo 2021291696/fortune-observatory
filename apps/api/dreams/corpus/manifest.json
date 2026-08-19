@@ -1,0 +1,12 @@
+{
+  "works": [
+    {"id": "zhougong-jiemeng", "kind": "full_text", "path": "zhougong-jiemeng-full.txt", "citation_eligible": true, "chunk": 400, "title": "周公解梦", "layer": "classic", "edition": "daizhige 4a6d6f20"},
+    {"id": "dunhuang-mengshu", "kind": "full_text", "path": "dunhuang-mengshu-full.txt", "citation_eligible": true, "chunk": 400, "title": "敦煌本梦书", "layer": "classic", "edition": "8s8s web 23 pian"},
+    {"id": "lingshu-yinxie", "kind": "full_text", "path": "lingshu-yinxie.txt", "citation_eligible": true, "chunk": 800, "title": "灵枢·淫邪发梦", "layer": "theory", "edition": "ctext yin-xie-fa-meng"},
+    {"id": "qianfu-menglie", "kind": "full_text", "path": "qianfu-menglie.txt", "citation_eligible": true, "chunk": 800, "title": "潜夫论·梦列", "layer": "theory", "edition": "daizhige 4a6d6f20"},
+    {"id": "liezi-zhoumu", "kind": "full_text", "path": "liezi-zhoumu-meng.txt", "citation_eligible": true, "chunk": 800, "title": "列子·周穆王", "layer": "theory", "edition": "daizhige 4a6d6f20"},
+    {"id": "zhouli-zhanmeng", "kind": "full_text", "path": "zhouli-zhanmeng.txt", "citation_eligible": true, "chunk": 800, "title": "周礼·春官·占梦", "layer": "theory", "edition": "daizhige 4a6d6f20"},
+    {"id": "seed-excerpts", "kind": "jsonl", "path": "records.jsonl", "citation_eligible": true}
+  ],
+  "refuse_path_substrings": ["ocr-candidate", "source-scan", "public-transcript", "duanmeng"]
+}
