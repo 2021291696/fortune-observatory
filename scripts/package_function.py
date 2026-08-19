@@ -29,6 +29,8 @@ BOOTSTRAP = (
     "#!/bin/sh\n"
     'cd "$(dirname "$0")"\n'
     'export PYTHONPATH="$PWD/third_party:$PWD/site/src:$PWD/site/apps/api"\n'
+    'export FORTUNE_TRUST_PROXY="${FORTUNE_TRUST_PROXY:-true}"\n'
+    "export FORTUNE_AI_BUDGET_SCOPE=single_worker\n"
     "exec /var/lang/python310/bin/python3.10 -m uvicorn app:app --host 0.0.0.0 --port 9000\n"
 )
 
@@ -94,6 +96,14 @@ def main() -> None:
     shutil.copytree(ROOT / "src" / "fortune_core", STAGE / "site" / "src" / "fortune_core")
     shutil.copytree(ROOT / "apps" / "api", STAGE / "site" / "apps" / "api")
     shutil.copytree(ROOT / "data" / "ephemeris", STAGE / "site" / "data" / "ephemeris")
+    store_src = ROOT / "data" / "dream-store"
+    if (store_src / "vectors.bin").is_file() and (store_src / "chunks.jsonl").is_file():
+        store_dest = STAGE / "site" / "data" / "dream-store"
+        store_dest.mkdir(parents=True)
+        for name in ("chunks.jsonl", "vectors.bin", "meta.json"):
+            src = store_src / name
+            if src.is_file():
+                shutil.copy2(src, store_dest / name)
     for cache in STAGE.rglob("__pycache__"):
         shutil.rmtree(cache)
     for junk in STAGE.rglob("*.pyc"):
