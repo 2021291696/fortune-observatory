@@ -33,6 +33,13 @@
     0 26px 52px -14px rgba(17,17,17,.33);
 }
 
+.dream-console {
+  background: linear-gradient(165deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.08) 100%);
+}
+.dream-console::before {
+  background: linear-gradient(180deg, rgba(255,255,255,.18), transparent);
+}
+
 .result-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding: 26px 30px; border-bottom: 1px solid var(--soft-line); }
 .result-header span { color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
 .result-header h2 { margin: 7px 0 5px; font-size: clamp(28px, 4vw, 48px); line-height: 1; letter-spacing: -.045em; }
@@ -451,13 +458,40 @@
 .dream-composer, .dream-result { margin: 0; padding: 22px 26px; }
 .dream-result { border-top: 1px solid var(--soft-line); }
 .dream-composer label, .dream-questions label { display: grid; gap: 6px; margin: 0 0 12px; font-size: 13px; font-weight: 750; }
-.dream-composer textarea, .dream-questions input { width: 100%; padding: 12px; border: 1px solid var(--soft-line); border-radius: 9px; font-size: 14px; line-height: 1.65; }
+.dream-composer textarea, .dream-questions input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 9px;
+  color: var(--ink);
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.dream-composer textarea::placeholder, .dream-questions input::placeholder {
+  color: color-mix(in srgb, var(--ink) 58%, transparent);
+}
 .dream-flags { display: flex; flex-wrap: wrap; gap: 14px; margin: 0 0 12px; font-size: 13px; }
 .dream-flags label { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-weight: 700; }
 .dream-hint, .dream-error { color: var(--muted); font-size: 12px; }
 .dream-error { color: #9c2d24; }
-.dream-composer > button, .dream-result > button, .dream-error button { min-height: 44px; margin-top: 8px; padding: 0 14px; border: 1px solid var(--ink); border-radius: 9px; background: #fff; font-size: 13px; font-weight: 850; }
+.dream-composer > button, .dream-result > button, .dream-error button {
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 14px;
+  border: 1px solid rgba(17,17,17,.42);
+  border-radius: 9px;
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 850;
+}
 .dream-result dl { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; margin: 14px 0; }
 .dream-result dt { color: var(--accent); font-size: 12px; font-weight: 850; }
-.dream-referral { padding: 12px; border-left: 3px solid #e2a100; background: #fff8de; }
+.dream-referral {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, #e2a100 40%, transparent);
+  border-radius: 9px;
+  background: color-mix(in srgb, #e2a100 14%, transparent);
+}
 .saved-kind.is-dream { color: #4338ca; background: #eef2ff; }
