@@ -1,13 +1,12 @@
 import sys
 from pathlib import Path
 
-import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 import app as api_module
-from dreams.models import InterpretResponse
+from dreams.models import InterpretResponse, SourceOut
 from dreams.overlay import overlay_facts
 
 
@@ -30,24 +29,28 @@ def _fake_response() -> InterpretResponse:
     return InterpretResponse(essay="主断", sources=[], overlay=None, referral=None)
 
 
-@pytest.mark.skip(reason="rewritten in Task 6")
-def test_interpret_schema_has_five_sections(monkeypatch) -> None:
+def test_interpret_schema_essay_and_sources(monkeypatch) -> None:
     async def fake(_request):
-        return _fake_response()
+        return InterpretResponse(
+            essay="一篇文",
+            sources=[SourceOut(work="周公解梦", quote="蛇入怀中生贵子", channel="字面")],
+            overlay=None,
+            referral=None,
+        )
 
     monkeypatch.setattr(api_module, "interpret_dream_request", fake)
     client = TestClient(api_module.app)
     res = client.post("/v1/dreams/interpret", json={"dream": "梦见数楼梯台阶"})
     assert res.status_code == 200
     body = res.json()
-    assert "scene" in body
-    assert "associations" in body
-    assert "fortune" in body
-    assert "start" in body["fortune"]
-    assert "turn" in body["fortune"]
-    assert "alternative" in body["fortune"]
-    assert "boundary" not in body["fortune"]
-    assert "trajectory" not in body
+    assert body["essay"] == "一篇文"
+    assert body["sources"][0]["channel"] == "字面"
+    assert "scene" not in body
+    assert "verdict" not in body
+    assert "c3" not in body
+    assert "fortune" not in body
+    assert "citations" not in body
+    assert "associations" not in body
 
 
 def test_interpret_without_chart(monkeypatch) -> None:
