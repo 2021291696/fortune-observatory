@@ -14,7 +14,7 @@ from dreams.loader import load_records
 from dreams.store import load_store
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse
 from dreams.pipeline import interpret
-from dreams.prompts import ESSAY, QUESTIONS, SYSTEM
+from dreams.prompts import QUESTIONS, SYSTEM
 
 logger = logging.getLogger("fortune.dreams")
 
@@ -161,7 +161,10 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
             except Exception as error:
                 raise HTTPException(status_code=422, detail="对照命盘上下文无效。") from error
     index = get_index()
-    query = compose_query(request.dream, request.answers)
-    query_vec = embed_texts([query], kind="query")[0]
-    result = interpret(query, index, query_vec, essay_fn=lambda **k: None, overlay_text=overlay_text)
-    return await write_essay(query, result, overlay_text)
+    try:
+        query_vec = embed_texts([request.dream], kind="query")[0]
+    except Exception as error:
+        logger.warning("dream embed skipped error_type=%s", type(error).__name__)
+        query_vec = None
+    result = interpret(request.dream, index, query_vec, overlay_text=overlay_text)
+    return await write_essay(request.dream, result, overlay_text)
