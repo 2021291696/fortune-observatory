@@ -1,0 +1,175 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.yaml",
+ "name": "destiny-排盘运势问事解梦全流程",
+ "gate": "api",
+ "started_at": "2026-08-31T19:48:54+08:00",
+ "finished_at": "2026-08-31T19:48:55+08:00",
+ "target": {
+  "api_base": "https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny",
+  "ui_base": "https://sol-d2ga5fpq8bcf67f5a-1410845958.tcloudbaseapp.com"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 44528,
+   "error": "步骤 create_chart: save 失败：响应无 $.ai_contexts.ziwei.token（status=422）",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 44330,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "RED",
+     "ms": 197,
+     "detail": "save 失败：响应无 $.ai_contexts.ziwei.token（status=422）"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00",
+    "today": "2026-08-31",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "create_chart": {
+     "status": 422,
+     "json": {
+      "detail": [
+       {
+        "type": "value_error",
+        "loc": [
+         "body",
+         "civil_datetime"
+        ],
+        "msg": "Value error, datetime must include an explicit UTC offset"
+       }
+      ]
+     }
+    }
+   },
+   "artifacts": [],
+   "finished_at": "2026-08-31T19:48:54+08:00"
+  },
+  {
+   "id": "base@invalid_input@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 403,
+   "error": "步骤 create_chart: save 失败：响应无 $.ai_contexts.ziwei.token（status=422）",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 196,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "RED",
+     "ms": 207,
+     "detail": "save 失败：响应无 $.ai_contexts.ziwei.token（status=422）"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00",
+    "today": "2026-08-31",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "create_chart": {
+     "status": 422,
+     "json": {
+      "detail": [
+       {
+        "type": "value_error",
+        "loc": [
+         "body",
+         "civil_datetime"
+        ],
+        "msg": "Value error, datetime must include an explicit UTC offset"
+       }
+      ]
+     }
+    }
+   },
+   "artifacts": [],
+   "finished_at": "2026-08-31T19:48:55+08:00"
+  },
+  {
+   "id": "base@duplicate_submit@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 408,
+   "error": "步骤 create_chart: save 失败：响应无 $.ai_contexts.ziwei.token（status=422）",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 200,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "RED",
+     "ms": 208,
+     "detail": "save 失败：响应无 $.ai_contexts.ziwei.token（status=422）"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00",
+    "today": "2026-08-31",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "create_chart": {
+     "status": 422,
+     "json": {
+      "detail": [
+       {
+        "type": "value_error",
+        "loc": [
+         "body",
+         "civil_datetime"
+        ],
+        "msg": "Value error, datetime must include an explicit UTC offset"
+       }
+      ]
+     }
+    }
+   },
+   "artifacts": [],
+   "finished_at": "2026-08-31T19:48:55+08:00"
+  }
+ ]
+}
