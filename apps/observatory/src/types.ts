@@ -218,7 +218,6 @@ export type DreamSource = { work: string; quote: string; channel: '字面' | '�
 export type DreamInterpretResponse = {
   essay: string
   sources: DreamSource[]
-  overlay: string | null
   referral: string | null
 }
 

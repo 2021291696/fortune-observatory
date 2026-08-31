@@ -670,12 +670,7 @@ export function App() {
       </section>
 
       <div hidden={activeView !== 'dream'}>
-        <DreamConsole
-          chart={chart}
-          daily={daily}
-          onEnsureDaily={() => loadFortune('today')}
-          onSave={saveReading}
-        />
+        <DreamConsole onSave={saveReading} />
       </div>
 
       <section hidden={activeView !== 'chart'} className="task-view chart-view" id="chart" aria-labelledby="chart-title">

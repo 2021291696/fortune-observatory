@@ -24,8 +24,6 @@ class InterpretRequest(StrictModel):
     dream: str = Field(min_length=4, max_length=2000)
     mode: Literal["simple", "complex"] = "simple"
     answers: list[ComplexAnswer] = Field(default_factory=list, max_length=3)
-    overlay: bool = False
-    context_tokens: list[str] = Field(default_factory=list, max_length=2)
 
 
 class QuestionsRequest(StrictModel):
@@ -45,5 +43,4 @@ class SourceOut(StrictModel):
 class InterpretResponse(StrictModel):
     essay: str = ""
     sources: list[SourceOut] = Field(default_factory=list, max_length=24)
-    overlay: str | None = None
     referral: str | None = None

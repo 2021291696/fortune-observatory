@@ -5,9 +5,8 @@ import logging
 import re
 
 import httpx
-from fastapi import HTTPException
 
-from ai_explainer import AiConfigurationError, AiExplainRequest, AiProviderError, get_provider_config, _verified_facts
+from ai_explainer import AiConfigurationError, AiProviderError, get_provider_config
 from dreams.lore import _WORK_TITLES, skill_profile
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse, SourceOut
 from dreams.prompts import INTERPRET_JSON, QUESTIONS, SYSTEM
@@ -153,27 +152,12 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
     if any(pattern in request.dream for pattern in _REFERRAL_PATTERNS):
         return _referral_result(request.dream)
 
-    overlay_text = None
-    if request.overlay and request.context_tokens:
-        config = _provider()
-        if config is not None:
-            try:
-                facts = _verified_facts(
-                    AiExplainRequest(question=request.dream[:300], context_tokens=request.context_tokens),
-                    config.context_secret,
-                )
-                overlay_text = "；".join(fact.text for fact in facts)
-            except Exception as error:
-                raise HTTPException(status_code=422, detail="对照命盘上下文无效。") from error
-
     profile = skill_profile()
     system = f"{SYSTEM}\n\n{profile}" if profile else SYSTEM
     lines = [f"梦：{request.dream[:2000]}"]
     extra = [f"{item.question}：{item.answer}" for item in request.answers if item.answer]
     if extra:
         lines.append("补充：\n" + "\n".join(extra))
-    if overlay_text:
-        lines.append(f"命盘摘要：{overlay_text[:400]}")
     lines.append(INTERPRET_JSON)
 
     if _provider() is None:

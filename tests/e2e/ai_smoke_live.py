@@ -89,7 +89,7 @@ def main() -> int:
 
     interpret = client.post(
         f"{base}/v1/dreams/interpret",
-        json={"dream": "梦见蛇钻进怀里", "overlay": None, "context_tokens": []},
+        json={"dream": "梦见蛇钻进怀里"},
     )
     if interpret.status_code >= 500:
         print("ENV: interpret upstream", interpret.status_code, interpret.text[:200])

@@ -39,16 +39,12 @@ def test_questions_endpoint_without_provider(monkeypatch) -> None:
     assert all(isinstance(item, QuestionOut) for item in body.questions)
 
 
-def test_overlay_without_tokens_still_interprets(monkeypatch) -> None:
+def test_interpret_endpoint_accepts_plain_dream(monkeypatch) -> None:
     async def fake(request):
-        assert request.overlay is True
-        assert request.context_tokens == []
-        return InterpretResponse(essay="主断", sources=[], overlay=None, referral=None)
+        assert request.dream == "梦见数楼梯台阶"
+        return InterpretResponse(essay="主断", sources=[], referral=None)
 
     monkeypatch.setattr(api_module, "interpret_dream_request", fake)
     client = TestClient(api_module.app)
-    res = client.post("/v1/dreams/interpret", json={
-        "dream": "梦见数楼梯台阶",
-        "overlay": True,
-    })
+    res = client.post("/v1/dreams/interpret", json={"dream": "梦见数楼梯台阶"})
     assert res.status_code == 200
