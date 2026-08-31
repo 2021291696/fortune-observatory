@@ -1,15 +1,17 @@
-"""解说话术语料库（lore）— 从三端命理 skill 的知识体系提炼的服务端精简版。
+"""解说话术语料库（lore）— 口径以三端命理 skill 的 references 原文为准。
 
-来源：
-- skills/bazi/references/（穷通宝典、子平真诠等典籍摘要口径）
-- skills/ziwei-doushu/references/classics.md（骨髓赋/全集/全书）与 sihua-tables.md（倪海厦《天纪》口径）
-- 项目七政引擎的恩难仇用/居垣升殿断法（docs/reports/七政物理天体复核）
+两层结构：
+- 导航层：从 skill 知识体系提炼的解读框架（本文件手写块），告诉模型按什么顺序组织分析；
+- 断语层：skills/bazi/references 与 skills/ziwei-doushu/references 的原文整包注入，
+  断语内容以原文为准——该说什么就说什么，原文没有的不得编造出处。
 
-定位：AI 解读层的"专业框架"补充。排盘事实仍以服务端签名 facts 为准，
-lore 只提供传统命理通识断语，不参与任何计算。
+排盘事实仍以服务端签名 facts 为准，lore 不参与任何计算。
 """
 
 from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
 
 GENERAL_STYLE_GUIDE = (
     "【专业断语风格】在遵守上述全部禁令的前提下：优先输出有信息量的传统命理断语，"
@@ -84,8 +86,52 @@ _LORE_BY_BUNDLE: dict[str, str] = {
 }
 
 
+# ---- 断语层：skill references 原文整包 ----
+
+_API_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = _API_DIR.parents[1]
+
+# (标题, 相对路径)；单文件超限时截断保护预算
+_SKILL_SOURCES: tuple[tuple[str, str], ...] = (
+    ("紫微斗数·典籍断语（骨髓赋/全书/全集）", "skills/ziwei-doushu/references/classics.md"),
+    ("紫微斗数·格局", "skills/ziwei-doushu/references/patterns.md"),
+    ("紫微斗数·四化表（倪海厦《天纪》口径）", "skills/ziwei-doushu/references/sihua-tables.md"),
+    ("八字·典籍摘要（穷通宝典/子平真诠）", "skills/bazi/references/classical-texts.md"),
+    ("八字·大运流年规则", "skills/bazi/references/dayun-rules.md"),
+    ("八字·五行生克表", "skills/bazi/references/wuxing-tables.md"),
+    ("八字·神煞表", "skills/bazi/references/shensha-table.md"),
+    ("八字·时辰表", "skills/bazi/references/shichen-table.md"),
+)
+_PER_FILE_CAP = 20000
+
+
+@lru_cache(maxsize=1)
+def skill_canon() -> str:
+    """skill references 原文整包；文件缺失时跳过该份，不阻断解读。"""
+    parts: list[str] = []
+    for title, rel in _SKILL_SOURCES:
+        try:
+            text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if text.strip():
+            parts.append(f"≪{title}》\n{text[:_PER_FILE_CAP]}")
+    return "\n\n".join(parts)
+
+
+_SKILL_RULE = (
+    "【skill 口径原文使用铁律】下方≪》标注的原文是断语的唯一权威来源："
+    "1. 涉及星曜、四化、宫位、十神、大运流年的判断，优先转述原文中对应的断语——该说什么就说什么，不要改成安慰性的泛泛之谈；"
+    "2. 原文断语与本框架冲突时，以原文为准；"
+    "3. 原文没有覆盖的组合，按框架推导并明确说'原文未直接论及，按通则推'，禁止编造原文没有的引文或出处；"
+    "4. facts 与原文冲突时（如原文说庙旺、facts 说落陷），以 facts 为准。"
+)
+
+
 def lore_for_bundle_types(bundle_types: set[str]) -> str:
-    """按盘面体系挑选 lore 块；组合包（如 daily+period）时取首个命中并统一附风格指南。"""
+    """导航框架 + skill 口径原文整包 + 风格指南；组合包取首个命中框架。"""
+    canon = skill_canon()
+    skill_block = f"{_SKILL_RULE}\n\n{canon}" if canon else ""
     for bundle_type in (
         "ziwei.chart",
         "qizheng.chart",
@@ -94,8 +140,8 @@ def lore_for_bundle_types(bundle_types: set[str]) -> str:
         "fortune.window",
     ):
         if bundle_type in bundle_types:
-            return _LORE_BY_BUNDLE[bundle_type] + "\n\n" + GENERAL_STYLE_GUIDE
+            return _LORE_BY_BUNDLE[bundle_type] + "\n\n" + skill_block + "\n\n" + GENERAL_STYLE_GUIDE
     for bundle_type in ("domain.health", "domain.relationship", "domain.career", "domain.wealth"):
         if bundle_type in bundle_types:
-            return _LORE_BY_BUNDLE[bundle_type] + "\n\n" + GENERAL_STYLE_GUIDE
-    return GENERAL_STYLE_GUIDE
+            return _LORE_BY_BUNDLE[bundle_type] + "\n\n" + skill_block + "\n\n" + GENERAL_STYLE_GUIDE
+    return GENERAL_STYLE_GUIDE + ("\n\n" + skill_block if skill_block else "")

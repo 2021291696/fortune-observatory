@@ -129,7 +129,21 @@ def _parse_interpret(text: str, dream: str) -> InterpretResponse:
         except ValueError:
             essay = ""
     if not essay:
+        # 模型未按 JSON 回包时降级取正文；先从全文兜底提取口径引用，再剥掉 sources 段与前缀
+        for work in _WORK_TITLES.values():
+            hit = re.search(re.escape(work) + r".{0,24}?quote[\"：:]\s*[\"「『]?([^\"「」『』】）)\n]{6,60})", text)
+            if hit:
+                quote = hit.group(1).strip().strip('"「」『』【】（）()，。；')
+                if quote and not quote.startswith("quote"):
+                    sources.append(SourceOut(work=work, quote=quote[:60], channel="近邻"))
         essay = text.strip()
+        for prefix in ("解梦正文：", "解梦正文:", "正文：", "正文:"):
+            if essay.startswith(prefix):
+                essay = essay[len(prefix):]
+        marker = re.search(r"\s*sources\s*[:：]", essay)
+        if marker:
+            essay = essay[:marker.start()]
+    essay = essay.strip().strip('"')
     if not essay:
         raise AiProviderError("empty essay")
     return InterpretResponse(essay=essay[:3600], sources=sources[:3])

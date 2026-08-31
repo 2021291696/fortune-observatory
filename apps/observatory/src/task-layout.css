@@ -24,6 +24,9 @@
 .session-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .session-state.is-ready { color: #08743d; border-color: rgba(8,116,61,.24); }
 
+/* 视图常驻：切换只隐藏不卸载（保留各页状态），hidden 必须压过任何 author display 规则 */
+[hidden] { display: none !important; }
+
 .task-view { min-height: calc(100vh - 64px); }
 .task-heading { max-width: 1180px; margin: 0 auto; padding: 46px 0 28px; }
 .task-heading > span { color: var(--accent); font-size: 11px; font-weight: 950; letter-spacing: .1em; }

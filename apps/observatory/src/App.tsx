@@ -617,7 +617,8 @@ export function App() {
     </header>
 
     <main id="main-content">
-      {activeView === 'fortune' && <section className={`task-view today-view ${currentUser ? 'is-ready' : ''}`} id="fortune" aria-label="运势">
+      {/* 五个视图常驻 DOM，切换只隐藏不卸载，保留各页已生成的内容与输入。 */}
+      <section hidden={activeView !== 'fortune'} className={`task-view today-view ${currentUser ? 'is-ready' : ''}`} id="fortune" aria-label="运势">
         {!currentUser ? <section className="launch-section" aria-label="填写出生资料">
           <div className="launch-copy">
             <BirthForm
@@ -658,24 +659,26 @@ export function App() {
             <MemeStage theme={theme} motionPaused={motionPaused} />
           </section>
         </>}
-      </section>}
+      </section>
 
-      {activeView === 'ask' && <section className="task-view ask-view" id="ask" aria-labelledby="ask-title">
+      <section hidden={activeView !== 'ask'} className="task-view ask-view" id="ask" aria-labelledby="ask-title">
         <header className="task-heading">
           <h1 id="ask-title">问事</h1>
         </header>
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
           : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} theme={theme} onSave={saveReading} />}
-      </section>}
+      </section>
 
-      {activeView === 'dream' && <DreamConsole
-        chart={chart}
-        daily={daily}
-        onEnsureDaily={() => loadFortune('today')}
-        onSave={saveReading}
-      />}
+      <div hidden={activeView !== 'dream'}>
+        <DreamConsole
+          chart={chart}
+          daily={daily}
+          onEnsureDaily={() => loadFortune('today')}
+          onSave={saveReading}
+        />
+      </div>
 
-      {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
+      <section hidden={activeView !== 'chart'} className="task-view chart-view" id="chart" aria-labelledby="chart-title">
         <header className="task-heading"><h1 id="chart-title">命盘</h1></header>
         {!users.length ? <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>这里还没有命盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>建第一张盘 <ArrowRight size={18} /></a></div> : <>
           <UserBar
@@ -691,13 +694,15 @@ export function App() {
             {chart ? <Chart chart={chart} theme={theme} /> : <div className="task-gate"><WarningCircle size={34} weight="bold" /><div><strong>盘面还没就绪</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>回运势页排盘 <ArrowRight size={18} /></a></div>}
           </div>
         </>}
-      </section>}
+      </section>
 
-      {activeView === 'profile' && <ProfileView
-        activeTheme={themeId} motionPaused={motionPaused} savedReadings={savedReadings}
-        onSelectTheme={selectTheme} onToggleMotion={toggleMotion}
-        onRemoveSaved={removeSaved} onClearSaved={clearSaved}
-      />}
+      <div hidden={activeView !== 'profile'}>
+        <ProfileView
+          activeTheme={themeId} motionPaused={motionPaused} savedReadings={savedReadings}
+          onSelectTheme={selectTheme} onToggleMotion={toggleMotion}
+          onRemoveSaved={removeSaved} onClearSaved={clearSaved}
+        />
+      </div>
     </main>
 
     <footer className="site-footer">

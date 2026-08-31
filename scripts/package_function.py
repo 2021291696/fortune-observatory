@@ -23,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STAGE = ROOT / ".deploy-stage" / "cloudfunctions" / "destiny-api"
 DIAG_FLAG = ROOT / ".deploy-stage" / "diag-mode"
 
-CODE_DIRS = ("src/fortune_core", "apps/api", "data/ephemeris")
+CODE_DIRS = ("src/fortune_core", "apps/api", "data/ephemeris", "skills")
 
 BOOTSTRAP = (
     "#!/bin/sh\n"
@@ -96,6 +96,11 @@ def main() -> None:
     shutil.copytree(ROOT / "src" / "fortune_core", STAGE / "site" / "src" / "fortune_core")
     shutil.copytree(ROOT / "apps" / "api", STAGE / "site" / "apps" / "api")
     shutil.copytree(ROOT / "data" / "ephemeris", STAGE / "site" / "data" / "ephemeris")
+    shutil.copytree(
+        ROOT / "skills",
+        STAGE / "site" / "skills",
+        ignore=shutil.ignore_patterns("node_modules", "vendor", "__pycache__", ".venv"),
+    )
     for cache in STAGE.rglob("__pycache__"):
         shutil.rmtree(cache)
     for junk in STAGE.rglob("*.pyc"):
