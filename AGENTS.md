@@ -3,7 +3,7 @@
 ## 结构
 
 - `apps/observatory`：React 前端（Vite，五套表情包主题，5173）
-- `apps/api`：FastAPI 后端（排盘/运势/AI 解读，8000；app.py 平级导入 security/lore/fortune_core）
+- `apps/api`：FastAPI 后端（排盘/运势/问事/解梦/AI 解读，8000；app.py 平级导入 security/lore/fortune_core；dreams/ 为解梦模块）
 - `src/fortune_core`：排盘核心引擎（八字/紫微/七政四余/真太阳时）——网站排盘唯一计算源
 - `skills/`：三端 CLI 命理 skill 实体（bazi、ziwei-doushu、dream-interpretation）
 - `docs/` 整目录是 gitignore 的本地资产（审计报告/计划/交接），不进 git
@@ -22,7 +22,10 @@
 ## AI 解读层
 
 - `apps/api/lore.py` = 分体系解话语料（十四主星/四化论/十神旺衰/七政恩难仇用/运势断法），按 bundle_type 注入 system prompt；lore 只提供通识断语，禁止参与任何排盘计算
-- facts 上限 24 条 × 400 字符（2026-08-31 由 16×280 放宽，token 上限同步 24K）；summary 上限 3600 字；`_parse_answer` 的安全正则（确定性断语/用药/投资指令）不许放松
+- 断语权威 = `skills/*/references` 原文整包（`lore.py: skill_canon()` 注入，含 SKILL.md 第三阶段分析框架）；SKILL.md 无 LICENSE，原样收录
+- facts 上限 24 条 × 400 字符（2026-08-31 由 16×280 放宽，签名 token 上限同步 48K）；summary 上限 3600 字；`_parse_answer` 的安全正则（确定性断语/用药/投资指令）不许放松
+- AI 超时：默认 40s、硬顶 55s（env `FORTUNE_AI_TIMEOUT_SECONDS` 可覆盖）；解梦 prompt 含全量口径，`dreams/service.py` 固定 50s
+- 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422
 
 ## 本地跑
 
