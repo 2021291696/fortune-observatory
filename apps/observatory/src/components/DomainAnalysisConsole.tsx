@@ -1,42 +1,21 @@
 import { Briefcase, ChatCircleDots, Coins, FloppyDisk, Heart, Heartbeat, PaperPlaneRight, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
-import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
 import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
-import { AiExplainPanel } from './AiExplainPanel'
+import { buildDomainNarrative, type NarrativeBlock } from '../readingNarrative'
+import { DomainEssay } from './DomainEssay'
 import { MemeCompanion } from './MemeCompanion'
+import { chartAge, pastQuestion, nowQuestion, upcomingQuestion } from '../lifePhase'
 
 type DomainResult = {
   title: string
   lead: string
   action: string
   evidence: string[]
+  narrative: NarrativeBlock[]
   disclaimer?: string
-}
-
-// 一生逐大限：按起讫虚岁把十二大限切成早年/中年/晚年三段，各生成一段并行运程。
-const LIFE_PHASE_THEMES: Record<AnalysisDomain, string> = {
-  health: '健康与身心状态',
-  relationship: '感情与亲密关系',
-  career: '事业与方向',
-  wealth: '钱财与财务习惯',
-}
-
-function lifePhaseQuestions(chart: ChartResponse, domain: AnalysisDomain): string[] {
-  const theme = LIFE_PHASE_THEMES[domain]
-  const sorted = [...chart.ziwei.palaces].sort((a, b) => a.decadal_range[0] - b.decadal_range[0])
-  const groups: Array<[string, typeof sorted]> = [
-    ['早年', sorted.slice(0, 4)],
-    ['中年', sorted.slice(4, 8)],
-    ['晚年', sorted.slice(8, 12)],
-  ]
-  return groups.map(([label, group]) => {
-    const limits = group
-      .map((palace) => `${palace.decadal_range[0]}-${palace.decadal_range[1]}岁${palace.name}宫（${palace.branch}）坐${palace.major_stars.slice(0, 2).join('、') || '无主星'}`)
-      .join('；')
-    return `只写我${label}的${theme}运程，按大限逐段展开：${limits}。每个大限一段（约100字）：这段岁月${theme}的主题、顺流与逆流各一个具体表现、这条大限特有的注意点；先引宫位与星曜再下结论，术语配白话，不要写其他人生阶段。`
-  })
 }
 
 const domainConfig: Record<AnalysisDomain, {
@@ -50,25 +29,25 @@ const domainConfig: Record<AnalysisDomain, {
   health: {
     palace: '疾厄', label: '健康', icon: Heartbeat,
     action: '把睡眠、饮食、活动量与不适记录成可复查的时间线；持续或明显不适请优先交给专业医生。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话健康总论并给行动建议：①结论一句话加比喻；②当前阶段的体质与信号——先引具体盘面（如"天府（旺）在酉宫"）与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话，不涉及诊断或用药。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话健康总论并给行动建议：①结论一句话加比喻；②当前阶段的体质与信号——先引具体盘面（如"天府（旺）在酉宫"）与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话，不涉及诊断或用药。不要写当前大限之后第 3 步及更远的运程。',
     actionQuestion: '请基于我的三张命盘（四柱日主、紫微疾厄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。不涉及任何诊断或用药。',
   },
   relationship: {
     palace: '夫妻', label: '姻缘', icon: Heart,
     action: '把沟通节奏、个人边界与冲突后的恢复方式分开观察，用真实互动校准命盘语言。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话姻缘总论并给行动建议：①结论一句话加比喻；②当前阶段我在关系里的模式与卡点——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话姻缘总论并给行动建议：①结论一句话加比喻；②当前阶段我在关系里的模式与卡点——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话。不要写当前大限之后第 3 步及更远的运程。',
     actionQuestion: '请基于我的三张命盘（四柱日主、紫微夫妻宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
   career: {
     palace: '官禄', label: '事业', icon: Briefcase,
     action: '把专业能力、责任边界与下一阶段作品拆开列出，先推进一个可以被验证的最小成果。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话事业总论并给行动建议：①结论一句话加比喻；②当前阶段的优势与坑——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话事业总论并给行动建议：①结论一句话加比喻；②当前阶段的优势与坑——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。禁止泛泛人生建议，术语配白话。不要写当前大限之后第 3 步及更远的运程。',
     actionQuestion: '请基于我的三张命盘（四柱日主、紫微官禄宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
   wealth: {
     palace: '财帛', label: '财运', icon: Coins,
     action: '先定义现金流、风险上限和不可承受损失，再讨论机会；命盘不能替代具体财务数据。',
-    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话财运总论并给行动建议：①结论一句话加比喻；②当前阶段的用钱赚钱习惯与漏财点——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。命盘不替代财务数据，禁止泛泛人生建议，术语配白话。',
+    analysisQuestion: '请综合我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）写当前阶段的白话财运总论并给行动建议：①结论一句话加比喻；②当前阶段的用钱赚钱习惯与漏财点——先引具体盘面与当前大限行限再下结论；③2-4条行动建议，每条分为什么/怎么做/怎么算做到三层，加一条"只需记住这一条"规则。命盘不替代财务数据，禁止泛泛人生建议，术语配白话。不要写当前大限之后第 3 步及更远的运程。',
     actionQuestion: '请基于我的三张命盘（四柱日主、紫微财帛宫及三方四正、七政昼夜盘庙旺恩难、当前人生阶段）只输出"当前阶段"的行动方案：2-4条行动建议，每条分"为什么（引用哪张盘哪个具体依据）/怎么做（本周能执行的具体动作）/怎么算做到了（可检查的信号）"三层写；最后1-2条提醒，其中一条写成"只需记住这一条"式单句规则。命盘不能替代具体财务数据，禁止泛泛的人生建议，每个术语第一次出现都解释成白话。',
   },
 }
@@ -82,6 +61,7 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
       lead: `当前命盘没有返回${config.palace}宫，系统不会用其他宫位补写结论。`,
       action: '可以先展开完整命盘检查数据；若仍缺失，请重新排盘或稍后再试。',
       evidence: ['未找到对应宫位'],
+      narrative: [{ label: '缺宫', text: `当前命盘没有返回${config.palace}宫，系统不会用其他宫位补写结论。` }],
     }
   }
 
@@ -95,10 +75,23 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
     .map((item) => `${item.star}化${item.mutagen}`)
   const mutagenCopy = mutagens.length ? `；同宫可追溯四化为${mutagens.join('、')}` : '；当前未检测到同宫生年四化'
 
+  const life = chart.ziwei.palaces.find((item) => item.name === '命宫')
+  const birthYear = Number(String(chart.bazi.calculation_datetime).slice(0, 4))
+  const age = Number.isFinite(birthYear) ? new Date().getFullYear() - birthYear + 1 : null
+  const stage = age === null ? undefined : chart.ziwei.palaces.find((item) => item.decadal_range[0] <= age && age <= item.decadal_range[1])
+  const lead = [
+    `日主${chart.bazi.pillars.day}，命宫在${life?.branch ?? '未知'}支。`,
+    `${config.palace}宫落${palace.branch}，主星${majorStars}，辅星${minorStars}${mutagenCopy}。`,
+    stage && age !== null
+      ? `当前虚岁约${age}，大限行${stage.name}宫（${stage.decadal_range[0]}-${stage.decadal_range[1]}岁，${stage.branch}支）。`
+      : '',
+  ].filter(Boolean).join('')
+
   return {
     title: `${config.label} · ${config.palace}宫在${palace.branch}`,
-    lead: `主星：${majorStars}；辅星：${minorStars}${mutagenCopy}。`,
+    lead,
     action: config.action,
+    narrative: buildDomainNarrative(chart, config.palace),
     evidence: [
       `${config.palace}宫 · ${palace.branch}`, `大限 ${palace.decadal_range[0]} 至 ${palace.decadal_range[1]}`,
       `主星 ${majorStars}`, `辅星 ${minorStars}`, ...(mutagens.length ? [`四化 ${mutagens.join('、')}`] : []),
@@ -130,6 +123,18 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
   const domainActive = active !== null && active !== 'chat' ? active : null
   const result = domainActive ? results[domainActive] : null
   const activeConfig = domainActive ? domainConfig[domainActive] : null
+  const age = domainActive ? chartAge(chart.bazi.calculation_datetime) : null
+  const palaces = chart.ziwei.palaces
+  const pastQ = domainActive && age != null ? pastQuestion(palaces, age, domainActive) : null
+  const nowQ = domainActive && age != null ? nowQuestion(palaces, age, domainActive) : null
+  const nextQ = domainActive && age != null ? upcomingQuestion(palaces, age, domainActive) : null
+  const domainSource = result && domainActive ? {
+    kind: 'domain' as const,
+    summary: result.lead,
+    facts: chart.ai_contexts[domainActive]?.facts
+      ?? result.evidence.map((text, index) => ({ id: `domain-${index + 1}`, text })),
+    contextTokens: chart.ai_contexts[domainActive] ? [chart.ai_contexts[domainActive].token] : [],
+  } : null
 
   return <section className="analysis-section" id="analysis">
     <div className="domain-console is-ready">
@@ -164,22 +169,40 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
         {result && activeConfig && domainActive && <article className="domain-reading">
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
-          {/* 分段并行在后端完成：主问题（分析篇）+ splitQuestion（行动篇）一次请求内并行生成并合并，页面只有一份答案 */}
-          <AiExplainPanel
-            auto
-            splitQuestions={lifePhaseQuestions(chart, domainActive)}
-            cacheKey={`ai-${aiOwner}-${domainActive}-life`}
-            source={{
-              key: `${chart.trace_id}-${domainActive}-analysis`,
-              kind: 'domain',
-              title: `${result.title} · 盘面分析`,
-              summary: result.lead,
-              facts: chart.ai_contexts[domainActive]?.facts
-                ?? result.evidence.map((text, index) => ({ id: `domain-${index + 1}`, text })),
-              contextTokens: chart.ai_contexts[domainActive] ? [chart.ai_contexts[domainActive].token] : [],
-            }}
-            defaultQuestion={activeConfig.analysisQuestion}
-          />
+          <p className="domain-lead">{result.lead}</p>
+          <div className="domain-interpretation">
+            {result.narrative.map((block) => (
+              <Fragment key={block.label}>
+                <span>{block.label}</span>
+                <p>{block.text}</p>
+              </Fragment>
+            ))}
+          </div>
+          <blockquote>{result.action}</blockquote>
+          {result.disclaimer && <p className="domain-disclaimer">{result.disclaimer}</p>}
+          {domainSource && nowQ && <DomainEssay
+            source={{ ...domainSource, key: `${chart.trace_id}-${domainActive}` }}
+            sections={[
+              ...(pastQ ? [{
+                id: 'past' as const,
+                heading: '已走过大限',
+                question: pastQ,
+                cacheKey: `ai-${aiOwner}-${domainActive}-past-${chart.trace_id}`,
+              }] : []),
+              {
+                id: 'now',
+                heading: '当前大限',
+                question: nowQ,
+                cacheKey: `ai-${aiOwner}-${domainActive}-now-${chart.trace_id}`,
+              },
+              ...(nextQ ? [{
+                id: 'next' as const,
+                heading: '接下来两限',
+                question: nextQ,
+                cacheKey: `ai-${aiOwner}-${domainActive}-next-${chart.trace_id}`,
+              }] : []),
+            ]}
+          />}
           <details className="fact-details"><summary>查看命盘依据与规则建议</summary>
             <p>{result.lead}</p>
             <blockquote>{result.action}</blockquote>

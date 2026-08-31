@@ -15,6 +15,9 @@ htmlcov/
 tests/.artifacts/
 tests/.tmp/
 
+# Local dream vector store
+data/dream-store/
+
 # Local environment and credentials
 .env
 .env.*
@@ -24,6 +27,7 @@ tests/.tmp/
 
 # Local agent/session artifacts
 .Codex/
+.superpowers/
 
 # Editor and OS artifacts
 .vscode/

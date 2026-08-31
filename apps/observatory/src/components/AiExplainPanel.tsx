@@ -3,14 +3,14 @@ import { useEffect, useRef, useState } from 'react'
 import { API_BASE } from '../apiBase'
 import type { AiExplainResponse, AiExplainSource } from '../types'
 
-const DEFAULT_QUESTION = '请把这段结果讲得更直白，并告诉我最值得先做的一件事。'
-const AI_CACHE_KEY = 'fortune-ai-cache-v1'
+const DEFAULT_QUESTION = '请把这段结果讲透：先给结论和比喻，再用两到三段把盘面依据、当前阶段和日常含义讲清楚，最后给2-4条可执行动作。'
+const AI_CACHE_KEY = 'fortune-ai-cache-v9'
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable' | 'error'
 type CacheEntry = { answer: AiExplainResponse; createdAt: number }
 
-function readCache(key: string): CacheEntry | null {
+export function readCache(key: string): CacheEntry | null {
   try {
     const raw = window.localStorage.getItem(AI_CACHE_KEY)
     if (!raw || raw.length > 200_000) return null
@@ -23,7 +23,7 @@ function readCache(key: string): CacheEntry | null {
   }
 }
 
-function writeCache(key: string, answer: AiExplainResponse) {
+export function writeCache(key: string, answer: AiExplainResponse) {
   try {
     const raw = window.localStorage.getItem(AI_CACHE_KEY)
     const parsed = raw ? JSON.parse(raw) as Record<string, CacheEntry> : {}
@@ -34,6 +34,18 @@ function writeCache(key: string, answer: AiExplainResponse) {
     window.localStorage.setItem(AI_CACHE_KEY, JSON.stringify(trimmed))
   } catch {
     // Cache is best-effort; generation still works without it.
+  }
+}
+
+export function clearCache(key: string) {
+  try {
+    const raw = window.localStorage.getItem(AI_CACHE_KEY)
+    if (!raw) return
+    const parsed = JSON.parse(raw) as Record<string, CacheEntry>
+    delete parsed[key]
+    window.localStorage.setItem(AI_CACHE_KEY, JSON.stringify(parsed))
+  } catch {
+    // Cache is best-effort.
   }
 }
 
@@ -80,11 +92,11 @@ async function fetchExplanation(
 // never aborts them, results always land in the cache, and any panel mounted
 // later on the same cacheKey joins the in-flight promise instead of re-asking.
 // startedAt keeps the progress bar continuous across page switches.
-type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
-type InflightGeneration = { task: Promise<GenerationOutcome>; startedAt: number }
+export type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
+export type InflightGeneration = { task: Promise<GenerationOutcome>; startedAt: number }
 const inflightGenerations = new Map<string, InflightGeneration>()
 
-function joinBackgroundGeneration(
+export function joinBackgroundGeneration(
   cacheKey: string,
   question: string,
   contextTokens: string[],
@@ -124,12 +136,22 @@ export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
 }
 
-export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, auto = false, cacheKey, splitQuestions }: {
+export function AiExplainPanel({
+  source,
+  defaultQuestion = DEFAULT_QUESTION,
+  auto = false,
+  cacheKey,
+  splitQuestions = [],
+  heading = 'AI 解读',
+  lists = true,
+}: {
   source: AiExplainSource
   defaultQuestion?: string
   auto?: boolean
   cacheKey?: string
   splitQuestions?: string[]
+  heading?: string
+  lists?: boolean
 }) {
   const [expanded, setExpanded] = useState(auto)
   const [availability, setAvailability] = useState<Availability>(auto ? 'checking' : 'idle')
@@ -263,6 +285,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         headers: { accept: 'application/json', 'content-type': 'application/json' },
         body: JSON.stringify({
           question: cleanQuestion,
+          split_questions: !followUp && (splitQuestions?.length ?? 0) ? splitQuestions : undefined,
           context_tokens: source.contextTokens,
         }),
         signal: controller.signal,
@@ -301,7 +324,7 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     .map((id) => source.facts.find((fact) => fact.id === id))
     .filter((fact): fact is NonNullable<typeof fact> => Boolean(fact)) ?? []
 
-  return <section className="ai-explain-panel" aria-label={auto ? 'AI 解读' : '可选 AI 讲解'}>
+  return <section className="ai-explain-panel" aria-label={auto ? heading : '可选 AI 讲解'}>
     {!auto && <div className="ai-explain-intro">
       <div>
         <span><ChatCircleDots size={18} weight="fill" /> AI 讲解（可选）</span>
@@ -312,8 +335,8 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
     </div>}
 
     {expanded && <div className="ai-explain-body" id={panelId(source.key)}>
-      {auto && <div className="ai-auto-head"><span><ChatCircleDots size={18} weight="fill" /> AI 解读</span>{cacheKey && answer && !isLoading && <small>本机缓存 · 24 小时内不重复调用</small>}</div>}
-      {!auto && <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击“生成讲解”才会调用模型；系统不会自动附带出生资料。</p>}
+      {auto && <div className="ai-auto-head"><span><ChatCircleDots size={18} weight="fill" /> {heading}</span>{cacheKey && answer && !isLoading && <small>本机缓存 · 24 小时内不重复调用</small>}</div>}
+      {!auto && <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击「生成讲解」才会调用模型。讲解只发送盘面事实和你的问题，不发送出生时间或坐标。</p>}
 
       {availability === 'checking' && <div className="ai-status-skeleton" role="status" aria-label="正在检查 AI 讲解状态"><span /><span /><span /></div>}
       {availability === 'unavailable' && <div className="ai-unavailable"><Info size={20} weight="bold" /><div><strong>{source.contextTokens.length ? 'AI 讲解暂未配置' : '这份结果还没有核验上下文'}</strong><p>{source.contextTokens.length ? '规则排盘、专项分析和时间运势不受影响。' : '重新排盘即可准备；当前规则结果仍可正常使用。'}</p></div></div>}
@@ -327,8 +350,9 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         {followUp && <button className="ai-generate" type="button" disabled={!question.trim() || isLoading} onClick={() => void generate()}>
           {isLoading ? <><SpinnerGap className="spin" size={19} /> 正在根据事实整理</> : answer ? '按新问题重新生成' : '生成讲解'}
         </button>}
+        {!followUp && !answer && !isLoading && !error && <button className="ai-generate" type="button" onClick={() => void generate()}>{(splitQuestions?.length ?? 0) ? '生成完整讲解' : '生成讲解'}</button>}
         {!followUp && !isLoading && !error && answer && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
-        {!followUp && !isLoading && !answer && error && cacheKey && <button type="button" className="ai-followup-toggle" onClick={runAutoGeneration}>重新生成 AI 解读</button>}
+        {!followUp && !isLoading && !answer && error && <button type="button" className="ai-followup-toggle" onClick={() => void generate()}>重新生成讲解</button>}
 
         {isLoading && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
@@ -336,10 +360,10 @@ export function AiExplainPanel({ source, defaultQuestion = DEFAULT_QUESTION, aut
         </div>}
         {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {answer && !isLoading && <article className="ai-answer">
-          <header><CheckCircle size={21} weight="fill" /><div><strong>AI 解读</strong></div></header>
+          <header><CheckCircle size={21} weight="fill" /><div><strong>{heading}</strong></div></header>
           {answer.summary.text.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-          {answer.actions.length > 0 && <div><strong>可以先做</strong><ul>{answer.actions.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
-          {answer.caveats.length > 0 && <div className="ai-caveats"><strong>注意</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
+          {lists && answer.actions.length > 0 && <div><strong>可以先做</strong><ul>{answer.actions.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
+          {lists && answer.caveats.length > 0 && <div className="ai-caveats"><strong>注意</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
           <details><summary>查看 AI 使用的 {citedFacts.length} 条依据</summary><ul>{citedFacts.map((fact, index) => <li key={fact.id}><b>依据 {index + 1}</b>{fact.text}</li>)}</ul></details>
         </article>}
       </>}

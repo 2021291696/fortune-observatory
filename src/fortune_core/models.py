@@ -49,6 +49,11 @@ class BirthInput(StrictRequestModel):
             raise ValueError(
                 "civil_datetime UTC offset does not match timezone_id at that local time"
             )
+        from fortune_core.time_location.zoneinfo_adapter import CivilTimeError, normalize_civil_time
+        try:
+            normalize_civil_time(self.civil_datetime.replace(tzinfo=None), self.timezone_id)
+        except CivilTimeError as error:
+            raise ValueError(str(error)) from error
         return self
 
 

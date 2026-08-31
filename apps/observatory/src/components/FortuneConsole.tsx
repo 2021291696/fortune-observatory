@@ -1,13 +1,28 @@
 import { ArrowRight, FloppyDisk, SpinnerGap } from '@phosphor-icons/react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
 import { factDomain, plainFactLine, termGlossary } from '../terminology'
+import { buildFortuneNarrative, decadePlain, yearlyPlain } from '../readingNarrative'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 import { MemeMedia } from './MemeMedia'
+
+function ThemeFlanks({ theme }: { theme: ThemeConfig }) {
+  const items = [
+    theme.stickers[0] ?? theme.mainMedia,
+    theme.stickers[1] ?? theme.stickers[0] ?? theme.mainMedia,
+    theme.stickers[2] ?? theme.stickers[0] ?? theme.mainMedia,
+    theme.stickers[3] ?? theme.stickers[1] ?? theme.mainMedia,
+  ]
+  return <div className="theme-flanks" aria-hidden="true">
+    {items.map((source, index) => (
+      <MemeMedia key={`${source}-${index}`} source={source} className={`theme-flank is-${index}`} />
+    ))}
+  </div>
+}
 
 const relationLabels = { branch_clash: '地支冲', branch_combination: '地支合', branch_same: '同支' }
 const periodLabels = { great_luck: '大运', year: '流年', month: '流月', day: '流日' }
@@ -89,8 +104,7 @@ export function FortuneConsole(props: FortuneProps) {
     title: `${selectedLabel}运势 · 流日 ${daily.transit.day_pillar}`,
     summary: dailyRead,
     facts: daily.ai_context?.facts ?? [],
-    // Single token keeps the prompt compact; the period facts stay folded under
-    // 查看依据 instead of slowing the auto reading past the provider budget.
+    // Single token keeps the prompt compact; period facts stay under 查看依据.
     contextTokens: daily.ai_context ? [daily.ai_context.token] : [],
   } : null
 
@@ -113,6 +127,7 @@ export function FortuneConsole(props: FortuneProps) {
   }
 
   return <section className="fortune-section" aria-label="时间范围">
+    {chartReady && <ThemeFlanks theme={theme} />}
     <div className={`fortune-console ${chartReady ? 'is-ready' : ''}`} aria-live="polite">
       {!chartReady ? <div className="fortune-empty">
         <div className="reaction-frame"><MemeMedia source={theme.stickers[0] ?? theme.mainMedia} /></div>
@@ -138,6 +153,39 @@ export function FortuneConsole(props: FortuneProps) {
             <MemeCompanion theme={theme} />
             <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
+            <div className="domain-interpretation">
+              {buildFortuneNarrative({
+                facts: daily.transit.facts,
+                yearLine: daily.ziwei_yearly
+                  ? yearlyPlain(daily.ziwei_yearly.year_pillar, daily.ziwei_yearly.yearly_mutagens, daily.ziwei_yearly.nominal_age)
+                  : undefined,
+                decadeLine: daily.ziwei_yearly
+                  ? decadePlain(
+                    daily.ziwei_yearly.decadal.start_age,
+                    daily.ziwei_yearly.decadal.end_age,
+                    daily.ziwei_yearly.decadal.is_childhood,
+                    daily.ziwei_yearly.decadal.branch,
+                    daily.ziwei_yearly.decadal.stem,
+                  )
+                  : undefined,
+              }).map((block) => (
+                <Fragment key={block.label}>
+                  <span>{block.label}</span>
+                  <p>{block.text}</p>
+                </Fragment>
+              ))}
+            </div>
+            {periods?.transit.insights.length ? (
+              <div className="fortune-insights is-visible">
+                {periods.transit.insights.map((insight) => (
+                  <article key={insight.insight_id}>
+                    <h4>{insight.title}</h4>
+                    <p>{insight.summary}</p>
+                    <strong>{insight.action}</strong>
+                  </article>
+                ))}
+              </div>
+            ) : null}
             {daily.ziwei_yearly && <div className="yearly-ziwei">
               <span className="yz-pill" title={termGlossary['流年四化']}>{daily.ziwei_yearly.year_pillar}年 · 虚岁{daily.ziwei_yearly.nominal_age}</span>
               <p>{daily.ziwei_yearly.yearly_mutagens.map((entry) => {
@@ -154,12 +202,20 @@ export function FortuneConsole(props: FortuneProps) {
               auto
               cacheKey={`ai-${aiOwner}-${daily.transit.transit_date}`}
               source={dailyAi}
-              defaultQuestion={`请把我的${selectedLabel}运势（${daily.transit.transit_date}，流日${daily.transit.day_pillar}）讲成一段直白的白话解读，告诉我今天最值得注意的一件事和一件适合先做的小事。`}
+              splitQuestions={[
+                `只写${daily.transit.transit_date}这一天：流日${daily.transit.day_pillar}对生活节奏的具体影响，分早晨/白天/晚上各举一个可观察的表现，约150字。`,
+                daily.ziwei_yearly
+                  ? `只写${daily.ziwei_yearly.year_pillar}年这一年：流年四化和流年命宫怎么落到工作、关系和花钱上，举两个具体场面，约150字。`
+                  : `只写这一年的大方向：结合流年和日柱，说明适合推进什么、适合收住什么，约150字。`,
+                daily.ziwei_yearly
+                  ? `只写当前${daily.ziwei_yearly.decadal.is_childhood ? '童限' : '大限'}阶段（${daily.ziwei_yearly.decadal.start_age}-${daily.ziwei_yearly.decadal.end_age}岁）：这个阶段的主题、容易踩的坑、本月可做的一件小事，约150字。`
+                  : `只写当前人生阶段：根据大运和流年，说明这几个月最值得盯住的一件事，约150字。`,
+              ]}
+              defaultQuestion={`请把我的${selectedLabel}运势讲透（${daily.transit.transit_date}，流日${daily.transit.day_pillar}）。先给结论和比喻，再用两到三段分别讲：今天的冲合、今年的流年四化、当前大限阶段；每段先引盘面再讲白话。最后给2-4条今天就能做的动作。按 facts 里的虚岁解读人生角色，不要按宫位名编履历。`}
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>
               {periods && <div className="fortune-layers">{periods.transit.layers.map((layer) => <span key={layer.period}><small>{periodLabels[layer.period]}</small><b>{layer.pillar}</b>{layer.facts.length > 0 && <i>{layer.facts.map((fact) => relationLabels[fact.relation]).join('、')}</i>}</span>)}</div>}
-              {periods?.transit.insights.length ? <div className="fortune-insights">{periods.transit.insights.map((insight) => <article key={insight.insight_id}><h4>{insight.title}</h4><p>{insight.summary}</p><strong>{insight.action}</strong></article>)}</div> : null}
             </details>
             <button className="reading-save" type="button" disabled={isLoading} onClick={saveFortune}><FloppyDisk size={18} weight="bold" /> 保存{selectedLabel}运势</button>
           </div>}
@@ -235,11 +291,18 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
     {selected && selectedPlain && <div className="day-card">
       <header><strong>{selected.transit_date}{selected.transit_date === todayKey ? ' · 今天' : ''}</strong><span className={`day-tone is-${selectedPlain.tone}`}>{selectedPlain.keyword}</span></header>
       <p>{selectedPlain.line}</p>
+      {selected.facts.length > 0 && (
+        <ul className="fortune-fact-lines">
+          {selected.facts.map((fact) => (
+            <li key={fact.fact_id}>{plainFactLine(fact)}</li>
+          ))}
+        </ul>
+      )}
       {selectedAi && <AiExplainPanel
         auto
         cacheKey={`ai-${aiOwner}-${selected.transit_date}`}
         source={selectedAi}
-        defaultQuestion={`请讲讲 ${selected.transit_date} 这一天我的运势，用白话说清该注意什么、适合先做什么。`}
+        defaultQuestion={`请把 ${selected.transit_date} 这一天讲透：先给结论和比喻，再用两到三段分别讲当天冲合落到哪一层生活、这一周该怎么安排、以及不必过度解读的地方。最后给2-4条当天能做的动作。`}
       />}
       <details className="fact-details"><summary>查看依据</summary><p>{selected.facts.length ? selected.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；') : '该日未检测到已定义的冲合关系。'}</p></details>
     </div>}

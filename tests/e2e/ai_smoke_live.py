@@ -1,15 +1,23 @@
-"""Production smoke: real MiniMax calls through the live API for the unlocked AI policy.
+"""Local live AI smoke: one explain + one interpret against local uvicorn.
 
-Usage: uv run --project apps/observatory python tests/e2e/ai_smoke_live.py
+Usage:
+    DESTINY_SMOKE_BASE=http://127.0.0.1:8000 \\
+    .venv/Scripts/python.exe tests/e2e/ai_smoke_live.py
+
+Skip (exit 0) when FORTUNE_AI_API_KEY is unset or /v1/ai/status.available is false.
+Refuse any host other than 127.0.0.1 / localhost.
 """
 
-import json
+from __future__ import annotations
+
+import os
 import sys
+from urllib.parse import urlparse
 
 import httpx
 
-BASE = "https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/destiny"
-assert BASE.startswith("https://sol-d2ga5fpq8bcf67f5a.service.tcloudbase.com/"), "host allowlist"
+DEFAULT_BASE = "http://127.0.0.1:8000"
+BANNED_HOST_FRAGMENT = "tcloudbase.com"
 
 BIRTH = {
     "civil_datetime": "1995-06-15T08:30:00+08:00",
@@ -21,66 +29,79 @@ BIRTH = {
 }
 
 
-def main() -> None:
+def _base() -> str:
+    raw = os.environ.get("DESTINY_SMOKE_BASE", DEFAULT_BASE).rstrip("/")
+    host = (urlparse(raw).hostname or "").lower()
+    if BANNED_HOST_FRAGMENT in host or host not in {"127.0.0.1", "localhost"}:
+        raise SystemExit(f"refusing non-local smoke base: {raw}")
+    return raw
+
+
+def _fact_ids(payload: dict) -> set[str]:
+    ids: set[str] = set()
+    block = payload.get("summary") or {}
+    ids.update(block.get("fact_ids") or [])
+    for key in ("actions", "caveats"):
+        for item in payload.get(key) or []:
+            ids.update(item.get("fact_ids") or [])
+    return ids
+
+
+def main() -> int:
+    if not os.environ.get("FORTUNE_AI_API_KEY"):
+        print("SKIP: FORTUNE_AI_API_KEY unset")
+        return 0
+    base = _base()
     client = httpx.Client(timeout=60)
-    status = client.get(f"{BASE}/v1/ai/status").json()
-    print("ai status:", status)
-    if not status.get("available"):
-        sys.exit("AI provider unavailable")
+    status = client.get(f"{base}/v1/ai/status")
+    status.raise_for_status()
+    body = status.json()
+    if not body.get("available"):
+        print("SKIP: provider unavailable", body)
+        return 0
 
-    chart = client.post(f"{BASE}/v1/charts", json=BIRTH)
+    chart = client.post(f"{base}/v1/charts", json=BIRTH)
     chart.raise_for_status()
-    body = chart.json()
-    contexts = body.get("ai_contexts", {})
-    print("context keys:", sorted(contexts.keys()))
+    contexts = chart.json().get("ai_contexts") or {}
     ziwei = contexts.get("ziwei")
-    if ziwei:
-        print(f"ziwei facts: {len(ziwei['facts'])} 条")
-        print("  样例:", ziwei["facts"][0]["text"], "…")
-        print("  样例:", ziwei["facts"][1]["text"], "…")
+    if not ziwei:
+        print("FAIL: chart has no ziwei ai_context")
+        return 1
+    known = {fact["id"] for fact in ziwei["facts"]}
 
-    samples = []
-
-    if ziwei:
-        samples.append((
-            "紫微整盘",
-            "请用白话解读我的紫微命盘整体格局：先一句话结论加一个比喻；再讲命宫和身宫的星曜组合各意味着什么（每个术语都配一句白话）；最后给我2到4条今天就能做的具体行动建议。",
-            [ziwei["token"]],
-        ))
-
-    daily = client.post(
-        f"{BASE}/v1/transits/daily",
-        json={"birth": BIRTH, "transit_date": "2026-08-16"},
+    explain = client.post(
+        f"{base}/v1/ai/explain",
+        json={
+            "question": "请用白话讲讲命宫主星，不要编造盘面里没有的星曜。",
+            "context_tokens": [ziwei["token"]],
+        },
     )
-    daily.raise_for_status()
-    daily_context = daily.json().get("ai_context")
-    if daily_context:
-        print("\ndaily facts:")
-        for fact in daily_context["facts"]:
-            print("  -", fact["text"])
-        samples.append((
-            "今日运势",
-            "请把我的今日运势讲成一段直白的白话解读：先一句话结论加一个比喻，再说今天最值得注意的一件事和一件适合先做的小事（术语都配白话）。",
-            [daily_context["token"]],
-        ))
+    if explain.status_code >= 500:
+        print("ENV: explain upstream", explain.status_code, explain.text[:200])
+        return 0
+    explain.raise_for_status()
+    answer = explain.json()
+    cited = _fact_ids(answer)
+    unknown = cited - known
+    if unknown:
+        print("FAIL: explain cited unknown fact ids", unknown)
+        return 1
 
-    for title, question, tokens in samples:
-        print(f"\n========== {title} ==========")
-        response = client.post(
-            f"{BASE}/v1/ai/explain",
-            json={"question": question, "context_tokens": tokens},
-        )
-        if response.status_code != 200:
-            print(f"HTTP {response.status_code}: {response.text[:200]}")
-            continue
-        answer = response.json()
-        print("【结论】", answer["summary"]["text"])
-        print("  引用:", answer["summary"].get("fact_ids"))
-        for i, action in enumerate(answer.get("actions", []), 1):
-            print(f"【行动{i}】", action["text"])
-        for i, caveat in enumerate(answer.get("caveats", []), 1):
-            print(f"【提醒{i}】", caveat["text"])
+    interpret = client.post(
+        f"{base}/v1/dreams/interpret",
+        json={"dream": "梦见蛇钻进怀里", "overlay": None, "context_tokens": []},
+    )
+    if interpret.status_code >= 500:
+        print("ENV: interpret upstream", interpret.status_code, interpret.text[:200])
+        return 0
+    interpret.raise_for_status()
+    dream = interpret.json()
+    if "essay" not in dream or "sources" not in dream:
+        print("FAIL: interpret schema", dream.keys())
+        return 1
+    print("PASS explain+interpret")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

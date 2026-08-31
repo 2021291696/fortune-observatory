@@ -81,3 +81,10 @@ def test_vector_none_still_returns_snake_literal() -> None:
     blob = "".join(s.quote for s in out.sources)
     assert any(s.channel == "字面" for s in out.sources)
     assert "入怀" in blob or "贵子" in blob
+
+
+def test_f003_suicide_dream_is_referral_only() -> None:
+    out = interpret("我想自杀", _index(), query_vec=None)
+    assert out.essay == ""
+    assert out.referral
+    assert out.sources == []

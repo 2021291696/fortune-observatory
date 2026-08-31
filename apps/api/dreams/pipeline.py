@@ -5,10 +5,13 @@ from dreams.models import InterpretResponse
 from dreams.retrieve import retrieve
 
 REFERRAL = "若睡眠持续被毁、或清醒后仍有自伤/伤人意图，请先寻求专业医疗或危机支持，这里不替代评估。"
+LETHAL = ("自杀", "不想活", "结束生命", "了结自己")
 UNSAFE = ("反复噩梦", "睡不着", "自伤", "伤自己", "醒来也还想", "伤人")
 
 
 def _unsafe(text: str) -> bool:
+    if any(key in text for key in LETHAL):
+        return True
     return sum(1 for key in UNSAFE if key in text) >= 2
 
 

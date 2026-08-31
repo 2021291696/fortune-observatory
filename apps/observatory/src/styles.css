@@ -229,7 +229,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 @media (max-width: 440px) {
-  .site-header nav a:nth-child(3), .site-header nav a:nth-child(4) { display: none; }
   .remote-options { gap: 3px; }
   .remote-options button { min-width: 47px; grid-template-columns: 1fr; font-size: 9px; }
   .remote-options button > span:last-child { display: none; }

@@ -165,7 +165,7 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
       {isSubmitting ? <><SpinnerGap className="spin" size={20} /> 正在计算</> : <>{initial ? '保存并重新计算' : '排盘并看运势'} <ArrowRight size={20} weight="bold" /></>}
     </button>
     <div className="form-privacy">
-      <span className="form-footnote">资料只保存在这台设备上，不上传服务器。</span>
+      <span className="form-footnote">出生资料只存在这台设备上。排盘和运势计算时会发到服务器处理，用完不保存；点「生成讲解」才会把盘面事实发给 AI 服务商。</span>
       <button type="button" onClick={(event) => clearForm(event.currentTarget.form)}>清空重填</button>
     </div>
   </form>

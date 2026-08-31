@@ -217,7 +217,9 @@
 .fortune-layers small { color: var(--muted); font-size: 10px; }
 .fortune-layers b { font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fortune-layers i { color: var(--accent); font-size: 10px; font-style: normal; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fortune-insights { margin-top: 20px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.fortune-fact-lines { margin: 0 0 18px; padding-left: 1.2em; color: var(--ink); font-size: 14px; line-height: 1.7; }
+.fortune-fact-lines li { margin: 0 0 6px; }
+.fortune-insights { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 10px; }
 .yearly-ziwei { display: grid; gap: 6px; margin: -8px 0 18px; padding: 12px 14px; border: 1px solid var(--soft-line); border-radius: 12px; background: color-mix(in srgb, var(--wash) 16%, #fff); }
 .yearly-ziwei .yz-pill { justify-self: start; padding: 3px 9px; border-radius: 999px; color: var(--accent); background: #fff; font-size: 10px; font-weight: 900; }
 .yearly-ziwei p { margin: 0; font-size: 12px; font-weight: 700; line-height: 1.7; }
@@ -421,6 +423,10 @@
 .ai-auto-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .ai-auto-head > span { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font-size: 12px; font-weight: 900; }
 .ai-auto-head > small { color: var(--muted); font-size: 10px; }
+.essay-block + .essay-block { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--soft-line); }
+.essay-block h3 { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 900; }
+.essay-block p { margin: 14px 0; font-size: 14px; line-height: 1.75; }
+.domain-essay .ai-answer-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ai-followup-toggle { min-height: 44px; padding: 0 12px; border: 1px dashed var(--soft-line); border-radius: 9px; color: var(--accent); background: #fff; font-size: 11px; font-weight: 850; }
 .ai-followup-toggle:hover { border-color: var(--accent); border-style: solid; }
 
@@ -495,3 +501,4 @@
   background: color-mix(in srgb, #e2a100 14%, transparent);
 }
 .saved-kind.is-dream { color: #4338ca; background: #eef2ff; }
+

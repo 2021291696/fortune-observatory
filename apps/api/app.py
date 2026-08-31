@@ -135,6 +135,9 @@ app.add_middleware(
     max_concurrent_calculations=8,
     calculation_timeout_seconds=12.0,
     ai_timeout_seconds=28.0,
+    trust_proxy=os.getenv("FORTUNE_TRUST_PROXY", "").lower() == "true",
+    client_ip_header=os.getenv("FORTUNE_CLIENT_IP_HEADER", "x-forwarded-for").strip().lower()
+    or "x-forwarded-for",
 )
 
 
@@ -154,7 +157,7 @@ class TransitApiResponse(TransitResponse):
     ai_context: AiContextBundle | None = None
 
 
-def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
+def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str, AiContextBundle]:
     # Domain facts below come only from the Ziwei snapshot; unrelated Qizheng
     # ambiguity must not suppress an otherwise verified palace context.
     if chart.ziwei.verification_status != "verified":
@@ -217,6 +220,8 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
             bits.append("恩难仇用：" + "，".join(f"{key}星{'、'.join(names)}" for key, names in grouped.items()))
         if bits:
             qizheng_anchors.append("七政星曜：" + "；".join(bits))
+        if traditional.verification_status != "verified":
+            qizheng_anchors = [f"{item}（传统层未核验）" for item in qizheng_anchors]
     # 当前人生阶段锚（治"泛泛一生描述"：让解读聚焦当下大限/行限阶段）。
     current_stage_anchor = ""
     birth_year = chart.bazi.calculation_datetime.year
@@ -242,25 +247,14 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
                 f"{limit_row.start_age:.0f}-{limit_row.end_age:.0f}岁，{limit_row.segment}段）"
             )
     if len(stage_bits) > 1:
-        current_stage_anchor = "当前人生阶段：" + "，".join(stage_bits) + "（解读必须聚焦此阶段，不要泛泛描述一生）"
-    # 一生大限总表（紫微十二大限按起讫虚岁排序，4 限一组共 3 条）——供"逐大限一生运程"解读。
-    decadal_sorted = sorted(
-        chart.ziwei.palaces, key=lambda item: item.decadal_range[0]
-    )
-    decadal_rows: list[str] = []
-    for group_index in range(0, len(decadal_sorted), 4):
-        group = decadal_sorted[group_index:group_index + 4]
-        if not group:
-            continue
-        label = "早年大限" if not decadal_rows else ("中年大限" if len(decadal_rows) == 1 else "晚年大限")
-        decadal_rows.append(
-            label + "："
-            + "；".join(
-                f"{item.decadal_range[0]}-{item.decadal_range[1]}岁{item.name}宫（{item.branch}支）"
-                f"坐{'、'.join(item.major_stars[:2]) or '无主星'}"
-                for item in group
-            )
+        current_stage_anchor = (
+            "当前人生阶段：" + "，".join(stage_bits) + "。"
+            + _life_stage_line(nominal_age, sex_for_rule)
         )
+        if traditional is not None and traditional.verification_status != "verified" and "七政" in current_stage_anchor:
+            current_stage_anchor += "（传统层未核验）"
+    buckets = _decadal_buckets(chart.ziwei.palaces, nominal_age)
+    decadal_rows = _decadal_fact_rows(buckets)
     contexts: dict[str, AiContextBundle] = {}
     for domain, palace_name in domain_palaces.items():
         palace = next((item for item in chart.ziwei.palaces if item.name == palace_name), None)
@@ -409,6 +403,8 @@ def _chart_ai_contexts(chart: ChartResponse) -> dict[str, AiContextBundle]:
                 f"（{first.years:.0f}年），此后行限为"
                 + "→".join(f"{row.palace}{row.years:g}年" for row in traditional.limit_rows[1:5])
             )
+        if traditional.verification_status != "verified":
+            qz_texts = [f"{item}（传统层未核验）" for item in qz_texts]
         qz_bundle = build_signed_context(
             "domain",
             [AiFact(id=f"qizheng-{index + 1}", text=text) for index, text in enumerate(qz_texts[:12])],
@@ -435,8 +431,69 @@ def _fortune_context_group(
 
 
 PILLAR_POSITION_LABELS = ("年柱", "月柱", "日柱", "时柱")
-PILLAR_DOMAIN_HINTS = ("长辈与人生根基的领域", "事业环境与同辈的领域", "本人与配偶的领域", "子女与晚辈的领域")
+PILLAR_DOMAIN_HINTS = (
+    "年柱象征根基与长辈议题",
+    "月柱象征环境与同辈议题",
+    "日柱象征自身与亲密关系议题",
+    "时柱象征表达、作品与晚辈议题",
+)
 SIGNAL_DIRECTION_LABELS = {"support": "支持", "tension": "张力", "neutral": "中性"}
+
+
+def _life_stage_line(nominal_age: int, sex_for_rule: str) -> str:
+    sex_label = "男" if sex_for_rule == "male" else "女" if sex_for_rule == "female" else "未知"
+    if nominal_age < 22:
+        roles = "学生/求职：学业考试、同学室友、兴趣作品；不要写成已婚、已育、已当管理、已养家糊口"
+    elif nominal_age < 28:
+        roles = "起步：恋爱相处、实习或第一份工作、作品表达；可谈原生家庭，不要写成已婚已育、已当领导、已有房贷"
+    elif nominal_age < 36:
+        roles = "成家窗口：婚恋和职业用假设语气；不要写成已经结婚、已有孩子、已是高管"
+    else:
+        roles = "中年后：家庭事业钱都用「如果」——如果已婚/如果有孩子/如果在带团队，不要把宫位当成履历"
+    return f"排盘性别{sex_label}，虚岁约{nominal_age}。按此阶段写日常：{roles}"
+
+
+def _decadal_buckets(palaces: list[Any], age: int) -> dict[str, Any]:
+    ordered = sorted(palaces, key=lambda item: item.decadal_range[0])
+    past: list[Any] = []
+    current: Any | None = None
+    future: list[Any] = []
+    for item in ordered:
+        start, end = item.decadal_range
+        if end < age:
+            past.append(item)
+        elif start <= age <= end and current is None:
+            current = item
+        elif start > age:
+            future.append(item)
+        elif start <= age <= end:
+            future.append(item)
+    if current is None and ordered:
+        current = ordered[-1]
+        past = [item for item in ordered if item is not current]
+        future = []
+    return {
+        "past": past,
+        "current": current,
+        "upcoming": future[:2],
+        "dropped": future[2:],
+    }
+
+
+def _decadal_fact_rows(buckets: dict[str, Any]) -> list[str]:
+    def line(item: Any) -> str:
+        stars = "、".join(item.major_stars[:2]) or "无主星"
+        name = item.name if str(item.name).endswith("宫") else f"{item.name}宫"
+        return f"{item.decadal_range[0]}-{item.decadal_range[1]}岁{name}（{item.branch}支）坐{stars}"
+
+    rows: list[str] = []
+    if buckets["past"]:
+        rows.append("已过大限：" + "；".join(line(item) for item in buckets["past"]))
+    if buckets["current"] is not None:
+        rows.append("当前大限：" + line(buckets["current"]))
+    if buckets["upcoming"]:
+        rows.append("未到大限：" + "；".join(line(item) for item in buckets["upcoming"]))
+    return rows
 
 
 def _pillar_position(fact: Any) -> str:
@@ -454,11 +511,15 @@ def _daily_ai_context(
     context_group: str,
     internal: Any = None,
     transit_qizheng_fact: str | None = None,
+    sex_for_rule: str = "",
 ) -> AiContextBundle | None:
     transit = response.transit
     if transit.verification_status != "verified":
         return None
     texts = [f"{transit.transit_date}的日柱为{transit.day_pillar}"]
+    yearly = response.ziwei_yearly
+    if yearly is not None:
+        texts.append(_life_stage_line(yearly.nominal_age, sex_for_rule))
     for fact in transit.facts[:4]:
         texts.append(
             f"{RELATION_LABELS[fact.relation]}：流日{fact.transit_pillar}作用于本命{_pillar_position(fact)}{fact.natal_pillar}"
@@ -701,7 +762,7 @@ def create_chart(birth: BirthInput) -> ChartApiResponse:
         natal_insights=build_natal_insights(snapshot, ziwei, qizheng),
         trace_id=str(uuid4()),
     )
-    return ChartApiResponse(**chart.model_dump(), ai_contexts=_chart_ai_contexts(chart))
+    return ChartApiResponse(**chart.model_dump(), ai_contexts=_chart_ai_contexts(chart, birth.sex_for_rule))
 
 
 @app.post("/v1/transits/daily", response_model=DailyTransitApiResponse)
@@ -753,7 +814,7 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     return DailyTransitApiResponse(
         **response.model_dump(),
         ai_context=_daily_ai_context(
-            response, context_group, daily_internal, transit_qizheng_fact
+            response, context_group, daily_internal, transit_qizheng_fact, request.birth.sex_for_rule
         ),
     )
 

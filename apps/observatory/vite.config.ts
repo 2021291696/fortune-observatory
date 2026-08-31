@@ -19,7 +19,17 @@ const developmentHeaders = {
 }
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'dev-inline-css-csp',
+      transformIndexHtml(html) {
+        return html
+          .replace("style-src 'self'", "style-src 'self' 'unsafe-inline'")
+          .replace("script-src 'self'", "script-src 'self' 'unsafe-inline'")
+      },
+    },
+  ],
   server: { host: '127.0.0.1', strictPort: true, headers: developmentHeaders },
   preview: { host: '127.0.0.1', strictPort: true, headers: securityHeaders },
 })

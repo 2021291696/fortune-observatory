@@ -24,6 +24,7 @@ from ai_explainer import (
     _parse_answer,
     _provider_payload,
     _read_limited_json_response,
+    _response_format,
     _verified_facts,
     build_signed_context,
     get_provider_config,
@@ -155,10 +156,17 @@ def test_provider_payload_isolates_prompt_injection_and_omits_secrets(monkeypatc
     user_text = payload["messages"][1]["content"]
     assert injection not in system_text
     assert injection in user_text
+    assert "虚岁" in system_text
+    assert "排盘性别" in system_text
+    assert "子女宫只当宫位名" in system_text
+    assert "那十年容易" in system_text
+    assert "你当时已经" in system_text
+    assert "家庭结构" in system_text
     serialized = json.dumps(payload, ensure_ascii=False)
     assert config.api_key not in serialized
     assert config.context_secret.decode() not in serialized
     assert "context_tokens" not in serialized
+    assert payload.get("thinking") == {"type": "disabled"}
 
 
 def test_every_ai_claim_cites_only_known_fact_ids() -> None:
@@ -200,6 +208,26 @@ def test_high_risk_model_instructions_fail_closed() -> None:
         _parse_answer(answer("现在适合购买股票"), {"fact-1"}, {"fortune.period"})
     with pytest.raises(AiProviderError, match="deterministic"):
         _parse_answer(answer("你一定会成功"), {"fact-1"}, {"domain.career"})
+
+
+def test_life_stage_line_follows_age_not_gender_stereotypes() -> None:
+    young = api_module._life_stage_line(21, "female")
+    assert "虚岁约21" in young
+    assert "排盘性别女" in young
+    assert "学生" in young
+    assert "已婚" in young
+    assert "已育" in young
+    assert "更该" not in young
+    starter = api_module._life_stage_line(25, "male")
+    assert "恋爱" in starter
+    assert "已当领导" in starter
+    older = api_module._life_stage_line(40, "male")
+    assert "如果已婚" in older
+    assert "如果有孩子" in older
+    assert "如果在带团队" in older
+    assert len(young) <= 280
+    assert len(starter) <= 280
+    assert len(older) <= 280
 
 
 def test_provider_url_requires_https_allowlist_and_blocks_private_ips(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -274,6 +302,12 @@ def test_chart_issues_server_signed_domain_context_without_birth_data(
     assert "2005-12-24" not in serialized
     assert "102.0" not in serialized
     assert "27.0" not in serialized
+    assert "晚年大限" not in serialized
+    assert "早年大限" not in serialized
+    assert "中年大限" not in serialized
+    assert "子女与晚辈的领域" not in serialized
+    assert "虚岁约" in serialized
+    assert "已婚已育" in serialized
 
     ambiguous_payload = {
         "civil_datetime": "2005-12-24T00:05:00+08:00",
@@ -288,6 +322,22 @@ def test_chart_issues_server_signed_domain_context_without_birth_data(
     assert ambiguous.status_code == 200
     assert ambiguous.json()["bazi"]["verification_status"] == "ambiguous"
     assert ambiguous.json()["ai_contexts"] == {}
+
+
+def test_missing_budget_scope_defaults_to_single_worker(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_ai(monkeypatch)
+    monkeypatch.delenv("FORTUNE_AI_BUDGET_SCOPE", raising=False)
+    config = get_provider_config()
+    assert config is not None
+    assert config.budget_scope == "single_worker"
+
+
+def test_shared_gateway_budget_scope_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_ai(monkeypatch)
+    monkeypatch.setenv("FORTUNE_AI_BUDGET_SCOPE", "shared_gateway")
+    with pytest.raises(AiConfigurationError, match="not implemented"):
+        get_provider_config()
+    assert ai_explainer.provider_is_available() is False
 
 
 def test_daily_budget_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -313,3 +363,91 @@ def test_provider_response_limit_checks_header_and_stream() -> None:
     with pytest.raises(AiProviderError, match="too large"):
         asyncio.run(_read_limited_json_response(FakeResponse([b"x" * 32_001, b"y" * 32_000])))
     assert asyncio.run(_read_limited_json_response(FakeResponse([b'{"ok":true}']))) == {"ok": True}
+
+
+def test_json_schema_summary_allows_two_thousand_chars(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_ai(monkeypatch)
+    config = get_provider_config()
+    assert config is not None
+    fmt = _response_format(config)
+    assert fmt is not None
+    summary_max = fmt["json_schema"]["schema"]["properties"]["summary"]["properties"]["text"]["maxLength"]
+    assert summary_max >= 2000
+
+
+def test_system_prompt_forbids_two_sentence_answers(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_ai(monkeypatch)
+    config = get_provider_config()
+    assert config is not None
+    payload = _provider_payload("说明", [AiFact(id="domain-1", text="疾厄宫位于子")], config)
+    system = payload["messages"][0]["content"]
+    assert "不超过900" not in system
+    assert "900字" not in system
+    assert "禁止只写两三句就结束" in system
+    monkeypatch.setenv("FORTUNE_AI_RESPONSE_FORMAT", "none")
+    none_config = get_provider_config()
+    assert none_config is not None
+    none_prompt = _provider_payload("说明", [AiFact(id="domain-1", text="疾厄宫位于子")], none_config)["messages"][0]["content"]
+    assert "900字" not in none_prompt
+    assert "禁止只写两三句" in none_prompt
+
+
+def test_split_merge_keeps_every_part(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = signed_request(monkeypatch)
+    request = AiExplainRequest(
+        question=request.question,
+        split_questions=["早年", "中年", "晚年"],
+        context_tokens=request.context_tokens,
+    )
+    answers = [
+        AiExplainResponse(summary=AiGroundedClaim(text="主问总论。", fact_ids=["domain-1"]), actions=[], caveats=[]),
+        AiExplainResponse(summary=AiGroundedClaim(text="早年段落。", fact_ids=["domain-1"]), actions=[], caveats=[]),
+        AiExplainResponse(summary=AiGroundedClaim(text="中年段落。", fact_ids=["domain-1"]), actions=[], caveats=[]),
+        AiExplainResponse(summary=AiGroundedClaim(text="晚年段落。", fact_ids=["domain-1"]), actions=[], caveats=[]),
+    ]
+    call = {"i": 0}
+
+    async def fake_complete(*_args: object, **_kwargs: object) -> AiExplainResponse:
+        idx = call["i"]
+        call["i"] += 1
+        return answers[idx]
+
+    monkeypatch.setattr(ai_explainer, "_budget_day", "")
+    monkeypatch.setattr(ai_explainer, "_budget_used", 0)
+    monkeypatch.setattr(ai_explainer, "_complete_once", fake_complete)
+    result = asyncio.run(ai_explainer.explain_with_ai(request))
+    text = result.summary.text
+    assert "主问总论" in text
+    assert "早年段落" in text
+    assert "中年段落" in text
+    assert "晚年段落" in text
+
+
+def test_merged_summary_keeps_more_than_two_thousand_chars(monkeypatch: pytest.MonkeyPatch) -> None:
+    request = signed_request(monkeypatch)
+    request = AiExplainRequest(
+        question=request.question,
+        split_questions=["早年", "中年"],
+        context_tokens=request.context_tokens,
+    )
+    chunk = "甲" * 900
+    answers = [
+        AiExplainResponse(summary=AiGroundedClaim(text=f"主{chunk}", fact_ids=["domain-1"]), actions=[], caveats=[]),
+        AiExplainResponse(summary=AiGroundedClaim(text=f"早{chunk}", fact_ids=["domain-1"]), actions=[], caveats=[]),
+        AiExplainResponse(summary=AiGroundedClaim(text=f"中{chunk}", fact_ids=["domain-1"]), actions=[], caveats=[]),
+    ]
+    call = {"i": 0}
+
+    async def fake_complete(*_args: object, **_kwargs: object) -> AiExplainResponse:
+        idx = call["i"]
+        call["i"] += 1
+        return answers[idx]
+
+    monkeypatch.setattr(ai_explainer, "_budget_day", "")
+    monkeypatch.setattr(ai_explainer, "_budget_used", 0)
+    monkeypatch.setattr(ai_explainer, "_complete_once", fake_complete)
+    result = asyncio.run(ai_explainer.explain_with_ai(request))
+    assert len(result.summary.text) > 2000
+    assert result.summary.text.startswith("主")
+    assert "早" in result.summary.text
+    assert "中" in result.summary.text

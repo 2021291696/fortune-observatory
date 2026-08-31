@@ -200,6 +200,214 @@ def test_ai_rate_limit_does_not_block_core_calculation_pool() -> None:
     assert statuses == [204, 429, 204]
 
 
+def _guard_call(
+    middleware: RequestGuardMiddleware,
+    *,
+    path: str,
+    body: bytes,
+    client: str = "127.0.0.1",
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> int:
+    messages: list[dict[str, Any]] = []
+    delivered = False
+
+    async def receive() -> dict[str, Any]:
+        nonlocal delivered
+        if delivered:
+            return {"type": "http.disconnect"}
+        delivered = True
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    async def send(message: dict[str, Any]) -> None:
+        messages.append(message)
+
+    headers = [(b"content-length", str(len(body)).encode())]
+    if extra_headers:
+        headers.extend(extra_headers)
+    asyncio.run(middleware({
+        "type": "http",
+        "method": "POST",
+        "path": path,
+        "client": (client, 1),
+        "headers": headers,
+    }, receive, send))
+    start = next(message for message in messages if message["type"] == "http.response.start")
+    return int(start["status"])
+
+
+def test_ai_rate_limit_charges_each_split_question() -> None:
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await receive()
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestGuardMiddleware(
+        endpoint,
+        requests_per_minute=20,
+        ai_requests_per_minute=4,
+        ai_global_requests_per_minute=20,
+    )
+    payload = json.dumps({
+        "question": "讲讲",
+        "context_tokens": ["x" * 32],
+        "split_questions": ["早年", "中年", "晚年"],
+    }).encode()
+    assert _guard_call(middleware, path="/v1/ai/explain", body=payload) == 204
+    assert _guard_call(middleware, path="/v1/ai/explain", body=b"{}") == 429
+    assert _guard_call(middleware, path="/v1/charts", body=b"{}") == 204
+
+
+def test_ai_rate_limit_rejects_request_that_exceeds_budget_in_one_call() -> None:
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await receive()
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestGuardMiddleware(
+        endpoint,
+        ai_requests_per_minute=3,
+        ai_global_requests_per_minute=20,
+    )
+    payload = json.dumps({
+        "question": "讲讲",
+        "split_questions": ["a", "b", "c"],
+    }).encode()
+    assert _guard_call(middleware, path="/v1/ai/explain", body=payload) == 429
+
+
+def test_trusted_proxy_rate_limits_by_rightmost_forwarded_ip() -> None:
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await receive()
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestGuardMiddleware(
+        endpoint,
+        requests_per_minute=1,
+        trust_proxy=True,
+    )
+    assert _guard_call(
+        middleware,
+        path="/v1/charts",
+        body=b"{}",
+        client="10.0.0.1",
+        extra_headers=[(b"x-forwarded-for", b"8.8.8.8, 203.0.113.10")],
+    ) == 204
+    assert _guard_call(
+        middleware,
+        path="/v1/charts",
+        body=b"{}",
+        client="10.0.0.1",
+        extra_headers=[(b"x-forwarded-for", b"1.1.1.1, 198.51.100.20")],
+    ) == 204
+    assert _guard_call(
+        middleware,
+        path="/v1/charts",
+        body=b"{}",
+        client="10.0.0.1",
+        extra_headers=[(b"x-forwarded-for", b"9.9.9.9, 203.0.113.10")],
+    ) == 429
+
+
+def test_untrusted_forwarded_for_does_not_split_rate_limit_buckets() -> None:
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await receive()
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestGuardMiddleware(endpoint, requests_per_minute=1)
+    assert _guard_call(
+        middleware,
+        path="/v1/charts",
+        body=b"{}",
+        extra_headers=[(b"x-forwarded-for", b"203.0.113.10")],
+    ) == 204
+    assert _guard_call(
+        middleware,
+        path="/v1/charts",
+        body=b"{}",
+        extra_headers=[(b"x-forwarded-for", b"198.51.100.20")],
+    ) == 429
+
+
+def test_calculation_timeout_cancels_task_and_keeps_core_available() -> None:
+    messages: list[tuple[str, int]] = []
+    calc_cancelled = False
+
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        nonlocal calc_cancelled
+        await receive()
+        if scope["path"] == "/v1/charts":
+            try:
+                await asyncio.Event().wait()
+            finally:
+                calc_cancelled = True
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestGuardMiddleware(
+        endpoint,
+        calculation_timeout_seconds=0.03,
+        max_concurrent_calculations=1,
+    )
+
+    async def call(path: str) -> None:
+        async def receive() -> dict[str, Any]:
+            return {"type": "http.request", "body": b"{}", "more_body": False}
+
+        async def send(message: dict[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                messages.append((path, message["status"]))
+
+        await middleware({
+            "type": "http", "method": "POST", "path": path,
+            "client": ("127.0.0.1", 1), "headers": [(b"content-length", b"2")],
+        }, receive, send)
+
+    async def scenario() -> None:
+        await call("/v1/charts")
+        await call("/v1/transits/daily")
+
+    asyncio.run(scenario())
+    assert calc_cancelled
+    assert messages == [("/v1/charts", 504), ("/v1/transits/daily", 204)]
+
+
+def test_static_security_middleware_adds_frame_deny_and_csp() -> None:
+    from security import StaticSecurityMiddleware
+
+    messages: list[dict[str, Any]] = []
+
+    async def endpoint(scope: dict[str, Any], receive: Any, send: Any) -> None:
+        await send({
+            "type": "http.response.start",
+            "status": 200,
+            "headers": [(b"content-type", b"text/html")],
+        })
+        await send({"type": "http.response.body", "body": b"<html></html>"})
+
+    middleware = StaticSecurityMiddleware(endpoint)
+
+    async def receive() -> dict[str, Any]:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: dict[str, Any]) -> None:
+        messages.append(message)
+
+    asyncio.run(middleware({
+        "type": "http",
+        "method": "GET",
+        "path": "/",
+        "headers": [],
+    }, receive, send))
+    start = next(message for message in messages if message["type"] == "http.response.start")
+    headers = dict(start["headers"])
+    assert headers[b"x-frame-options"] == b"DENY"
+    assert headers[b"x-content-type-options"] == b"nosniff"
+    assert b"frame-ancestors 'none'" in headers[b"content-security-policy"]
+    assert headers[b"referrer-policy"] == b"no-referrer"
+
+
 def test_ai_timeout_cancels_provider_task_and_keeps_core_available() -> None:
     messages: list[tuple[str, int]] = []
     ai_cancelled = False

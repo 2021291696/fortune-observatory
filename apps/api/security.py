@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
+import json
 from collections import defaultdict, deque
 from time import monotonic
 from typing import Any, Awaitable, Callable
@@ -30,6 +32,8 @@ class RequestGuardMiddleware:
         calculation_timeout_seconds: float = 12.0,
         max_concurrent_ai_requests: int = 3,
         ai_timeout_seconds: float = 10.5,
+        trust_proxy: bool = False,
+        client_ip_header: str = "x-forwarded-for",
     ) -> None:
         self.app = app
         self.max_body_bytes = max_body_bytes
@@ -40,6 +44,8 @@ class RequestGuardMiddleware:
         self.request_body_timeout_seconds = request_body_timeout_seconds
         self.calculation_timeout_seconds = calculation_timeout_seconds
         self.ai_timeout_seconds = ai_timeout_seconds
+        self.trust_proxy = trust_proxy
+        self.client_ip_header = client_ip_header.lower().encode("ascii")
         self._body_reader_slots = asyncio.Semaphore(max_concurrent_body_readers)
         self._calculation_slots = asyncio.Semaphore(max_concurrent_calculations)
         self._ai_slots = asyncio.Semaphore(max_concurrent_ai_requests)
@@ -60,12 +66,9 @@ class RequestGuardMiddleware:
         is_ai = method == "POST" and path in {"/v1/ai/explain", "/v1/dreams/interpret"}
         is_calculation = method == "POST" and path.startswith("/v1/")
         if is_calculation:
-            client = scope.get("client") or ("unknown", 0)
-            if not self._allow_request(str(client[0])):
+            client = self._client_ip(scope)
+            if not self._allow_request(client):
                 await self._send_json(guarded_send, 429, b'{"detail":"Too many requests"}', [(b"retry-after", b"60")])
-                return
-            if is_ai and not self._allow_ai_request(str(client[0])):
-                await self._send_json(guarded_send, 429, b'{"detail":"Too many AI requests"}', [(b"retry-after", b"60")])
                 return
             declared_length = self._content_length(scope)
             if declared_length is None:
@@ -91,6 +94,9 @@ class RequestGuardMiddleware:
                 self._body_reader_slots.release()
             if body is None:
                 await self._send_json(guarded_send, 413, b'{"detail":"Request body too large"}')
+                return
+            if is_ai and not self._allow_ai_request(client, self._ai_request_units(body)):
+                await self._send_json(guarded_send, 429, b'{"detail":"Too many AI requests"}', [(b"retry-after", b"60")])
                 return
 
             delivered = False
@@ -137,12 +143,11 @@ class RequestGuardMiddleware:
                 await task
                 return
             response_expired = True
-            if is_ai:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
             await self._send_json(guarded_send, 504, b'{"detail":"Calculation timed out"}', [(b"retry-after", b"2")])
 
     def _finish_background_task(self, task: asyncio.Task[None]) -> None:
@@ -178,6 +183,40 @@ class RequestGuardMiddleware:
             return None
         return value if value >= 0 else None
 
+    def _client_ip(self, scope: Scope) -> str:
+        peer = str((scope.get("client") or ("unknown", 0))[0])
+        if not self.trust_proxy:
+            return peer
+        values = [
+            value.decode("latin-1")
+            for name, value in scope.get("headers", [])
+            if name.lower() == self.client_ip_header
+        ]
+        if len(values) != 1:
+            return peer
+        parts = [item.strip() for item in values[0].split(",") if item.strip()]
+        if not parts:
+            return peer
+        candidate = parts[-1]
+        try:
+            ipaddress.ip_address(candidate)
+        except ValueError:
+            return peer
+        return candidate
+
+    @staticmethod
+    def _ai_request_units(body: bytes) -> int:
+        try:
+            payload = json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return 1
+        if not isinstance(payload, dict):
+            return 1
+        splits = payload.get("split_questions")
+        if not isinstance(splits, list):
+            return 1
+        return 1 + min(len(splits), 4)
+
     def _allow_request(self, client: str) -> bool:
         now = monotonic()
         cutoff = now - 60
@@ -197,20 +236,22 @@ class RequestGuardMiddleware:
             self._requests = defaultdict(deque, active)
         return True
 
-    def _allow_ai_request(self, client: str) -> bool:
+    def _allow_ai_request(self, client: str, units: int = 1) -> bool:
         now = monotonic()
         cutoff = now - 60
+        charge = max(1, units)
         while self._ai_global_requests and self._ai_global_requests[0] < cutoff:
             self._ai_global_requests.popleft()
-        if len(self._ai_global_requests) >= self.ai_global_requests_per_minute:
+        if len(self._ai_global_requests) + charge > self.ai_global_requests_per_minute:
             return False
         bucket = self._ai_requests[client]
         while bucket and bucket[0] < cutoff:
             bucket.popleft()
-        if len(bucket) >= self.ai_requests_per_minute:
+        if len(bucket) + charge > self.ai_requests_per_minute:
             return False
-        self._ai_global_requests.append(now)
-        bucket.append(now)
+        for _ in range(charge):
+            self._ai_global_requests.append(now)
+            bucket.append(now)
         if len(self._ai_requests) > 2_048:
             active = {key: value for key, value in self._ai_requests.items() if value and value[-1] >= cutoff}
             self._ai_requests = defaultdict(deque, active)
@@ -245,3 +286,39 @@ class RequestGuardMiddleware:
             headers.extend(extra_headers)
         await send({"type": "http.response.start", "status": status, "headers": headers})
         await send({"type": "http.response.body", "body": body})
+
+
+class StaticSecurityMiddleware:
+    """Security headers for the Docker-served SPA (not the JSON API)."""
+
+    _additions = (
+        (b"content-security-policy", (
+            b"default-src 'self'; img-src 'self' data:; media-src 'self'; "
+            b"style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; "
+            b"connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; "
+            b"form-action 'self'; object-src 'none'"
+        )),
+        (b"permissions-policy", b"camera=(), microphone=(), geolocation=(), payment=()"),
+        (b"referrer-policy", b"no-referrer"),
+        (b"strict-transport-security", b"max-age=31536000; includeSubDomains"),
+        (b"x-content-type-options", b"nosniff"),
+        (b"x-frame-options", b"DENY"),
+    )
+
+    def __init__(self, app: Callable[..., Awaitable[None]]) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope.get("type") != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def wrapped(message: Message) -> None:
+            if message.get("type") == "http.response.start":
+                headers = list(message.get("headers", []))
+                present = {name.lower() for name, _ in headers}
+                headers.extend((name, value) for name, value in self._additions if name not in present)
+                message = {**message, "headers": headers}
+            await send(message)
+
+        await self.app(scope, receive, wrapped)

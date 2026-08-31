@@ -37,3 +37,15 @@ def test_birth_input_rejects_offset_that_disagrees_with_iana_timezone() -> None:
             sex_for_rule="female",
             use_apparent_solar_time=False,
         )
+
+
+def test_f007_birth_input_rejects_dst_overlap_without_fold() -> None:
+    with pytest.raises(ValidationError, match="fold|ambiguous|overlap"):
+        BirthInput(
+            civil_datetime=datetime.fromisoformat("2024-11-03T01:30:00-04:00"),
+            timezone_id="America/New_York",
+            longitude=-74.0,
+            latitude=40.7,
+            sex_for_rule="male",
+            use_apparent_solar_time=False,
+        )
