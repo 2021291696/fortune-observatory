@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "name": "ziwei-doushu-skill",
+  "description": "紫微斗数排盘 skill — 引擎 vendored from Renhuai123/ziwei-doushu@88194a4 (MIT)，底层排盘为 iztro 2.5.8。运行: npx tsx scripts/pai_pan.ts ...",
+  "dependencies": {
+    "iztro": "^2.5.8",
+    "lunar-javascript": "^1.7.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0"
+  }
+}
