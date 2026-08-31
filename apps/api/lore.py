@@ -104,10 +104,18 @@ _SKILL_SOURCES: tuple[tuple[str, str], ...] = (
 )
 _PER_FILE_CAP = 20000
 
+# SKILL.md 的综合分析/解读框架（"第三阶段"起到文件尾，含边界情况处理）。
+# 交互式信息收集与排盘步骤对 API 无意义，从标记行起截取。
+_SKILL_FRAMEWORKS: tuple[tuple[str, str, str], ...] = (
+    ("八字·综合分析框架（bazi skill）", "skills/bazi/SKILL.md", "## 第三阶段"),
+    ("紫微·综合解读框架（ziwei-doushu skill）", "skills/ziwei-doushu/SKILL.md", "## 第三阶段：综合解读"),
+)
+_FRAMEWORK_CAP = 12000
+
 
 @lru_cache(maxsize=1)
 def skill_canon() -> str:
-    """skill references 原文整包；文件缺失时跳过该份，不阻断解读。"""
+    """skill references 原文 + SKILL.md 分析框架整包；文件缺失时跳过该份，不阻断解读。"""
     parts: list[str] = []
     for title, rel in _SKILL_SOURCES:
         try:
@@ -116,6 +124,14 @@ def skill_canon() -> str:
             continue
         if text.strip():
             parts.append(f"≪{title}》\n{text[:_PER_FILE_CAP]}")
+    for title, rel, marker in _SKILL_FRAMEWORKS:
+        try:
+            text = (PROJECT_ROOT / rel).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        cut = text.find(marker)
+        if cut >= 0:
+            parts.append(f"≪{title}》\n{text[cut:cut + _FRAMEWORK_CAP]}")
     return "\n\n".join(parts)
 
 

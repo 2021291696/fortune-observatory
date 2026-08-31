@@ -31,12 +31,12 @@ class StrictModel(BaseModel):
 
 class AiFact(StrictModel):
     id: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
-    text: str = Field(min_length=1, max_length=280)
+    text: str = Field(min_length=1, max_length=400)
 
 
 class AiContextBundle(StrictModel):
-    token: str = Field(min_length=32, max_length=12_000)
-    facts: list[AiFact] = Field(min_length=1, max_length=16)
+    token: str = Field(min_length=32, max_length=48_000)
+    facts: list[AiFact] = Field(min_length=1, max_length=24)
 
 
 class ChatTurn(StrictModel):
@@ -53,7 +53,7 @@ class AiExplainRequest(StrictModel):
     @field_validator("context_tokens")
     @classmethod
     def tokens_are_bounded_and_unique(cls, tokens: list[str]) -> list[str]:
-        if any(len(token) > 12_000 for token in tokens):
+        if any(len(token) > 48_000 for token in tokens):
             raise ValueError("context token is too large")
         if len(tokens) != len(set(tokens)):
             raise ValueError("context tokens must be unique")
@@ -102,7 +102,7 @@ class _SignedContext(StrictModel):
         "qizheng.chart",
     ]
     context_group: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
-    facts: list[AiFact] = Field(min_length=1, max_length=16)
+    facts: list[AiFact] = Field(min_length=1, max_length=24)
 
 
 @dataclass(frozen=True)

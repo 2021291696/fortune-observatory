@@ -312,7 +312,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         fact_texts.extend(decadal_rows)
         bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:16])],
+            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:24])],
             bundle_type=f"domain.{domain}",
             context_group=chart.trace_id,
         )
@@ -343,7 +343,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
             + (f"，辅星：{'、'.join(palace.minor_stars)}" if palace.minor_stars else "")
             + f"，大限{palace.decadal_range[0]}至{palace.decadal_range[1]}岁"
         )
-        palace_texts.append(text[:280])
+        palace_texts.append(text[:400])
     ziwei_summary_texts: list[str] = []
     if decadal_palace is not None:
         ziwei_summary_texts.append(
@@ -370,7 +370,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         "domain",
         [
             AiFact(id=f"ziwei-{index + 1}", text=text)
-            for index, text in enumerate((palace_texts[:12] + ziwei_summary_texts)[:16])
+            for index, text in enumerate((palace_texts[:12] + ziwei_summary_texts)[:24])
         ],
         bundle_type="ziwei.chart",
         context_group=chart.trace_id,
