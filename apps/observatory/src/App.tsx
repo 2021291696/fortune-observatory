@@ -4,6 +4,7 @@ import { AppNavigation, viewFromHash, type AppView } from './components/AppNavig
 import { BirthForm, UserBar, type BirthInitial, type StoredUser } from './components/BirthForm'
 import { Chart } from './components/Chart'
 import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
+import { DreamConsole } from './components/DreamConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
@@ -119,7 +120,7 @@ function initialSavedReadings(): SavedReading[] {
     const sanitized = parsed.filter((item): item is SavedReading => Boolean(
       item && typeof item === 'object'
       && typeof item.id === 'string' && typeof item.savedAt === 'string'
-      && (item.kind === 'domain' || item.kind === 'fortune')
+      && (item.kind === 'domain' || item.kind === 'fortune' || item.kind === 'dream')
       && typeof item.title === 'string' && typeof item.summary === 'string'
       && Array.isArray(item.details) && item.details.every((detail: unknown) => typeof detail === 'string'),
     )).slice(0, 24).map((item) => ({
@@ -666,6 +667,13 @@ export function App() {
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
           : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} theme={theme} onSave={saveReading} />}
       </section>}
+
+      {activeView === 'dream' && <DreamConsole
+        chart={chart}
+        daily={daily}
+        onEnsureDaily={() => loadFortune('today')}
+        onSave={saveReading}
+      />}
 
       {activeView === 'chart' && <section className="task-view chart-view" id="chart" aria-labelledby="chart-title">
         <header className="task-heading"><h1 id="chart-title">命盘</h1></header>

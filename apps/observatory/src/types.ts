@@ -213,8 +213,17 @@ export const analysisDomains = [
 
 export type AnalysisDomain = typeof analysisDomains[number][0]
 
+export type DreamQuestion = { id: string; label: string }
+export type DreamSource = { work: string; quote: string; channel: '字面' | '近邻' }
+export type DreamInterpretResponse = {
+  essay: string
+  sources: DreamSource[]
+  overlay: string | null
+  referral: string | null
+}
+
 export type SaveDraft = {
-  kind: 'domain' | 'fortune'
+  kind: 'domain' | 'fortune' | 'dream'
   title: string
   summary: string
   details: string[]

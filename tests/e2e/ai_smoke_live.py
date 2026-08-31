@@ -87,7 +87,19 @@ def main() -> int:
         print("FAIL: explain cited unknown fact ids", unknown)
         return 1
 
-    print("PASS explain")
+    interpret = client.post(
+        f"{base}/v1/dreams/interpret",
+        json={"dream": "梦见蛇钻进怀里", "overlay": None, "context_tokens": []},
+    )
+    if interpret.status_code >= 500:
+        print("ENV: interpret upstream", interpret.status_code, interpret.text[:200])
+        return 0
+    interpret.raise_for_status()
+    dream = interpret.json()
+    if "essay" not in dream or "sources" not in dream:
+        print("FAIL: interpret schema", dream.keys())
+        return 1
+    print("PASS explain+interpret")
     return 0
 
 
