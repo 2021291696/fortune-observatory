@@ -181,12 +181,12 @@ def get_provider_config() -> AiProviderConfig | None:
         raise AiConfigurationError("private and special-purpose provider IPs are not allowed")
 
     try:
-        timeout_seconds = float(os.getenv("FORTUNE_AI_TIMEOUT_SECONDS", "22"))
+        timeout_seconds = float(os.getenv("FORTUNE_AI_TIMEOUT_SECONDS", "40"))
         daily_limit = int(os.getenv("FORTUNE_AI_DAILY_LIMIT", "240"))
     except ValueError as error:
         raise AiConfigurationError("invalid AI provider limits") from error
-    if not 1 <= timeout_seconds <= 28:
-        raise AiConfigurationError("AI provider timeout must be between 1 and 28 seconds")
+    if not 1 <= timeout_seconds <= 55:
+        raise AiConfigurationError("AI provider timeout must be between 1 and 55 seconds")
     if not 1 <= daily_limit <= 10_000:
         raise AiConfigurationError("AI daily limit must be between 1 and 10000")
 

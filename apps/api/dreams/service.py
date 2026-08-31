@@ -64,7 +64,10 @@ async def _chat(system: str, user: str) -> str:
     config = _provider()
     if config is None:
         raise AiConfigurationError("AI provider is not configured")
-    timeout = httpx.Timeout(config.timeout_seconds, connect=min(3.0, config.timeout_seconds))
+    # 解梦 prompt 含全量 skill 口径（4 万+字符），生成耗时显著高于常规解读，
+    # 固定用长超时；config.timeout_seconds 被 28 秒级网关约束，这里不受其限。
+    timeout_seconds = max(config.timeout_seconds, 50.0)
+    timeout = httpx.Timeout(timeout_seconds, connect=min(3.0, timeout_seconds))
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
         response = await client.post(
             f"{config.base_url}/chat/completions",

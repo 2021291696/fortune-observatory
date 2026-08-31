@@ -17,7 +17,7 @@ SKILL_REFS_DIR = PROJECT_ROOT / "skills" / "dream-interpretation" / "references"
 _MAX_CHARS = {
     "dream-interpretation.md": 22000,
     "symbol-dictionary.md": 14000,
-    "psyche-structure.md": 33000,
+    "psyche-structure.md": 12000,
 }
 
 _WORK_TITLES = {
