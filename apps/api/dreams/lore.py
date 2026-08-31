@@ -13,15 +13,17 @@ _API_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = _API_DIR.parents[1]
 SKILL_REFS_DIR = PROJECT_ROOT / "skills" / "dream-interpretation" / "references"
 
-# 注入 prompt 的每份参考上限（字符），防止超出上下文预算
+# 注入 prompt 的每份参考上限（字符），与 skill 参考文件实际大小对齐（全量注入）
 _MAX_CHARS = {
-    "dream-interpretation.md": 9000,
-    "symbol-dictionary.md": 9000,
+    "dream-interpretation.md": 22000,
+    "symbol-dictionary.md": 14000,
+    "psyche-structure.md": 33000,
 }
 
 _WORK_TITLES = {
     "dream-interpretation.md": "荣格解梦方法论",
     "symbol-dictionary.md": "荣格象征词典",
+    "psyche-structure.md": "荣格心灵结构",
 }
 
 
@@ -40,7 +42,7 @@ def load_reference(filename: str) -> str:
 def skill_profile() -> str:
     """拼接注入 system prompt 的口径材料。"""
     parts: list[str] = []
-    for filename in ("dream-interpretation.md", "symbol-dictionary.md"):
+    for filename in ("dream-interpretation.md", "psyche-structure.md", "symbol-dictionary.md"):
         body = load_reference(filename)
         if body:
             title = _WORK_TITLES.get(filename, filename)
