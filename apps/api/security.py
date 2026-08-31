@@ -63,7 +63,7 @@ class RequestGuardMiddleware:
         guarded_send = self._security_headers(send)
         method = str(scope.get("method", "GET")).upper()
         path = str(scope.get("path", ""))
-        is_ai = method == "POST" and path in {"/v1/ai/explain", "/v1/dreams/interpret"}
+        is_ai = method == "POST" and path in {"/v1/ai/explain"}
         is_calculation = method == "POST" and path.startswith("/v1/")
         if is_calculation:
             client = self._client_ip(scope)

@@ -3,9 +3,9 @@
 ## 结构
 
 - `apps/observatory`：React 前端（Vite，五套表情包主题，5173）
-- `apps/api`：FastAPI 后端（排盘/运势/AI 解读/解梦，8000；app.py 平级导入 security/lore/fortune_core）
+- `apps/api`：FastAPI 后端（排盘/运势/AI 解读，8000；app.py 平级导入 security/lore/fortune_core）
 - `src/fortune_core`：排盘核心引擎（八字/紫微/七政四余/真太阳时）——网站排盘唯一计算源
-- `skills/`：三端 CLI 命理 skill 实体（bazi、ziwei-doushu）
+- `skills/`：三端 CLI 命理 skill 实体（bazi、ziwei-doushu、dream-interpretation）
 - `docs/` 整目录是 gitignore 的本地资产（审计报告/计划/交接），不进 git
 
 ## skills/ = 三端 skill 实体（source of truth）

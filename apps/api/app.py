@@ -35,8 +35,6 @@ from ai_explainer import (
     explain_with_ai,
     provider_is_available,
 )
-from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest, QuestionsResponse
-from dreams.service import generate_questions, interpret_dream_request
 
 from fortune_core.bazi import active_great_luck, calculate_bazi
 from fortune_core.models import (
@@ -715,52 +713,6 @@ async def explain_result(request: AiExplainRequest) -> AiExplainResponse:
         raise HTTPException(
             status_code=502,
             detail="AI 讲解这次没有生成，请稍后重试。",
-            headers={"X-Trace-Id": trace_id},
-        ) from error
-
-
-@app.post("/v1/dreams/questions", response_model=QuestionsResponse)
-async def dream_questions(request: QuestionsRequest) -> QuestionsResponse:
-    try:
-        return await generate_questions(request.dream)
-    except AiConfigurationError as error:
-        raise HTTPException(status_code=503, detail="解梦暂未配置，排盘不受影响。") from error
-    except AiBudgetExceeded as error:
-        raise HTTPException(
-            status_code=429,
-            detail="今日解梦额度已用完，排盘仍可正常使用。",
-            headers={"Retry-After": "3600"},
-        ) from error
-    except AiProviderError as error:
-        raise HTTPException(status_code=502, detail="题目没写成，请稍后重试。") from error
-
-
-@app.post("/v1/dreams/interpret", response_model=InterpretResponse)
-async def interpret_dream(request: InterpretRequest) -> InterpretResponse:
-    try:
-        return await interpret_dream_request(request)
-    except AiConfigurationError as error:
-        logger.warning("dream interpret unavailable error_type=%s", type(error).__name__)
-        raise HTTPException(
-            status_code=503,
-            detail="解梦暂未配置，排盘不受影响。",
-        ) from error
-    except AiBudgetExceeded as error:
-        raise HTTPException(
-            status_code=429,
-            detail="今日解梦额度已用完，排盘仍可正常使用。",
-            headers={"Retry-After": "3600"},
-        ) from error
-    except AiProviderError as error:
-        trace_id = str(uuid4())
-        logger.warning(
-            "dream interpret failed trace_id=%s error_type=%s",
-            trace_id,
-            type(error).__name__,
-        )
-        raise HTTPException(
-            status_code=502,
-            detail="这一梦没写成，请稍后重试。",
             headers={"X-Trace-Id": trace_id},
         ) from error
 

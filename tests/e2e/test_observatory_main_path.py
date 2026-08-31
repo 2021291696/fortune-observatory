@@ -48,15 +48,6 @@ def mock_ai(page: Page) -> None:
             "caveats": [{"text": "这不是确定结果。", "fact_ids": ["domain-1"]}],
         }, ensure_ascii=False),
     ))
-    page.route("**/v1/dreams/interpret", lambda route: route.fulfill(
-        status=200, content_type="application/json",
-        body=json.dumps({
-            "essay": "蛇入怀，传统多作亲近或子息之象。",
-            "sources": [{"work": "周公解梦", "quote": "蛇入怀中生贵子", "channel": "字面"}],
-            "overlay": None,
-            "referral": None,
-        }, ensure_ascii=False),
-    ))
 
 
 def test_observatory_main_path_desktop(require_servers: None) -> None:
@@ -77,11 +68,6 @@ def test_observatory_main_path_desktop(require_servers: None) -> None:
         page.locator(".domain-choices button", has_text="事业").click()
         page.locator("#analysis .ai-answer").wait_for(timeout=15_000)
         assert "拆小再验证" in page.locator("#analysis .ai-answer").inner_text()
-        page.locator('.primary-nav a[href="#dream"]').click()
-        page.locator("#dream textarea").fill("梦见一条蛇钻进怀里然后醒了")
-        page.get_by_role("button", name="解读").click()
-        page.locator(".dream-result").wait_for(timeout=15_000)
-        assert "蛇入怀" in page.locator(".dream-result").inner_text()
         browser.close()
 
 
