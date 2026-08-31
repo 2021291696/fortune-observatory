@@ -344,9 +344,34 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
             + f"，大限{palace.decadal_range[0]}至{palace.decadal_range[1]}岁"
         )
         palace_texts.append(text[:280])
+    ziwei_summary_texts: list[str] = []
+    if decadal_palace is not None:
+        ziwei_summary_texts.append(
+            f"当前虚岁{nominal_age}，紫微大限行{decadal_palace.name}宫"
+            f"（{decadal_palace.decadal_range[0]}-{decadal_palace.decadal_range[1]}岁）：该宫为当前十年主旋律所在"
+        )
+
+    def _ziwei_star_palace_label(star: str) -> str:
+        found = next(
+            (item for item in chart.ziwei.palaces if star in item.major_stars or star in item.minor_stars),
+            None,
+        )
+        if found is None:
+            return "不入十二宫"
+        return found.name if found.name.endswith("宫") else f"{found.name}宫"
+
+    mutagen_summary = "、".join(
+        f"{item.star}化{item.mutagen}落{_ziwei_star_palace_label(item.star)}"
+        for item in chart.ziwei.birth_mutagens
+    )
+    if mutagen_summary:
+        ziwei_summary_texts.append(f"生年四化落宫：{mutagen_summary}——四化所在宫位即人生资源与课题所在")
     ziwei_bundle = build_signed_context(
         "domain",
-        [AiFact(id=f"ziwei-{index + 1}", text=text) for index, text in enumerate(palace_texts[:12])],
+        [
+            AiFact(id=f"ziwei-{index + 1}", text=text)
+            for index, text in enumerate((palace_texts[:12] + ziwei_summary_texts)[:16])
+        ],
         bundle_type="ziwei.chart",
         context_group=chart.trace_id,
     )

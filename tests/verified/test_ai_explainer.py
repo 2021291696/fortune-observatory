@@ -451,3 +451,34 @@ def test_merged_summary_keeps_more_than_two_thousand_chars(monkeypatch: pytest.M
     assert result.summary.text.startswith("主")
     assert "早" in result.summary.text
     assert "中" in result.summary.text
+
+
+def test_lore_selected_by_bundle_type() -> None:
+    from lore import lore_for_bundle_types
+
+    ziwei_lore = lore_for_bundle_types({"ziwei.chart"})
+    assert "紫微斗数解读框架" in ziwei_lore
+    assert "十四主星速断" in ziwei_lore
+    fortune_lore = lore_for_bundle_types({"fortune.daily", "fortune.period"})
+    assert "运势断法框架" in fortune_lore
+    qizheng_lore = lore_for_bundle_types({"qizheng.chart"})
+    assert "七政四余解读框架" in qizheng_lore
+    fallback = lore_for_bundle_types(set())
+    assert "专业断语风格" in fallback
+
+
+def test_provider_payload_appends_lore_to_system_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure_ai(monkeypatch)
+    config = get_provider_config()
+    assert config is not None
+    plain = _provider_payload("说明", [AiFact(id="domain-1", text="命宫主星天梁")], config)
+    with_lore = _provider_payload(
+        "说明", [AiFact(id="domain-1", text="命宫主星天梁")], config, None, "【紫微斗数解读框架】十四主星速断"
+    )
+    base_system = plain["messages"][0]["content"]
+    lore_system = with_lore["messages"][0]["content"]
+    assert lore_system.startswith(base_system)
+    assert "十四主星速断" in lore_system
+    assert "十四主星速断" not in base_system
+    # 注入隔离不受影响：lore 只进 system，用户数据仍单独封装
+    assert with_lore["messages"][1]["content"].startswith("USER_DATA_JSON")

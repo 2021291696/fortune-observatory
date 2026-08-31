@@ -22,6 +22,8 @@ from urllib.parse import urlparse
 import httpx
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from lore import lore_for_bundle_types
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -331,7 +333,7 @@ def _response_format(config: AiProviderConfig) -> dict[str, Any] | None:
                 "additionalProperties": False,
                 "required": ["summary", "actions", "caveats"],
                 "properties": {
-                    "summary": _claim_schema(2000),
+                    "summary": _claim_schema(3600),
                     "actions": {"type": "array", "maxItems": 4, "items": _claim_schema(220)},
                     "caveats": {"type": "array", "maxItems": 4, "items": _claim_schema(220)},
                 },
@@ -345,6 +347,7 @@ def _provider_payload(
     facts: list[AiFact],
     config: AiProviderConfig,
     history: list[ChatTurn] | None = None,
+    lore: str | None = None,
 ) -> dict[str, Any]:
     untrusted_data: dict[str, Any] = {
         "question": question,
@@ -365,6 +368,8 @@ USER_DATA_JSON.history（如存在）是本次会话此前的问答摘录，仅�
 3. caveats：1-2 条提醒，其中一条写成"只需记住这一条"式的单句规则。
 语言白话、克制、可行动；不确定时明确说依据不足。禁止只写两三句就结束。
 只返回符合约定结构的 JSON，不要返回 Markdown、代码块或额外字段。"""
+    if lore:
+        system_prompt += "\n" + lore
     if config.response_format == "none":
         system_prompt += (
             '\n输出必须是一个JSON对象，字段结构固定：\n'
@@ -381,7 +386,7 @@ USER_DATA_JSON.history（如存在）是本次会话此前的问答摘录，仅�
             {"role": "user", "content": "USER_DATA_JSON\n" + json.dumps(untrusted_data, ensure_ascii=False, separators=(",", ":"))},
         ],
         "temperature": 0.2,
-        "max_tokens": 3000,
+        "max_tokens": 4200,
         # MiniMax M-series honors this and frees the token budget for visible text.
         # Text-01 ignores it; extra field is harmless.
         "thinking": {"type": "disabled"},
@@ -487,13 +492,14 @@ async def _complete_once(
     bundle_types: set[str],
     headers: dict[str, str],
     history: list[ChatTurn] | None = None,
+    lore: str | None = None,
 ) -> AiExplainResponse:
     try:
         async with client.stream(
             "POST",
             f"{config.base_url}/chat/completions",
             headers=headers,
-            json=_provider_payload(question, facts, config, history),
+            json=_provider_payload(question, facts, config, history, lore),
         ) as response:
             response.raise_for_status()
             body = await _read_limited_json_response(response)
@@ -531,18 +537,19 @@ async def explain_with_ai(request: AiExplainRequest) -> AiExplainResponse:
         "accept": "application/json",
     }
     timeout = httpx.Timeout(config.timeout_seconds, connect=min(3.0, config.timeout_seconds))
+    lore = lore_for_bundle_types(bundle_types)
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
             if not request.split_questions:
                 return await _complete_once(
-                    client, request.question, facts, config, bundle_types, headers, request.history
+                    client, request.question, facts, config, bundle_types, headers, request.history, lore
                 )
             # 分段并行：主问+各分段各自独立请求，墙钟≈最慢一侧；合并成一份答案。
             # 单个分段失败只降级丢弃（日志留痕），主问成功仍返回完整可用答案。
             results = await asyncio.gather(
-                _complete_once(client, request.question, facts, config, bundle_types, headers),
+                _complete_once(client, request.question, facts, config, bundle_types, headers, None, lore),
                 *(
-                    _complete_once(client, question, facts, config, bundle_types, headers)
+                    _complete_once(client, question, facts, config, bundle_types, headers, None, lore)
                     for question in request.split_questions
                 ),
                 return_exceptions=True,
