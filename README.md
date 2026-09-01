@@ -23,10 +23,12 @@ cd apps/observatory && npm install && npm run dev   # 5173
 
 AI 解读需要环境变量：`FORTUNE_AI_API_KEY` / `FORTUNE_AI_MODEL` / `FORTUNE_AI_CONTEXT_SECRET`（≥32 字节）/ `FORTUNE_AI_BASE_URL`，未配置时 AI 功能自动降级关闭。
 
-## 部署（CloudBase）
+## 部署（新加坡轻量服务器）
 
-- API：`.venv/Scripts/python.exe scripts/package_function.py` 打包到 `.deploy-stage/` → HTTP 云函数 `destiny-api`（Python 3.10）
-- 前端：`cd apps/observatory && npm run build` → 静态托管上传 `dist`
+- 生产：**https://destiny.solplum.com**（43.160.211.207，`/opt/destiny`，systemd `destiny.service` 端口 8742，`apps/api/serve.py` 单进程同源发 SPA+API）
+- 发布：本地构建前端（`.env.production.local` 已固化 `VITE_API_BASE=/api`）→ `tar` 打包上传 → 服务器 `sudo bash scripts/deploy/deploy.sh /tmp/destiny.tar.gz`（脚本内含 uv sync、systemd/nginx 安装、certbot SSL 重挂钩子）
+- 密钥：`/opt/destiny/.env` 只在服务器（`FORTUNE_ALLOWED_HOSTS` 必须含 destiny.solplum.com）；HTTPS 由 certbot 自动续期，云防火墙 443 已放行
+- 旧线（CloudBase 静态托管 + HTTP 云函数 `destiny-api`）：已被取代、待下线；`scripts/package_function.py` 打包流程仅为回退保留
 
 ## 目录
 

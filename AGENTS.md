@@ -27,6 +27,11 @@
 - AI 超时：默认 40s、硬顶 55s（env `FORTUNE_AI_TIMEOUT_SECONDS` 可覆盖）；解梦 prompt 含全量口径，`dreams/service.py` 固定 50s
 - 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422
 
+## 生产部署
+
+- 生产 = 新加坡轻量 43.160.211.207 的 `/opt/destiny`（systemd `destiny.service`，端口 8742；ssh 登录用户 `ubuntu`，root 未授权）；`scripts/deploy/deploy.sh` 每次部署会用仓库模板覆盖 nginx/systemd 配置、并由内置钩子重挂 certbot SSL——**改 nginx/服务配置一律改仓库模板再部署，禁止手改服务器文件了事**
+- `.env`（FORTUNE_* 密钥）只在服务器 `/opt/destiny/.env`，不入 git；`FORTUNE_ALLOWED_HOSTS` 必须含 `destiny.solplum.com`，漏了会被 TrustedHostMiddleware 拒 400；模板覆盖前必须先 `chown` 应用目录给 `destiny` 用户（deploy.sh 已内置顺序，勿倒置）
+
 ## 本地跑
 
 ```bash
