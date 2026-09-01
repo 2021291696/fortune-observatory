@@ -5,7 +5,7 @@ description: >
   跑排盘脚本输出十二宫、大限、四化、格局，再按《骨髓赋》《紫微斗数全书》《紫微斗数全集》
   与倪师《天纪》体系进行专业解读。
   Use this skill whenever the user asks for 紫微斗数、紫微、星曜、命盘（紫微）、大限、流年四化、
-  Zi Wei Dou Shu、ziwei astroloabe, or wants their 十二宫、化禄化权化科化忌 analyzed.
+  Zi Wei Dou Shu、ziwei astrology, or wants their 十二宫、化禄化权化科化忌 analyzed.
   Triggers: "排紫微", "算紫微", "紫微斗数", "紫微命盘", "星曜", "大限",
   "化禄", "化忌", "ziwei", "ziwei doushu", "purple star astrology".
   即使只提到"紫微"或"看星盘（中式）"而没有明确说要用 skill，也应使用此 skill。
@@ -22,8 +22,8 @@ description: >
 ## 重要参考文件
 
 - `scripts/pai_pan.ts` — 排盘 CLI（确认信息后必须先跑；十二宫/大限/四化/格局以脚本 stdout 为准）
-- `references/classics.md` — 《骨髓赋》《紫微斗数全书》《紫微斗数全集》原典精选（引用标注书名+章节）
-- `references/patterns.md` — 格局总目录（名称/等级/出处；实际命中以脚本输出为准）
+- `references/classics.md` — 《骨髓赋》《紫微斗数全书》《紫微斗数全集》原典全文（引用标注书名+章节）
+- `references/patterns.md` — 格局全目录（41 格：含义/成立/加分/破格条件；解读命中的格局前先查此文件对应条目，实际命中以脚本输出为准）
 - `references/sihua-tables.md` — 十天干四化表 + 十四主星速查（与脚本同一口径）
 
 排盘计算必须先跑脚本，禁止口算安星、禁止凭记忆改宫位。解释必须服从脚本数字，不能反过来改盘。
@@ -108,8 +108,8 @@ cd <本skill目录> && npx tsx scripts/pai_pan.ts --solar 1990-05-15 --shichen �
 
 ## 第三阶段：综合解读
 
-读 `references/classics.md`（引经据典用）与 `references/sihua-tables.md`（星曜速查），
-按以下框架输出：
+读 `references/classics.md`（引经据典用）、`references/sihua-tables.md`（星曜速查）
+与 `references/patterns.md`（命中格局的详解条目），按以下框架输出：
 
 ### 1. 命格总纲
 - 命宫主星（星性+亮度）定先天性格与底色；身宫定后天归向与中年后的重心
@@ -132,7 +132,8 @@ cd <本skill目录> && npx tsx scripts/pai_pan.ts --solar 1990-05-15 --shichen �
 - 大限按脚本顺序逐段一句话带过，当前限重点展开
 
 ### 5. 格局
-- 只讲脚本命中的格局；有破格警示的格局必须如实说明折扣
+- 只讲脚本命中的格局；先查 `references/patterns.md` 对应条目，用其含义与成立条件展开
+- 有破格警示的格局必须如实说明折扣（条目里已列破格条件，对照脚本输出解释触发项）
 - 引用格局出处（脚本已标）
 
 ### 6. 流年
