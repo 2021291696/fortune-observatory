@@ -1,10 +1,9 @@
 import { ArrowRight, FloppyDisk, SpinnerGap } from '@phosphor-icons/react'
-import { Fragment, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, TransitWindowResponse } from '../types'
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
-import { factDomain, plainFactLine, termGlossary } from '../terminology'
-import { buildFortuneNarrative, decadePlain, yearlyPlain } from '../readingNarrative'
+import { factDomain, plainFactLine } from '../terminology'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
@@ -149,55 +148,10 @@ export function FortuneConsole(props: FortuneProps) {
           {isLoading && <div className={hasReading ? 'fortune-refreshing' : 'fortune-loading'} role="status"><SpinnerGap className="spin" size={28} /><strong>正在计算{requestedLabel}</strong>{hasReading && <span>上一份结果暂时保留</span>}</div>}
           {error && <div className="fortune-error"><strong>{error.includes('已生成') ? '部分结果已生成' : `${requestedLabel}这次没算出来`}</strong><p>{error}</p><button type="button" disabled={isLoading} onClick={() => onRequest(requestedScope)}>重试{requestedLabel}</button></div>}
 
-          {daily && plain && <div className="fortune-reading">
+            {daily && plain && <div className="fortune-reading">
             <MemeCompanion theme={theme} />
             <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
-            <div className="domain-interpretation">
-              {buildFortuneNarrative({
-                facts: daily.transit.facts,
-                yearLine: daily.ziwei_yearly
-                  ? yearlyPlain(daily.ziwei_yearly.year_pillar, daily.ziwei_yearly.yearly_mutagens, daily.ziwei_yearly.nominal_age)
-                  : undefined,
-                decadeLine: daily.ziwei_yearly
-                  ? decadePlain(
-                    daily.ziwei_yearly.decadal.start_age,
-                    daily.ziwei_yearly.decadal.end_age,
-                    daily.ziwei_yearly.decadal.is_childhood,
-                    daily.ziwei_yearly.decadal.branch,
-                    daily.ziwei_yearly.decadal.stem,
-                  )
-                  : undefined,
-              }).map((block) => (
-                <Fragment key={block.label}>
-                  <span>{block.label}</span>
-                  <p>{block.text}</p>
-                </Fragment>
-              ))}
-            </div>
-            {periods?.transit.insights.length ? (
-              <div className="fortune-insights is-visible">
-                {periods.transit.insights.map((insight) => (
-                  <article key={insight.insight_id}>
-                    <h4>{insight.title}</h4>
-                    <p>{insight.summary}</p>
-                    <strong>{insight.action}</strong>
-                  </article>
-                ))}
-              </div>
-            ) : null}
-            {daily.ziwei_yearly && <div className="yearly-ziwei">
-              <span className="yz-pill" title={termGlossary['流年四化']}>{daily.ziwei_yearly.year_pillar}年 · 虚岁{daily.ziwei_yearly.nominal_age}</span>
-              <p>{daily.ziwei_yearly.yearly_mutagens.map((entry) => {
-                const label = entry.palace_name || entry.palace_branch
-                return `${entry.star}化${entry.mutagen}入${label.endsWith('宫') ? label : `${label}宫`}`
-              }).join('；')}</p>
-              <small title={termGlossary[daily.ziwei_yearly.decadal.is_childhood ? '童限' : '大限']}>
-                {daily.ziwei_yearly.decadal.is_childhood
-                  ? `童限行${daily.ziwei_yearly.decadal.branch}宫`
-                  : `大限${daily.ziwei_yearly.decadal.stem}${daily.ziwei_yearly.decadal.branch} · ${daily.ziwei_yearly.decadal.start_age}-${daily.ziwei_yearly.decadal.end_age}岁`}
-              </small>
-            </div>}
             {dailyAi && <AiExplainPanel
               auto
               cacheKey={`ai-${aiOwner}-${daily.transit.transit_date}`}
@@ -215,6 +169,10 @@ export function FortuneConsole(props: FortuneProps) {
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>
+              {daily.ziwei_yearly && <p>{daily.ziwei_yearly.yearly_mutagens.map((entry) => {
+                const label = entry.palace_name || entry.palace_branch
+                return `${entry.star}化${entry.mutagen}入${label.endsWith('宫') ? label : `${label}宫`}`
+              }).join('；')}（{daily.ziwei_yearly.decadal.is_childhood ? `童限行${daily.ziwei_yearly.decadal.branch}宫` : `大限${daily.ziwei_yearly.decadal.stem}${daily.ziwei_yearly.decadal.branch} · ${daily.ziwei_yearly.decadal.start_age}-${daily.ziwei_yearly.decadal.end_age}岁`}）</p>}
               {periods && <div className="fortune-layers">{periods.transit.layers.map((layer) => <span key={layer.period}><small>{periodLabels[layer.period]}</small><b>{layer.pillar}</b>{layer.facts.length > 0 && <i>{layer.facts.map((fact) => relationLabels[fact.relation]).join('、')}</i>}</span>)}</div>}
             </details>
             <button className="reading-save" type="button" disabled={isLoading} onClick={saveFortune}><FloppyDisk size={18} weight="bold" /> 保存{selectedLabel}运势</button>

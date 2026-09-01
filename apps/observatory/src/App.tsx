@@ -631,6 +631,9 @@ export function App() {
           </div>
           <MemeStage theme={theme} motionPaused={motionPaused} />
         </section> : <>
+          <header className="task-heading today-heading">
+            <h1>运势</h1>
+          </header>
           <div className="today-results">
             <FortuneConsole
               chartReady={Boolean(chart || isSubmitting)}

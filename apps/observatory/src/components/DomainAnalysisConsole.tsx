@@ -1,5 +1,5 @@
 import { Briefcase, ChatCircleDots, Coins, FloppyDisk, Heart, Heartbeat, PaperPlaneRight, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
-import { Fragment, useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
 import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
@@ -170,16 +170,6 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
-          <div className="domain-interpretation">
-            {result.narrative.map((block) => (
-              <Fragment key={block.label}>
-                <span>{block.label}</span>
-                <p>{block.text}</p>
-              </Fragment>
-            ))}
-          </div>
-          <blockquote>{result.action}</blockquote>
-          {result.disclaimer && <p className="domain-disclaimer">{result.disclaimer}</p>}
           {domainSource && nowQ && <DomainEssay
             source={{ ...domainSource, key: `${chart.trace_id}-${domainActive}` }}
             sections={[

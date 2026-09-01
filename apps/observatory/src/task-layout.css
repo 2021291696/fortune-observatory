@@ -55,6 +55,7 @@
 }
 .today-view.is-ready { max-width: none; min-height: calc(100vh - 64px); display: flex; flex-direction: column; gap: 18px; margin: 0 auto; padding: 30px max(20px, calc((100vw - 1180px) / 2)) 44px; }
 .today-view.is-ready .today-results { width: 100%; }
+.today-view.is-ready .today-heading { width: 100%; padding-top: 10px; }
 .today-view.is-ready .launch-section { width: 100%; min-height: 0; display: block; position: relative; top: auto; padding: 20px; border: 1.5px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
 .today-view.is-ready .birth-form { max-width: none; margin-top: 12px; padding: 12px; box-shadow: 0 5px 0 rgba(17,17,17,.1); }
 .today-view.is-ready .meme-stage { display: none; }
