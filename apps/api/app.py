@@ -739,7 +739,7 @@ async def dreams_interpret_stream(request: InterpretRequest) -> StreamingRespons
                     await queue.put(event)
                 await queue.put({"type": "closed"})
             except Exception as error:
-                await queue.put({"type": "error", "detail": f"{type(error).__name__}"})
+                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
 
         pump_task = asyncio.create_task(pump())
         try:
@@ -754,12 +754,15 @@ async def dreams_interpret_stream(request: InterpretRequest) -> StreamingRespons
                     return
                 if event.get("type") == "error":
                     logger.warning("dream stream failed mid-stream")
+                    raw_detail = str(event.get("detail") or "")
+                    friendly = (
+                        "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
+                        if "content filter" in raw_detail
+                        else "这一篇没写成，请稍后重试。"
+                    )
                     yield (
                         "data: "
-                        + json.dumps(
-                            {"type": "error", "detail": "这一篇没写成，请稍后重试。"},
-                            ensure_ascii=False,
-                        )
+                        + json.dumps({"type": "error", "detail": friendly}, ensure_ascii=False)
                         + "\n\n"
                     )
                     return
@@ -861,29 +864,31 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
                 await queue.put(("done", None))
             except Exception as error:
                 logger.warning("reading stream failed: %s: %s", type(error).__name__, error)
-                await queue.put(("error", f"{type(error).__name__}"))
+                await queue.put(("error", f"{type(error).__name__}: {error}"))
 
         pump_task = asyncio.create_task(pump())
         try:
             while True:
                 try:
-                    kind, _payload = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    kind, payload = await asyncio.wait_for(queue.get(), timeout=20.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
                 if kind == "delta":
-                    yield f"data: {json.dumps({'type': 'delta', 'text': _payload}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'type': 'delta', 'text': payload}, ensure_ascii=False)}\n\n"
                 elif kind == "done":
                     yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
                     return
                 else:
-                    logger.warning("reading stream failed mid-stream kind=%s", _payload)
+                    logger.warning("reading stream failed mid-stream kind=%s", payload)
+                    friendly = (
+                        "这段描述触发了内容安全过滤，请换一种说法再试。"
+                        if "content filter" in payload
+                        else "AI 解读这次没有生成，请稍后重试。"
+                    )
                     yield (
                         "data: "
-                        + json.dumps(
-                            {"type": "error", "detail": "AI 解读这次没有生成，请稍后重试。"},
-                            ensure_ascii=False,
-                        )
+                        + json.dumps({"type": "error", "detail": friendly}, ensure_ascii=False)
                         + "\n\n"
                     )
                     return

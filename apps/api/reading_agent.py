@@ -185,6 +185,9 @@ async def stream_completion(
                     raw = await response.aread()
                     head = raw[:300].decode("utf-8", "ignore")
                     logger.warning("reading provider HTTP %s body=%s", response.status_code, head)
+                    if "new_sensitive" in head or "unprocessable_entity_error" in head:
+                        # 供应商内容安全过滤误杀：对用户表达为「换一种说法」。
+                        raise AiProviderError("provider content filter rejected the input (422)")
                     raise AiProviderError(f"provider HTTP {response.status_code}")
                 think_filter = _ThinkFilter()
                 async for line in response.aiter_lines():

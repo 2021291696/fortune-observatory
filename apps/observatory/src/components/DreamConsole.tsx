@@ -14,6 +14,7 @@ export function DreamConsole({ onSave }: {
   const [error, setError] = useState<string | null>(null)
   const [stream, setStream] = useState<StreamHandle | null>(null)
   const [progress, setProgress] = useState(0)
+  const [progressVisible, setProgressVisible] = useState(false)
   const progressTimer = useRef<number | null>(null)
 
   const snapshot: StreamSnapshot | null = useSyncExternalStore(
@@ -28,6 +29,7 @@ export function DreamConsole({ onSave }: {
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
     setProgress(estimatedProgress(Date.now() - startedAt))
+    setProgressVisible(true)
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = window.setInterval(() => {
       setProgress(estimatedProgress(Date.now() - startedAt))
@@ -41,7 +43,17 @@ export function DreamConsole({ onSave }: {
   }
 
   useEffect(() => {
-    if (phase === 'done' || phase === 'error') finishProgress()
+    if (phase === 'streaming') {
+      finishProgress()
+      setProgressVisible(true)
+      const hide = window.setTimeout(() => setProgressVisible(false), 600)
+      return () => window.clearTimeout(hide)
+    }
+    if (phase === 'done' || phase === 'error') {
+      finishProgress()
+      setProgressVisible(false)
+      setProgress(0)
+    }
   }, [phase])
 
   useEffect(() => () => {
@@ -87,8 +99,8 @@ export function DreamConsole({ onSave }: {
             placeholder="发生了什么、中间怎么转、有没有做完。"
           />
         </label>
-        {phase === 'thinking' && <div className="ai-progress" role="status" aria-live="polite">
-          <span>AI 正在结合梦书思考… {progress}%</span>
+        {(phase === 'thinking' || progressVisible) && <div className="ai-progress" role="status" aria-live="polite">
+          <span>{progress >= 100 ? '开始输出' : `AI 正在结合梦书思考… ${progress}%`}</span>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
         </div>}
         <button type="button" onClick={() => void interpret()} disabled={busy}>

@@ -136,6 +136,8 @@ export function AiExplainPanel({
   const [cachedText, setCachedText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  // 进度条可见性：思考期常显；正文首字到达时冲到 100%，短暂停留后让位给流式正文。
+  const [progressVisible, setProgressVisible] = useState(false)
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
@@ -150,6 +152,7 @@ export function AiExplainPanel({
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
     setProgress(estimatedProgress(Date.now() - startedAt))
+    setProgressVisible(true)
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = window.setInterval(() => {
       setProgress(estimatedProgress(Date.now() - startedAt))
@@ -172,6 +175,7 @@ export function AiExplainPanel({
     setCachedText(null)
     setError(null)
     setProgress(0)
+    setProgressVisible(false)
     setFollowUp(false)
     setFollowUpText('')
   }, [source.key, defaultQuestion, auto])
@@ -181,9 +185,19 @@ export function AiExplainPanel({
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
   }, [])
 
-  // 思考期进度条：首个正文块到达即停止（流式文本接管观感）。
+  // 进度条生命周期：思考期缓升；首个正文块到达即冲 100%，短暂停留后让位给流式正文；收尾归零。
   useEffect(() => {
-    if (phase === 'streaming' || phase === 'done' || phase === 'error') finishProgress()
+    if (phase === 'streaming') {
+      finishProgress()
+      setProgressVisible(true)
+      const hide = window.setTimeout(() => setProgressVisible(false), 600)
+      return () => window.clearTimeout(hide)
+    }
+    if (phase === 'done' || phase === 'error') {
+      finishProgress()
+      setProgressVisible(false)
+      setProgress(0)
+    }
   }, [phase])
 
   // auto 模式：缓存命中即显示；否则挂上（或加入）在途流。
@@ -318,9 +332,9 @@ export function AiExplainPanel({
         {!followUp && !isStreaming && phase === 'done' && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setFollowUpText(''); setQuestion(defaultQuestion) }}>换个问题追问 AI</button>}
         {!followUp && !isStreaming && phase === 'error' && <button type="button" className="ai-followup-toggle" onClick={() => { setStream(null); generateManual() }}>重新生成讲解</button>}
 
-        {isThinking && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        {(isThinking || progressVisible) && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
-          <span>AI 正在结合你的盘思考… {progress}%</span>
+          <span>{progress >= 100 ? '开始输出' : `AI 正在结合你的盘思考… ${progress}%`}</span>
         </div>}
 
         {error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
