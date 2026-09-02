@@ -5,8 +5,8 @@ import { joinStream, type StreamHandle, type StreamSnapshot } from '../streamRea
 import type { AiExplainSource } from '../types'
 
 const DEFAULT_QUESTION = '结合命盘，把这段结果讲透：先给结论，再按语料框架分节展开，引原典，结尾给「可以先做」与「注意」。'
-// v10 = 流式自由文本缓存；旧版 {summary,actions,caveats} JSON 缓存不兼容，直接作废。
-const AI_CACHE_KEY = 'fortune-ai-cache-v10'
+// v11 = 紫微/八字分体系双流缓存；v10 及更早的合参缓存语义不同，直接作废。
+const AI_CACHE_KEY = 'fortune-ai-cache-v11'
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable' | 'error'

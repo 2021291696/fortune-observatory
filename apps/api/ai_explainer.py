@@ -297,7 +297,9 @@ def _verified_context(request: AiExplainRequest, secret: bytes) -> tuple[list[Ai
         domain_bundles = {item for item in bundle_types if item.startswith("domain.")}
         core = bundle_types - domain_bundles
         dual_system = core == {"ziwei.chart", "bazi.chart"} and len(domain_bundles) <= 2
-        if bundle_types != {"fortune.daily", "fortune.period"} and not dual_system:
+        # 单体系（紫微/八字分开解读）：领域宫 + 恰好一个体系排盘。
+        single_core = len(core) == 1 and core <= {"ziwei.chart", "bazi.chart"} and len(domain_bundles) <= 2
+        if bundle_types != {"fortune.daily", "fortune.period"} and not (dual_system or single_core):
             raise AiProviderError("only matching daily and period contexts can be combined")
     facts = [fact for context in contexts for fact in context.facts]
     ids = [fact.id for fact in facts]

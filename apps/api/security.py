@@ -16,6 +16,12 @@ Receive = Callable[[], Awaitable[Message]]
 Send = Callable[[Message], Awaitable[None]]
 
 
+# AI 流式路径（reading/解梦 SSE）是长连接：M3 思考+输出可达数分钟，
+# 不套用单次调用总时长门（12s/28s），超时由 provider 侧 FORTUNE_AI_TIMEOUT_SECONDS
+# 兜底；客户端断开时生成器随之取消。仍走 AI 并发槽与限流。
+_STREAMING_AI_PATHS = frozenset({"/v1/ai/reading", "/v1/dreams/interpret/stream"})
+
+
 class RequestGuardMiddleware:
     def __init__(
         self,
@@ -63,7 +69,10 @@ class RequestGuardMiddleware:
         guarded_send = self._security_headers(send)
         method = str(scope.get("method", "GET")).upper()
         path = str(scope.get("path", ""))
-        is_ai = method == "POST" and path in {"/v1/ai/explain", "/v1/dreams/interpret"}
+        is_streaming_ai = path in _STREAMING_AI_PATHS
+        is_ai = method == "POST" and (
+            path in {"/v1/ai/explain", "/v1/dreams/interpret"} or is_streaming_ai
+        )
         is_calculation = method == "POST" and path.startswith("/v1/")
         if is_calculation:
             client = self._client_ip(scope)
@@ -100,13 +109,17 @@ class RequestGuardMiddleware:
                 return
 
             delivered = False
+            original_receive = receive
 
             async def replay_receive() -> Message:
                 nonlocal delivered
-                if delivered:
-                    return {"type": "http.disconnect"}
-                delivered = True
-                return {"type": "http.request", "body": body, "more_body": False}
+                if not delivered:
+                    delivered = True
+                    return {"type": "http.request", "body": body, "more_body": False}
+                # body 已交付后的后续读：转发真实 receive（挂起等待真实断开）。
+                # 不能用二次调用即报 disconnect——Starlette 旧 ASGI spec 的
+                # StreamingResponse 会把该信号误判为客户端断开而取消响应流。
+                return await original_receive()
 
             receive = replay_receive
 
@@ -135,6 +148,13 @@ class RequestGuardMiddleware:
         task = asyncio.create_task(run_calculation())
         self._background_tasks.add(task)
         task.add_done_callback(self._finish_background_task)
+        if is_streaming_ai:
+            # 长连接不设总时长门：await 到生成器自然结束（客户端断开即取消）。
+            try:
+                await task
+            except asyncio.CancelledError:
+                raise
+            return
         try:
             timeout_seconds = self.ai_timeout_seconds if is_ai else self.calculation_timeout_seconds
             await asyncio.wait_for(asyncio.shield(task), timeout=timeout_seconds)

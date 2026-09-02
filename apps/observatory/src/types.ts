@@ -145,6 +145,7 @@ export type DailyTransitResponse = {
   trace_id: string
   ziwei_yearly?: ZiweiYearly | null
   ai_context: AiContextBundle | null
+  ai_context_bazi?: AiContextBundle | null
 }
 
 export type TransitWindowResponse = {
@@ -161,6 +162,7 @@ export type TransitWindowResponse = {
   }
   trace_id: string
   ai_context: AiContextBundle | null
+  ai_context_bazi?: AiContextBundle | null
 }
 
 export type TransitResponse = {

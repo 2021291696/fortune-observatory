@@ -98,13 +98,22 @@ export function FortuneConsole(props: FortuneProps) {
   const plain = daily ? dayPlain(daily.transit.facts as DayFact[]) : null
 
   const dailyAi: AiExplainSource | null = daily ? {
-    key: `daily-${daily.trace_id}-${scope}`,
+    key: `daily-${daily.trace_id}-${scope}-zw`,
     kind: 'fortune',
-    title: `${selectedLabel}运势 · 流日 ${daily.transit.day_pillar}`,
+    title: `${selectedLabel}运势 · 紫微 · 流日 ${daily.transit.day_pillar}`,
     summary: dailyRead,
     facts: daily.ai_context?.facts ?? [],
     // Single token keeps the prompt compact; period facts stay under 查看依据.
     contextTokens: daily.ai_context ? [daily.ai_context.token] : [],
+  } : null
+
+  const dailyAiBazi: AiExplainSource | null = daily ? {
+    key: `daily-${daily.trace_id}-${scope}-bz`,
+    kind: 'fortune',
+    title: `${selectedLabel}运势 · 八字 · 流日 ${daily.transit.day_pillar}`,
+    summary: dailyRead,
+    facts: daily.ai_context_bazi?.facts ?? [],
+    contextTokens: daily.ai_context_bazi ? [daily.ai_context_bazi.token] : [],
   } : null
 
   function saveFortune() {
@@ -154,9 +163,17 @@ export function FortuneConsole(props: FortuneProps) {
             <p className="reading-lead">{plain.line}</p>
             {dailyAi && <AiExplainPanel
               auto
-              cacheKey={`ai-v2-${aiOwner}-${daily.transit.transit_date}`}
+              cacheKey={`ai-v11-${aiOwner}-${daily.transit.transit_date}-zw`}
+              heading={`${selectedLabel}运势 · 紫微`}
               source={dailyAi}
-              defaultQuestion={`结合命盘，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日冲合怎么落到生活节奏、与流年四化和当前大限怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
+              defaultQuestion={`结合紫微命盘，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日冲合怎么落到生活节奏、与流年四化和当前大限怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
+            />}
+            {dailyAiBazi && <AiExplainPanel
+              auto
+              cacheKey={`ai-v11-${aiOwner}-${daily.transit.transit_date}-bz`}
+              heading={`${selectedLabel}运势 · 八字`}
+              source={dailyAiBazi}
+              defaultQuestion={`结合子平八字，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日干支与你四柱的刑冲合害怎么落到生活节奏、与大运流年的十神关系怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>
@@ -207,12 +224,21 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
   }, [isMonth, days])
 
   const selectedAi: AiExplainSource | null = selected && windowTransit.ai_context ? {
-    key: `window-${windowTransit.trace_id}-${selected.transit_date}`,
+    key: `window-${windowTransit.trace_id}-${selected.transit_date}-zw`,
     kind: 'fortune',
-    title: `${selected.transit_date}运势`,
+    title: `${selected.transit_date}运势 · 紫微`,
     summary: `${selected.transit_date}：${selected.facts.map((fact) => relationLabels[fact.relation]).join('、') || '无已定义关系'}`,
     facts: windowTransit.ai_context.facts,
     contextTokens: [windowTransit.ai_context.token],
+  } : null
+
+  const selectedAiBazi: AiExplainSource | null = selected && windowTransit.ai_context_bazi ? {
+    key: `window-${windowTransit.trace_id}-${selected.transit_date}-bz`,
+    kind: 'fortune',
+    title: `${selected.transit_date}运势 · 八字`,
+    summary: `${selected.transit_date}：${selected.facts.map((fact) => relationLabels[fact.relation]).join('、') || '无已定义关系'}`,
+    facts: windowTransit.ai_context_bazi.facts,
+    contextTokens: [windowTransit.ai_context_bazi.token],
   } : null
 
   const clashDays = days.filter((day) => day.facts.filter((f) => f.relation === 'branch_clash').length > day.facts.filter((f) => f.relation === 'branch_combination').length).length
@@ -249,9 +275,17 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
       )}
       {selectedAi && <AiExplainPanel
         auto
-        cacheKey={`ai-v2-${aiOwner}-${selected.transit_date}`}
+        cacheKey={`ai-v11-${aiOwner}-${selected.transit_date}-zw`}
+        heading={`${selectedLabel} · 紫微`}
         source={selectedAi}
-        defaultQuestion={`结合命盘，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：当天冲合落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
+        defaultQuestion={`结合紫微命盘，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：当天冲合落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
+      />}
+      {selectedAiBazi && <AiExplainPanel
+        auto
+        cacheKey={`ai-v11-${aiOwner}-${selected.transit_date}-bz`}
+        heading={`${selectedLabel} · 八字`}
+        source={selectedAiBazi}
+        defaultQuestion={`结合子平八字，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：流日干支与你四柱的刑冲合害、与大运流年十神的关系，落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
       />}
       <details className="fact-details"><summary>查看依据</summary><p>{selected.facts.length ? selected.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；') : '该日未检测到已定义的冲合关系。'}</p></details>
     </div>}

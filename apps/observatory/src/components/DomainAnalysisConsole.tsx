@@ -122,16 +122,26 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
   const domainActive = active !== null && active !== 'chat' ? active : null
   const result = domainActive ? results[domainActive] : null
   const activeConfig = domainActive ? domainConfig[domainActive] : null
-  const domainSource = result && domainActive && activeConfig ? {
+  // 紫微/八字分开解读：同一个领域点击即发两条并行流（紫微节 / 八字节）。
+  const ziweiSource = result && domainActive && activeConfig ? {
     kind: 'domain' as const,
-    key: `${chart.trace_id}-${domainActive}`,
-    title: activeConfig.label,
+    key: `${chart.trace_id}-${domainActive}-zw`,
+    title: `${activeConfig.label} · 紫微`,
     summary: result.lead,
     facts: chart.ai_contexts[domainActive]?.facts
-      ?? [...(chart.ai_contexts.ziwei?.facts ?? []), ...(chart.ai_contexts.bazi?.facts ?? [])],
+      ?? [...(chart.ai_contexts.ziwei?.facts ?? [])],
     contextTokens: [
       chart.ai_contexts[domainActive]?.token,
       chart.ai_contexts.ziwei?.token,
+    ].filter((token): token is string => Boolean(token)),
+  } : null
+  const baziSource = result && domainActive && activeConfig ? {
+    kind: 'domain' as const,
+    key: `${chart.trace_id}-${domainActive}-bz`,
+    title: `${activeConfig.label} · 八字`,
+    summary: result.lead,
+    facts: [...(chart.ai_contexts.bazi?.facts ?? [])],
+    contextTokens: [
       chart.ai_contexts.bazi?.token,
     ].filter((token): token is string => Boolean(token)),
   } : null
@@ -170,12 +180,19 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
-          {domainSource && activeConfig && <AiExplainPanel
+          {ziweiSource && activeConfig && <AiExplainPanel
             auto
-            cacheKey={`ai-v2-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}`}
-            heading={`${activeConfig.label} · 批解`}
-            source={domainSource}
-            defaultQuestion={`结合紫微命盘与八字命理，详细批解我的${activeConfig.label}：先给总纲，再分节深入，引原典，结尾给「可以先做」与「注意」。`}
+            cacheKey={`ai-v11-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}-zw`}
+            heading={`${activeConfig.label} · 紫微批解`}
+            source={ziweiSource}
+            defaultQuestion={`结合紫微斗数命盘，详细批解我的${activeConfig.label}：先给总纲，再按宫、星、四化分节深入，引原典，结尾给「可以先做」与「注意」。`}
+          />}
+          {baziSource && activeConfig && <AiExplainPanel
+            auto
+            cacheKey={`ai-v11-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}-bz`}
+            heading={`${activeConfig.label} · 八字批解`}
+            source={baziSource}
+            defaultQuestion={`结合子平八字命盘，详细批解我的${activeConfig.label}：先给总纲，再按四柱、十神、大运分节深入，引原典，结尾给「可以先做」与「注意」。`}
           />}
           <details className="fact-details"><summary>查看命盘依据与规则建议</summary>
             <p>{result.lead}</p>

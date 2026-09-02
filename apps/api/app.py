@@ -154,10 +154,12 @@ class ChartApiResponse(ChartResponse):
 
 class DailyTransitApiResponse(DailyTransitResponse):
     ai_context: AiContextBundle | None = None
+    ai_context_bazi: AiContextBundle | None = None
 
 
 class TransitWindowApiResponse(TransitWindowResponse):
     ai_context: AiContextBundle | None = None
+    ai_context_bazi: AiContextBundle | None = None
 
 
 class TransitApiResponse(TransitResponse):
@@ -686,6 +688,130 @@ def _window_ai_context(response: TransitWindowResponse, context_group: str) -> A
     )
 
 
+# ---- 八字运势语境（紫微/八字分开解读后，运势页「八字节」的盘面事实） ----
+_STEM_EL = {
+    "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
+    "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水",
+}
+_YANG_STEMS = frozenset("甲丙戊庚壬")
+_SHENG = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
+_KE = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
+_PILLAR_LABELS = ("年柱", "月柱", "日柱", "时柱")
+
+
+def _bazi_ten_god(day_stem: str, other_stem: str) -> str:
+    """以日干为我，求另一天干对日主的十神（标准十神表）。"""
+    me = _STEM_EL[day_stem]
+    other = _STEM_EL[other_stem]
+    same_yin = (day_stem in _YANG_STEMS) == (other_stem in _YANG_STEMS)
+    if me == other:
+        return "比肩" if same_yin else "劫财"
+    if _SHENG[me] == other:
+        return "食神" if same_yin else "伤官"
+    if _SHENG[other] == me:
+        return "偏印" if same_yin else "正印"
+    if _KE[other] == me:
+        return "七杀" if same_yin else "正官"
+    return "偏财" if same_yin else "正财"
+
+
+def _bazi_year_pillar(target_date: datetime) -> str:
+    from lunar_python import Solar
+    lunar = Solar.fromYmdHms(target_date.year, target_date.month, target_date.day, 12, 0, 0).getLunar()
+    eight_char = lunar.getEightChar()
+    eight_char.setSect(1)
+    return eight_char.getYear()
+
+
+def _bazi_pillar_lines(bazi: Any) -> list[str]:
+    lines: list[str] = []
+    details = getattr(bazi, "pillar_details", ()) or ()
+    for index, detail in enumerate(details[:4]):
+        label = _PILLAR_LABELS[index]
+        nayin = getattr(detail, "nayin", "") or ""
+        lines.append(f"{label}{detail.pillar}（{getattr(detail, 'ten_god', '')}，纳音{nayin}）")
+    return lines
+
+
+def _bazi_luck_line(bazi: Any, transit_date: datetime) -> str:
+    try:
+        target = transit_date.date() if hasattr(transit_date, "date") else transit_date
+        active = active_great_luck(bazi, target)
+    except Exception:
+        active = None
+    if active is not None:
+        return f"当前大运：{active.pillar}（{active.start_age}-{active.end_age}岁）——十年主旋律的参照"
+    return "当前不在已排大运周期内"
+
+
+def _daily_bazi_ai_context(
+    bazi: Any, response: DailyTransitResponse, context_group: str
+) -> AiContextBundle | None:
+    """今日运势的八字侧事实：四柱十神、大运、流年十神、流日关系。"""
+    transit = response.transit
+    if bazi.verification_status != "verified" or transit.verification_status != "verified":
+        return None
+    texts = ["你的四柱（子平排盘）：" + "；".join(_bazi_pillar_lines(bazi))]
+    texts.append(_bazi_luck_line(bazi, transit.transit_date))
+    year_pillar = _bazi_year_pillar(transit.transit_date)
+    day_stem = bazi.pillars.day[0]
+    texts.append(
+        f"流年：{transit.transit_date.year}年干支为{year_pillar}，"
+        f"流年干{year_pillar[0]}对你日主为「{_bazi_ten_god(day_stem, year_pillar[0])}」"
+    )
+    texts.append(f"流日：{transit.transit_date}日柱{transit.day_pillar}")
+    for fact in transit.facts[:4]:
+        texts.append(
+            f"{RELATION_LABELS[fact.relation]}关系：流日{fact.transit_pillar}作用于本命"
+            f"{_pillar_position(fact)}{fact.natal_pillar}，主要涉及{_pillar_domain(fact)}"
+        )
+    if not transit.facts:
+        texts.append("该日未检测到已定义的地支冲、合或同支关系")
+    return build_signed_context(
+        "fortune",
+        [AiFact(id=f"bdaily-{index + 1}", text=text[:400]) for index, text in enumerate(texts[:10])],
+        bundle_type="bazi.chart",
+        context_group=context_group,
+    )
+
+
+def _window_bazi_ai_context(
+    bazi: Any, response: TransitWindowResponse, context_group: str
+) -> AiContextBundle | None:
+    """本周运势的八字侧事实：四柱十神、大运、流年十神、窗口地支关系。"""
+    transit = response.transit
+    if bazi.verification_status != "verified" or transit.verification_status != "verified":
+        return None
+    end_date = datetime.combine(transit.end_date, dtime(12, 0), tzinfo=tzone(timedelta(hours=8)))
+    texts = ["你的四柱（子平排盘）：" + "；".join(_bazi_pillar_lines(bazi))]
+    texts.append(_bazi_luck_line(bazi, end_date))
+    year_pillar = _bazi_year_pillar(end_date)
+    day_stem = bazi.pillars.day[0]
+    texts.append(
+        f"流年：{end_date.year}年干支为{year_pillar}，"
+        f"流年干{year_pillar[0]}对你日主为「{_bazi_ten_god(day_stem, year_pillar[0])}」"
+    )
+    all_facts = [fact for day in transit.daily for fact in day.facts]
+    active_days = [day for day in transit.daily if day.facts]
+    texts.append(
+        f"时间范围为{transit.start_date}至{transit.end_date}，共{len(transit.daily)}天，"
+        f"其中{len(active_days)}天出现地支关系："
+        f"冲{sum(fact.relation == 'branch_clash' for fact in all_facts)}次、"
+        f"合{sum(fact.relation == 'branch_combination' for fact in all_facts)}次、"
+        f"同支{sum(fact.relation == 'branch_same' for fact in all_facts)}次"
+    )
+    texts.extend(
+        f"{day.transit_date}：{'、'.join(RELATION_LABELS[fact.relation] for fact in day.facts)}"
+        for day in active_days[:8]
+    )
+    return build_signed_context(
+        "fortune",
+        [AiFact(id=f"bwindow-{index + 1}", text=text[:400]) for index, text in enumerate(texts[:12])],
+        bundle_type="bazi.chart",
+        context_group=context_group,
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def validation_error_handler(_request: Request, error: RequestValidationError) -> JSONResponse:
     detail = [
@@ -1024,6 +1150,7 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
         ai_context=_daily_ai_context(
             response, context_group, daily_internal, transit_qizheng_fact, request.birth.sex_for_rule
         ),
+        ai_context_bazi=_daily_bazi_ai_context(bazi, response, context_group),
     )
 
 
@@ -1057,6 +1184,7 @@ def create_transit_window(request: TransitWindowRequest) -> TransitWindowApiResp
     return TransitWindowApiResponse(
         **response.model_dump(),
         ai_context=_window_ai_context(response, context_group),
+        ai_context_bazi=_window_bazi_ai_context(bazi, response, context_group),
     )
 
 
