@@ -154,15 +154,31 @@ def _parse_interpret(text: str, dream: str) -> InterpretResponse:
 
 
 def extract_sources(text: str) -> list[SourceOut]:
-    """从自由文本里提取口径著作引用（流式收尾时用，与 JSON 回包降级同一套口径）。"""
+    """从自由文本正文提取《著作》引用与邻近引句（流式收尾用）。
+
+    模型按提示词在正文中引用口径著作（书名号 + 引句），这里扫全文抓
+    书名号条目，并在前后窗口内找成对引句；最多 3 条，去重。
+    """
     sources: list[SourceOut] = []
-    for work in _WORK_TITLES.values():
-        hit = re.search(re.escape(work) + r".{0,24}?quote[\"：:]\s*[\"「『]?([^\"「」『』】）)\n]{6,60})", text)
-        if hit:
-            quote = hit.group(1).strip().strip('"「」『』【】（）()，。；')
-            if quote and not quote.startswith("quote"):
-                sources.append(SourceOut(work=work, quote=quote[:60], channel="近邻"))
-    return sources[:3]
+    seen_works: set[str] = set()
+    for match in re.finditer(r"《([^《》]{2,20})》", text):
+        work = match.group(1).strip()
+        if not work or work in seen_works:
+            continue
+        window_start = max(0, match.start() - 80)
+        window = text[window_start:min(len(text), match.end() + 80)]
+        quote_match = re.search(r"[“\"「]([^“”\"」]{6,60})[”\"」]", window)
+        if not quote_match:
+            continue
+        quote = quote_match.group(1).strip().strip('"「」『』【】（）()，。；…—')
+        if not quote or quote in seen_works:
+            continue
+        seen_works.add(work)
+        seen_works.add(quote)
+        sources.append(SourceOut(work=f"《{work}》", quote=quote, channel="近邻"))
+        if len(sources) >= 3:
+            break
+    return sources
 
 
 async def interpret_dream_request(request: InterpretRequest) -> InterpretResponse:

@@ -192,7 +192,7 @@
 .fortune-scopes { display: flex; gap: 5px; overflow-x: auto; }
 .fortune-scopes button { flex: 0 0 auto; min-width: 62px; min-height: 44px; border: 1px solid transparent; border-radius: 9px; color: var(--ink); background: transparent; font-size: 12px; font-weight: 850; }
 .fortune-scopes button:hover:not(:disabled) { border-color: var(--soft-line); background: var(--paper); }
-.fortune-scopes button.is-active { color: #fff; background: var(--ink); }
+.fortune-scopes button.is-active, .fortune-scopes button.is-active:hover:not(:disabled) { color: #fff; background: var(--ink); }
 .fortune-scopes button:disabled { opacity: .58; }
 .fortune-scopes button small { display: block; margin-top: 1px; color: var(--wash); font-size: 9px; }
 .fortune-output { min-height: 350px; }
