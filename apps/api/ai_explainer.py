@@ -99,7 +99,7 @@ class _SignedContext(StrictModel):
     bundle_type: Literal[
         "domain.health", "domain.relationship", "domain.career", "domain.wealth",
         "fortune.daily", "fortune.period", "fortune.window", "ziwei.chart",
-        "qizheng.chart",
+        "qizheng.chart", "bazi.chart",
     ]
     context_group: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
     facts: list[AiFact] = Field(min_length=1, max_length=24)
@@ -235,7 +235,7 @@ def build_signed_context(
     bundle_type: Literal[
         "domain.health", "domain.relationship", "domain.career", "domain.wealth",
         "fortune.daily", "fortune.period", "fortune.window", "ziwei.chart",
-        "qizheng.chart",
+        "qizheng.chart", "bazi.chart",
     ],
     context_group: str,
 ) -> AiContextBundle | None:
@@ -293,13 +293,23 @@ def _verified_context(request: AiExplainRequest, secret: bytes) -> tuple[list[Ai
     if len({context.context_group for context in contexts}) != 1:
         raise AiProviderError("AI contexts cannot mix calculation groups")
     bundle_types = {context.bundle_type for context in contexts}
-    if len(contexts) == 2 and bundle_types != {"fortune.daily", "fortune.period"}:
-        raise AiProviderError("only matching daily and period contexts can be combined")
+    if len(contexts) > 1:
+        domain_bundles = {item for item in bundle_types if item.startswith("domain.")}
+        core = bundle_types - domain_bundles
+        dual_system = core == {"ziwei.chart", "bazi.chart"} and len(domain_bundles) <= 2
+        if bundle_types != {"fortune.daily", "fortune.period"} and not dual_system:
+            raise AiProviderError("only matching daily and period contexts can be combined")
     facts = [fact for context in contexts for fact in context.facts]
     ids = [fact.id for fact in facts]
-    if len(facts) > 16 or len(ids) != len(set(ids)):
+    # 双体系合参（紫微+八字+领域宫）事实上限放宽到 72 条，仍远低于上下文风险线。
+    if len(facts) > 72 or len(ids) != len(set(ids)):
         raise AiProviderError("AI contexts contain too many or duplicate facts")
     return facts, bundle_types
+
+
+def verified_reading_context(request: AiExplainRequest, secret: bytes) -> tuple[list[AiFact], set[str]]:
+    """Public alias for the reading engine; same rules as the explain path."""
+    return _verified_context(request, secret)
 
 
 def _verified_facts(request: AiExplainRequest, secret: bytes) -> list[AiFact]:
@@ -462,6 +472,9 @@ def _reserve_daily_budget(limit: int) -> None:
         if _budget_used >= limit:
             raise AiBudgetExceeded("AI daily request budget exhausted")
         _budget_used += 1
+
+
+reserve_daily_budget = _reserve_daily_budget
 
 
 async def _read_limited_json_response(response: Any) -> Any:

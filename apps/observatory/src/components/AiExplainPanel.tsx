@@ -1,33 +1,35 @@
 import { ChatCircleDots, CheckCircle, Info, LockKey, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { API_BASE } from '../apiBase'
-import type { AiExplainResponse, AiExplainSource } from '../types'
+import { joinStream, type StreamHandle, type StreamSnapshot } from '../streamReading'
+import type { AiExplainSource } from '../types'
 
-const DEFAULT_QUESTION = '请把这段结果讲透：先给结论和比喻，再用两到三段把盘面依据、当前阶段和日常含义讲清楚，最后给2-4条可执行动作。'
-const AI_CACHE_KEY = 'fortune-ai-cache-v9'
+const DEFAULT_QUESTION = '结合命盘，把这段结果讲透：先给结论，再按语料框架分节展开，引原典，结尾给「可以先做」与「注意」。'
+// v10 = 流式自由文本缓存；旧版 {summary,actions,caveats} JSON 缓存不兼容，直接作废。
+const AI_CACHE_KEY = 'fortune-ai-cache-v10'
 const AI_CACHE_TTL_MS = 24 * 60 * 60 * 1000
 
 type Availability = 'idle' | 'checking' | 'available' | 'unavailable' | 'error'
-type CacheEntry = { answer: AiExplainResponse; createdAt: number }
+type CacheEntry = { text: string; createdAt: number }
 
 export function readCache(key: string): CacheEntry | null {
   try {
     const raw = window.localStorage.getItem(AI_CACHE_KEY)
-    if (!raw || raw.length > 200_000) return null
+    if (!raw || raw.length > 400_000) return null
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const entry = parsed[key] as CacheEntry | undefined
     if (!entry || typeof entry.createdAt !== 'number' || Date.now() - entry.createdAt > AI_CACHE_TTL_MS) return null
-    return entry.answer ? entry : null
+    return typeof entry.text === 'string' && entry.text ? entry : null
   } catch {
     return null
   }
 }
 
-export function writeCache(key: string, answer: AiExplainResponse) {
+export function writeCache(key: string, text: string) {
   try {
     const raw = window.localStorage.getItem(AI_CACHE_KEY)
     const parsed = raw ? JSON.parse(raw) as Record<string, CacheEntry> : {}
-    parsed[key] = { answer, createdAt: Date.now() }
+    parsed[key] = { text, createdAt: Date.now() }
     const entries = Object.entries(parsed)
     entries.sort((a, b) => b[1].createdAt - a[1].createdAt)
     const trimmed = Object.fromEntries(entries.slice(0, 48))
@@ -57,83 +59,57 @@ function responseError(body: unknown, fallback: string) {
   return fallback
 }
 
-function isAnswer(value: unknown): value is AiExplainResponse {
-  if (!value || typeof value !== 'object') return false
-  const candidate = value as Partial<AiExplainResponse>
-  const isClaim = (claim: unknown) => Boolean(
-    claim && typeof claim === 'object'
-    && typeof (claim as { text?: unknown }).text === 'string'
-    && Array.isArray((claim as { fact_ids?: unknown }).fact_ids)
-    && (claim as { fact_ids: unknown[] }).fact_ids.every((id) => typeof id === 'string'),
-  )
-  return isClaim(candidate.summary)
-    && Array.isArray(candidate.actions) && candidate.actions.every(isClaim)
-    && Array.isArray(candidate.caveats) && candidate.caveats.every(isClaim)
-}
-
-async function fetchExplanation(
-  question: string,
-  contextTokens: string[],
-  splitQuestions: string[] = [],
-): Promise<AiExplainResponse> {
-  const response = await fetch(`${API_BASE}/v1/ai/explain`, {
-    method: 'POST',
-    headers: { accept: 'application/json', 'content-type': 'application/json' },
-    body: JSON.stringify({ question, split_questions: splitQuestions.length ? splitQuestions : undefined, context_tokens: contextTokens }),
-    credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
-  })
-  const body: unknown = await response.json().catch(() => null)
-  if (!response.ok) throw new Error(responseError(body, 'AI 讲解这次没有生成。'))
-  if (!isAnswer(body)) throw new Error('AI 讲解返回格式不完整，请稍后重试。')
-  return body
-}
-
-// Background generations live outside component lifecycles: leaving the page
-// never aborts them, results always land in the cache, and any panel mounted
-// later on the same cacheKey joins the in-flight promise instead of re-asking.
-// startedAt keeps the progress bar continuous across page switches.
-export type GenerationOutcome = AiExplainResponse | { __failed: true; message: string }
-export type InflightGeneration = { task: Promise<GenerationOutcome>; startedAt: number }
-const inflightGenerations = new Map<string, InflightGeneration>()
-
-export function joinBackgroundGeneration(
-  cacheKey: string,
-  question: string,
-  contextTokens: string[],
-  splitQuestions: string[] = [],
-): InflightGeneration {
-  const existing = inflightGenerations.get(cacheKey)
-  if (existing) return existing
-  const attempt = () => fetchExplanation(question, contextTokens, splitQuestions).then((answer) => {
-    writeCache(cacheKey, answer)
-    return answer
-  })
-  const entry: InflightGeneration = {
-    // One silent retry after 2.5s absorbs the provider's occasional timeouts
-    // that hover near the configured ceiling.
-    task: attempt()
-      .catch(() => new Promise<GenerationOutcome>((resolve) => {
-        window.setTimeout(() => {
-          attempt()
-            .catch((reason: unknown) => ({
-              __failed: true as const,
-              message: reason instanceof Error ? reason.message : 'AI 讲解这次没有生成，请稍后重试。',
-            }))
-            .then(resolve)
-        }, 2_500)
-      }))
-      .finally(() => {
-        if (inflightGenerations.get(cacheKey) === entry) inflightGenerations.delete(cacheKey)
-      }),
-    startedAt: Date.now(),
-  }
-  inflightGenerations.set(cacheKey, entry)
-  return entry
-}
-
 // Estimated progress eases toward 96% and only reaches 100% on completion.
+// 仅供思考期使用：进入流式正文后进度条让位给逐字输出。
 export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
+}
+
+const noopSubscribe = () => () => {}
+const emptySnapshot: StreamSnapshot = { text: '', phase: 'idle', startedAt: 0 }
+
+// 行内 **加粗** 转 strong（模型爱用 Markdown 加粗，正文直排时不能漏星号）。
+function InlineText({ text }: { text: string }) {
+  const parts = text.split('**')
+  if (parts.length === 1) return <>{text}</>
+  return <>
+    {parts.map((part, index) => index % 2 === 1
+      ? <strong key={index}>{part}</strong>
+      : <span key={index}>{part}</span>)}
+  </>
+}
+
+// Markdown-lite 流式渲染：空行分段；## 标题行转小节（可以先做/注意复用
+// 既有卡片样式）；--- 分隔线忽略；其余整段照排（含行内加粗）。末块允许
+// 不完整，随流增长。
+export function ReadingBody({ text }: { text: string }) {
+  const blocks = text.split(/\n{2,}/)
+  return <>
+    {blocks.map((block, index) => {
+      if (/^---+\s*$/.test(block.trim())) return null
+      const lines = block.split('\n').map((line) => line.trim()).filter(Boolean)
+      if (!lines.length) return null
+      if (lines[0].startsWith('#')) {
+        const title = lines[0].replace(/^#+\s*/, '')
+        const items = lines.slice(1)
+          .map((line) => line.replace(/^[-•*\d]+[.、)）]?\s*/, '').trim())
+          .filter(Boolean)
+        if (title.startsWith('可以先做') && items.length) {
+          return <div key={index}><strong>可以先做</strong><ul>{items.map((item, itemIndex) => <li key={itemIndex}><InlineText text={item} /></li>)}</ul></div>
+        }
+        if (title.startsWith('注意') && items.length) {
+          return <div key={index} className="ai-caveats"><strong>注意</strong><ul>{items.map((item, itemIndex) => <li key={itemIndex}><InlineText text={item} /></li>)}</ul></div>
+        }
+        return <p key={index}><strong><InlineText text={title} /></strong>{items.length ? `：${items.join('；')}` : ''}</p>
+      }
+      const isList = lines.length > 1 && lines.every((line) => /^[-•*\d]/.test(line))
+      if (isList) {
+        const items = lines.map((line) => line.replace(/^[-•*\d]+[.、)）]?\s*/, '').trim()).filter(Boolean)
+        return <ul key={index}>{items.map((item, itemIndex) => <li key={itemIndex}><InlineText text={item} /></li>)}</ul>
+      }
+      return <p key={index}><InlineText text={block} /></p>
+    })}
+  </>
 }
 
 export function AiExplainPanel({
@@ -141,7 +117,6 @@ export function AiExplainPanel({
   defaultQuestion = DEFAULT_QUESTION,
   auto = false,
   cacheKey,
-  splitQuestions = [],
   heading = 'AI 解读',
   lists = true,
 }: {
@@ -149,21 +124,28 @@ export function AiExplainPanel({
   defaultQuestion?: string
   auto?: boolean
   cacheKey?: string
-  splitQuestions?: string[]
   heading?: string
   lists?: boolean
 }) {
   const [expanded, setExpanded] = useState(auto)
   const [availability, setAvailability] = useState<Availability>(auto ? 'checking' : 'idle')
   const [question, setQuestion] = useState(defaultQuestion)
-  const [answer, setAnswer] = useState<AiExplainResponse | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [stream, setStream] = useState<StreamHandle | null>(null)
   const [followUp, setFollowUp] = useState(false)
+  const [followUpText, setFollowUpText] = useState('')
+  const [cachedText, setCachedText] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState(0)
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
+
+  const snapshot: StreamSnapshot | null = useSyncExternalStore(
+    stream ? stream.subscribe : noopSubscribe,
+    stream ? stream.getSnapshot : () => emptySnapshot,
+  )
+  const streamText = snapshot && snapshot.text ? snapshot.text : null
+  const phase = snapshot?.phase ?? null
 
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
@@ -186,11 +168,12 @@ export function AiExplainPanel({
     setExpanded(auto)
     setAvailability(auto ? 'checking' : 'idle')
     setQuestion(defaultQuestion)
-    setAnswer(null)
+    setStream(null)
+    setCachedText(null)
     setError(null)
-    setIsLoading(false)
     setProgress(0)
     setFollowUp(false)
+    setFollowUpText('')
   }, [source.key, defaultQuestion, auto])
 
   useEffect(() => () => {
@@ -198,43 +181,45 @@ export function AiExplainPanel({
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
   }, [])
 
-  // auto mode: cache hit shows instantly, an in-flight background generation is
-  // joined, otherwise one starts. The generation keeps running after unmount.
+  // 思考期进度条：首个正文块到达即停止（流式文本接管观感）。
+  useEffect(() => {
+    if (phase === 'streaming' || phase === 'done' || phase === 'error') finishProgress()
+  }, [phase])
+
+  // auto 模式：缓存命中即显示；否则挂上（或加入）在途流。
   useEffect(() => {
     if (!auto) return
-    runAutoGeneration()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, cacheKey, source.key])
-
-  function runAutoGeneration() {
     generationId.current += 1
     const run = generationId.current
     const cached = cacheKey ? readCache(cacheKey) : null
     if (cached) {
-      setAnswer(cached.answer)
+      setCachedText(cached.text)
+      setStream(null)
       setAvailability('available')
-      setIsLoading(false)
+      setError(null)
       return
     }
+    setCachedText(null)
     if (source.contextTokens.length === 0) {
       setAvailability('unavailable')
       return
     }
     setAvailability('available')
     setError(null)
-    setAnswer(null)
-    setIsLoading(true)
-    const generation = joinBackgroundGeneration(cacheKey ?? source.key, defaultQuestion, source.contextTokens, splitQuestions)
-    startProgress(generation.startedAt)
-    void generation.task
-      .then((result) => {
-        if (generationId.current !== run) return
-        finishProgress()
-        setIsLoading(false)
-        if (result && !('__failed' in result)) setAnswer(result)
-        else setError('__failed' in result ? result.message : 'AI 讲解这次没有生成，请稍后重试。')
-      })
-  }
+    const handle = joinStream(cacheKey ?? source.key, '/v1/ai/reading', {
+      question: defaultQuestion,
+      context_tokens: source.contextTokens,
+    })
+    setStream(handle)
+    startProgress(handle.getSnapshot().startedAt)
+    void run
+  }, [auto, cacheKey, source.key, defaultQuestion])
+
+  // 收尾写入本机缓存（追问不写）。
+  useEffect(() => {
+    if (phase !== 'done' || !streamText || !cacheKey || followUpText) return
+    writeCache(cacheKey, streamText)
+  }, [phase, streamText, cacheKey, followUpText])
 
   async function checkAvailability() {
     request.current?.abort('superseded')
@@ -268,46 +253,28 @@ export function AiExplainPanel({
     }
   }
 
-  async function generate() {
-    const cleanQuestion = question.trim()
-    if (!cleanQuestion || isLoading || availability !== 'available') return
-    request.current?.abort('superseded')
-    const controller = new AbortController()
-    request.current = controller
-    setIsLoading(true)
+  function generateFollowUp() {
+    const cleanQuestion = followUpText.trim() || question.trim()
+    if (!cleanQuestion || availability !== 'available') return
     setError(null)
-    setAnswer(null)
-    startProgress()
-    const timeout = window.setTimeout(() => controller.abort('timeout'), 28_000)
-    try {
-      const response = await fetch(`${API_BASE}/v1/ai/explain`, {
-        method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
-        body: JSON.stringify({
-          question: cleanQuestion,
-          split_questions: !followUp && (splitQuestions?.length ?? 0) ? splitQuestions : undefined,
-          context_tokens: source.contextTokens,
-        }),
-        signal: controller.signal,
-        credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
-      })
-      const body: unknown = await response.json().catch(() => null)
-      if (!response.ok) throw new Error(responseError(body, 'AI 讲解这次没有生成。'))
-      if (!isAnswer(body)) throw new Error('AI 讲解返回格式不完整，请稍后重试。')
-      finishProgress()
-      setAnswer(body)
-      if (cacheKey && !followUp) writeCache(cacheKey, body)
-    } catch (reason) {
-      if (controller.signal.aborted && controller.signal.reason !== 'timeout') return
-      finishProgress()
-      setError(controller.signal.reason === 'timeout'
-        ? 'AI 讲解超过 28 秒，规则结果仍可正常使用。'
-        : reason instanceof Error ? reason.message.slice(0, 180) : 'AI 讲解这次没有生成。')
-    } finally {
-      window.clearTimeout(timeout)
-      if (request.current === controller) request.current = null
-      setIsLoading(false)
-    }
+    const handle = joinStream(`follow-${Date.now()}`, '/v1/ai/reading', {
+      question: cleanQuestion,
+      context_tokens: source.contextTokens,
+    })
+    setStream(handle)
+    setFollowUpText('')
+    startProgress(handle.getSnapshot().startedAt)
+  }
+
+  function generateManual() {
+    if (availability !== 'available') return
+    setError(null)
+    const handle = joinStream(cacheKey ?? source.key, '/v1/ai/reading', {
+      question: question.trim() || defaultQuestion,
+      context_tokens: source.contextTokens,
+    })
+    setStream(handle)
+    startProgress(handle.getSnapshot().startedAt)
   }
 
   function openPanel() {
@@ -316,13 +283,10 @@ export function AiExplainPanel({
     if (next && availability === 'idle') void checkAvailability()
   }
 
-  const citedIds = answer
-    ? [...answer.summary.fact_ids, ...answer.actions.flatMap((item) => item.fact_ids), ...answer.caveats.flatMap((item) => item.fact_ids)]
-      .filter((id, index, all) => all.indexOf(id) === index)
-    : []
-  const citedFacts = citedIds
-    .map((id) => source.facts.find((fact) => fact.id === id))
-    .filter((fact): fact is NonNullable<typeof fact> => Boolean(fact)) ?? []
+  const isThinking = Boolean(stream) && phase === 'thinking'
+  const isStreaming = Boolean(stream) && (phase === 'streaming' || isThinking)
+  const hasText = Boolean(streamText || cachedText)
+  const bodyText = streamText ?? cachedText ?? ''
 
   return <section className="ai-explain-panel" aria-label={auto ? heading : '可选 AI 讲解'}>
     {!auto && <div className="ai-explain-intro">
@@ -335,7 +299,7 @@ export function AiExplainPanel({
     </div>}
 
     {expanded && <div className="ai-explain-body" id={panelId(source.key)}>
-      {auto && <div className="ai-auto-head"><span><ChatCircleDots size={18} weight="fill" /> {heading}</span>{cacheKey && answer && !isLoading && <small>本机缓存 · 24 小时内不重复调用</small>}</div>}
+      {auto && <div className="ai-auto-head"><span><ChatCircleDots size={18} weight="fill" /> {heading}</span>{cacheKey && phase === 'done' && !followUpText && <small>本机缓存 · 24 小时内不重复调用</small>}</div>}
       {!auto && <p className="ai-privacy"><LockKey size={17} weight="bold" /> 点击「生成讲解」才会调用模型。讲解只发送盘面事实和你的问题，不发送出生时间或坐标。</p>}
 
       {availability === 'checking' && <div className="ai-status-skeleton" role="status" aria-label="正在检查 AI 讲解状态"><span /><span /><span /></div>}
@@ -344,27 +308,28 @@ export function AiExplainPanel({
 
       {availability === 'available' && <>
         {followUp && <label className="ai-question">
-          <span>你想追问什么？ <small>{question.length}/300</small></span>
-          <textarea value={question} maxLength={300} rows={3} disabled={isLoading} onChange={(event) => setQuestion(event.target.value)} />
+          <span>你想追问什么？ <small>{followUpText.length}/300</small></span>
+          <textarea value={followUpText} maxLength={300} rows={3} disabled={isStreaming} onChange={(event) => setFollowUpText(event.target.value)} />
         </label>}
-        {followUp && <button className="ai-generate" type="button" disabled={!question.trim() || isLoading} onClick={() => void generate()}>
-          {isLoading ? <><SpinnerGap className="spin" size={19} /> 正在根据事实整理</> : answer ? '按新问题重新生成' : '生成讲解'}
+        {followUp && <button className="ai-generate" type="button" disabled={!followUpText.trim() || isStreaming} onClick={generateFollowUp}>
+          {isStreaming ? <><SpinnerGap className="spin" size={19} /> 正在根据事实整理</> : '按新问题重新生成'}
         </button>}
-        {!followUp && !answer && !isLoading && !error && <button className="ai-generate" type="button" onClick={() => void generate()}>{(splitQuestions?.length ?? 0) ? '生成完整讲解' : '生成讲解'}</button>}
-        {!followUp && !isLoading && !error && answer && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setQuestion('') }}>换个问题追问 AI</button>}
-        {!followUp && !isLoading && !answer && error && <button type="button" className="ai-followup-toggle" onClick={() => void generate()}>重新生成讲解</button>}
+        {!followUp && !hasText && !isStreaming && !error && availability === 'available' && !auto && <button className="ai-generate" type="button" onClick={generateManual}>生成讲解</button>}
+        {!followUp && !isStreaming && phase === 'done' && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setFollowUpText(''); setQuestion(defaultQuestion) }}>换个问题追问 AI</button>}
+        {!followUp && !isStreaming && phase === 'error' && <button type="button" className="ai-followup-toggle" onClick={() => { setStream(null); generateManual() }}>重新生成讲解</button>}
 
-        {isLoading && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        {isThinking && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
           <span>AI 正在结合你的盘思考… {progress}%</span>
         </div>}
-        {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
-        {answer && !isLoading && <article className="ai-answer">
-          <header><CheckCircle size={21} weight="fill" /><div><strong>{heading}</strong></div></header>
-          {answer.summary.text.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-          {lists && answer.actions.length > 0 && <div><strong>可以先做</strong><ul>{answer.actions.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
-          {lists && answer.caveats.length > 0 && <div className="ai-caveats"><strong>注意</strong><ul>{answer.caveats.map((item) => <li key={`${item.text}-${item.fact_ids.join('-')}`}>{item.text}</li>)}</ul></div>}
-          <details><summary>查看 AI 使用的 {citedFacts.length} 条依据</summary><ul>{citedFacts.map((fact, index) => <li key={fact.id}><b>依据 {index + 1}</b>{fact.text}</li>)}</ul></details>
+
+        {error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
+        {bodyText && <article className="ai-answer">
+          <header><CheckCircle size={21} weight="fill" /><div><strong>{heading}</strong></div>{isStreaming && <SpinnerGap className="spin" size={16} />}</header>
+          {lists
+            ? <ReadingBody text={bodyText} />
+            : bodyText.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+          <details><summary>查看 AI 使用的 {source.facts.length} 条盘面事实</summary><ul>{source.facts.map((fact, index) => <li key={fact.id}><b>依据 {index + 1}</b>{fact.text}</li>)}</ul></details>
         </article>}
       </>}
     </div>}

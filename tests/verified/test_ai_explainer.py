@@ -297,7 +297,10 @@ def test_chart_issues_server_signed_domain_context_without_birth_data(
     })
     assert response.status_code == 200
     contexts: dict[str, dict[str, Any]] = response.json()["ai_contexts"]
-    assert set(contexts) == {"health", "relationship", "career", "wealth", "ziwei", "qizheng"}
+    assert set(contexts) == {"health", "relationship", "career", "wealth", "ziwei", "qizheng", "bazi"}
+    # 双体系合参：八字 bundle 必须携带四柱与大运事实。
+    assert any("八字四柱" in fact["text"] for fact in contexts["bazi"]["facts"])
+    assert any("大运" in fact["text"] for fact in contexts["bazi"]["facts"])
     serialized = json.dumps(contexts, ensure_ascii=False)
     assert "2005-12-24" not in serialized
     assert "102.0" not in serialized

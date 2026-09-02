@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -10,6 +11,7 @@ from ai_explainer import AiConfigurationError, AiProviderError, get_provider_con
 from dreams.lore import _WORK_TITLES, skill_profile
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse, SourceOut
 from dreams.prompts import INTERPRET_JSON, QUESTIONS, SYSTEM
+from reading_agent import stream_completion
 
 logger = logging.getLogger("fortune.dreams")
 
@@ -151,6 +153,18 @@ def _parse_interpret(text: str, dream: str) -> InterpretResponse:
     return InterpretResponse(essay=essay[:3600], sources=sources[:3])
 
 
+def extract_sources(text: str) -> list[SourceOut]:
+    """从自由文本里提取口径著作引用（流式收尾时用，与 JSON 回包降级同一套口径）。"""
+    sources: list[SourceOut] = []
+    for work in _WORK_TITLES.values():
+        hit = re.search(re.escape(work) + r".{0,24}?quote[\"：:]\s*[\"「『]?([^\"「」『』】）)\n]{6,60})", text)
+        if hit:
+            quote = hit.group(1).strip().strip('"「」『』【】（）()，。；')
+            if quote and not quote.startswith("quote"):
+                sources.append(SourceOut(work=work, quote=quote[:60], channel="近邻"))
+    return sources[:3]
+
+
 async def interpret_dream_request(request: InterpretRequest) -> InterpretResponse:
     if any(pattern in request.dream for pattern in _REFERRAL_PATTERNS):
         return _referral_result(request.dream)
@@ -174,3 +188,45 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
     except Exception as error:
         raise AiProviderError("dream essay failed") from error
     return _parse_interpret(raw, request.dream)
+
+
+# 流式版：不再要求 JSON 回包，直接输出解梦正文；引用来源在收尾时后端提取。
+_INTERPRET_STREAM = (
+    "直接输出解梦正文（Markdown 分节书写），不要 JSON、不要代码块。"
+    "行文中引用口径著作时明确写出书名与原句（如《梦的解析》），先引原句再讲白话。"
+    "结尾固定两节：「## 可以先做」（2-3 条具体、可执行的动作）与「## 注意」（1 条单句提醒）。"
+)
+
+
+async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[dict]:
+    """流式解梦：产出 {"type":"delta","text"} 与 {"type":"done","sources":[…]} 事件。"""
+    if any(pattern in request.dream for pattern in _REFERRAL_PATTERNS):
+        yield {"type": "delta", "text": _referral_result(request.dream).referral}
+        yield {"type": "done", "sources": []}
+        return
+    config = _provider()
+    if config is None:
+        raise AiConfigurationError("AI provider is not configured")
+    profile = skill_profile()
+    system = f"{SYSTEM}\n\n{profile}" if profile else SYSTEM
+    lines = [f"梦：{request.dream[:2000]}"]
+    extra = [f"{item.question}：{item.answer}" for item in request.answers if item.answer]
+    if extra:
+        lines.append("补充：\n" + "\n".join(extra))
+    lines.append(_INTERPRET_STREAM)
+
+    chunks: list[str] = []
+    try:
+        async for delta in stream_completion(system=system, user="\n".join(lines), config=config):
+            chunks.append(delta)
+            yield {"type": "delta", "text": delta}
+    except AiConfigurationError:
+        raise
+    except AiProviderError:
+        raise
+    except Exception as error:
+        raise AiProviderError("dream essay failed") from error
+    essay = "".join(chunks).strip()
+    if not essay:
+        raise AiProviderError("empty essay")
+    yield {"type": "done", "sources": [item.model_dump(mode="json") for item in extract_sources(essay)]}

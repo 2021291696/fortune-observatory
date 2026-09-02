@@ -154,18 +154,9 @@ export function FortuneConsole(props: FortuneProps) {
             <p className="reading-lead">{plain.line}</p>
             {dailyAi && <AiExplainPanel
               auto
-              cacheKey={`ai-${aiOwner}-${daily.transit.transit_date}`}
+              cacheKey={`ai-v2-${aiOwner}-${daily.transit.transit_date}`}
               source={dailyAi}
-              splitQuestions={[
-                `只写${daily.transit.transit_date}这一天：流日${daily.transit.day_pillar}对生活节奏的具体影响，分早晨/白天/晚上各举一个可观察的表现，约150字。`,
-                daily.ziwei_yearly
-                  ? `只写${daily.ziwei_yearly.year_pillar}年这一年：流年四化和流年命宫怎么落到工作、关系和花钱上，举两个具体场面，约150字。`
-                  : `只写这一年的大方向：结合流年和日柱，说明适合推进什么、适合收住什么，约150字。`,
-                daily.ziwei_yearly
-                  ? `只写当前${daily.ziwei_yearly.decadal.is_childhood ? '童限' : '大限'}阶段（${daily.ziwei_yearly.decadal.start_age}-${daily.ziwei_yearly.decadal.end_age}岁）：这个阶段的主题、容易踩的坑、本月可做的一件小事，约150字。`
-                  : `只写当前人生阶段：根据大运和流年，说明这几个月最值得盯住的一件事，约150字。`,
-              ]}
-              defaultQuestion={`请把我的${selectedLabel}运势讲透（${daily.transit.transit_date}，流日${daily.transit.day_pillar}）。先给结论和比喻，再用两到三段分别讲：今天的冲合、今年的流年四化、当前大限阶段；每段先引盘面再讲白话。最后给2-4条今天就能做的动作。按 facts 里的虚岁解读人生角色，不要按宫位名编履历。`}
+              defaultQuestion={`结合命盘，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日冲合怎么落到生活节奏、与流年四化和当前大限怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>
@@ -258,9 +249,9 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
       )}
       {selectedAi && <AiExplainPanel
         auto
-        cacheKey={`ai-${aiOwner}-${selected.transit_date}`}
+        cacheKey={`ai-v2-${aiOwner}-${selected.transit_date}`}
         source={selectedAi}
-        defaultQuestion={`请把 ${selected.transit_date} 这一天讲透：先给结论和比喻，再用两到三段分别讲当天冲合落到哪一层生活、这一周该怎么安排、以及不必过度解读的地方。最后给2-4条当天能做的动作。`}
+        defaultQuestion={`结合命盘，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：当天冲合落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
       />}
       <details className="fact-details"><summary>查看依据</summary><p>{selected.facts.length ? selected.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；') : '该日未检测到已定义的冲合关系。'}</p></details>
     </div>}

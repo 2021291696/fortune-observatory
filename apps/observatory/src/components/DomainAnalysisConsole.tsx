@@ -1,13 +1,12 @@
 import { Briefcase, ChatCircleDots, Coins, FloppyDisk, Heart, Heartbeat, PaperPlaneRight, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
 import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
-import type { AnalysisDomain, AiExplainResponse, ChartResponse, SaveDraft } from '../types'
+import type { AnalysisDomain, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
 import { buildDomainNarrative, type NarrativeBlock } from '../readingNarrative'
-import { DomainEssay } from './DomainEssay'
+import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
-import { chartAge, pastQuestion, nowQuestion, upcomingQuestion } from '../lifePhase'
 
 type DomainResult = {
   title: string
@@ -123,17 +122,18 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
   const domainActive = active !== null && active !== 'chat' ? active : null
   const result = domainActive ? results[domainActive] : null
   const activeConfig = domainActive ? domainConfig[domainActive] : null
-  const age = domainActive ? chartAge(chart.bazi.calculation_datetime) : null
-  const palaces = chart.ziwei.palaces
-  const pastQ = domainActive && age != null ? pastQuestion(palaces, age, domainActive) : null
-  const nowQ = domainActive && age != null ? nowQuestion(palaces, age, domainActive) : null
-  const nextQ = domainActive && age != null ? upcomingQuestion(palaces, age, domainActive) : null
-  const domainSource = result && domainActive ? {
+  const domainSource = result && domainActive && activeConfig ? {
     kind: 'domain' as const,
+    key: `${chart.trace_id}-${domainActive}`,
+    title: activeConfig.label,
     summary: result.lead,
     facts: chart.ai_contexts[domainActive]?.facts
-      ?? result.evidence.map((text, index) => ({ id: `domain-${index + 1}`, text })),
-    contextTokens: chart.ai_contexts[domainActive] ? [chart.ai_contexts[domainActive].token] : [],
+      ?? [...(chart.ai_contexts.ziwei?.facts ?? []), ...(chart.ai_contexts.bazi?.facts ?? [])],
+    contextTokens: [
+      chart.ai_contexts[domainActive]?.token,
+      chart.ai_contexts.ziwei?.token,
+      chart.ai_contexts.bazi?.token,
+    ].filter((token): token is string => Boolean(token)),
   } : null
 
   return <section className="analysis-section" id="analysis">
@@ -170,28 +170,12 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
-          {domainSource && nowQ && <DomainEssay
-            source={{ ...domainSource, key: `${chart.trace_id}-${domainActive}` }}
-            sections={[
-              ...(pastQ ? [{
-                id: 'past' as const,
-                heading: '已走过大限',
-                question: pastQ,
-                cacheKey: `ai-${aiOwner}-${domainActive}-past-${chart.trace_id}`,
-              }] : []),
-              {
-                id: 'now',
-                heading: '当前大限',
-                question: nowQ,
-                cacheKey: `ai-${aiOwner}-${domainActive}-now-${chart.trace_id}`,
-              },
-              ...(nextQ ? [{
-                id: 'next' as const,
-                heading: '接下来两限',
-                question: nextQ,
-                cacheKey: `ai-${aiOwner}-${domainActive}-next-${chart.trace_id}`,
-              }] : []),
-            ]}
+          {domainSource && activeConfig && <AiExplainPanel
+            auto
+            cacheKey={`ai-v2-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}`}
+            heading={`${activeConfig.label} · 批解`}
+            source={domainSource}
+            defaultQuestion={`结合紫微命盘与八字命理，详细批解我的${activeConfig.label}：先给总纲，再分节深入，引原典，结尾给「可以先做」与「注意」。`}
           />}
           <details className="fact-details"><summary>查看命盘依据与规则建议</summary>
             <p>{result.lead}</p>
@@ -255,7 +239,12 @@ const domainKeywords: Array<[AnalysisDomain, RegExp]> = [
 function pickTokens(question: string, contexts: ChartResponse['ai_contexts']): string[] {
   const hits = domainKeywords.filter(([, pattern]) => pattern.test(question)).map(([domain]) => domain)
   const chosen: AnalysisDomain[] = hits.length > 0 && hits.length <= 2 ? hits : ['career', 'relationship']
-  return chosen.map((domain) => contexts[domain]?.token).filter((token): token is string => Boolean(token))
+  // 双体系合参：领域宫事实之外，始终带上紫微全盘与八字四柱大运。
+  return [
+    ...chosen.map((domain) => contexts[domain]?.token),
+    contexts.ziwei?.token,
+    contexts.bazi?.token,
+  ].filter((token): token is string => Boolean(token))
 }
 
 function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
@@ -303,25 +292,53 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
     setIsLoading(true)
     startChatProgress()
     try {
-      const response = await fetch(`${API_BASE}/v1/ai/explain`, {
+      const response = await fetch(`${API_BASE}/v1/ai/reading`, {
         method: 'POST',
-        headers: { accept: 'application/json', 'content-type': 'application/json' },
+        headers: { accept: 'text/event-stream', 'content-type': 'application/json' },
         body: JSON.stringify({ question: clean, context_tokens: tokens, history }),
         credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
       })
-      const body: unknown = await response.json().catch(() => null)
       if (!response.ok) {
+        const body: unknown = await response.json().catch(() => null)
         const detail = body && typeof body === 'object' && 'detail' in body
           ? String((body as { detail?: unknown }).detail).slice(0, 180)
           : 'AI 这次没有回复。'
         throw new Error(detail)
       }
-      const answer = body as AiExplainResponse
-      if (!answer?.summary?.text) throw new Error('AI 回复格式不完整，请重试。')
+      if (!response.body) throw new Error('当前浏览器不支持流式读取。')
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let answerText = ''
+      let streamError: string | null = null
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        let newlineIndex = buffer.indexOf('\n')
+        while (newlineIndex >= 0) {
+          const line = buffer.slice(0, newlineIndex).trim()
+          buffer = buffer.slice(newlineIndex + 1)
+          newlineIndex = buffer.indexOf('\n')
+          if (!line.startsWith('data:')) continue
+          const payloadText = line.slice(5).trim()
+          if (!payloadText || payloadText === '[DONE]') continue
+          let event: { type?: string; text?: string; detail?: string } | null = null
+          try {
+            event = JSON.parse(payloadText) as { type?: string; text?: string; detail?: string }
+          } catch {
+            event = null
+          }
+          if (!event) continue
+          if (event.type === 'delta' && typeof event.text === 'string') answerText += event.text
+          if (event.type === 'error') streamError = typeof event.detail === 'string' ? event.detail : 'AI 这次没有回复。'
+        }
+      }
+      if (streamError) throw new Error(streamError)
+      if (!answerText.trim()) throw new Error('AI 回复为空，请重试。')
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        text: answer.summary.text,
-        actions: answer.actions.map((item) => item.text).slice(0, 4),
+        text: answerText,
         ts: Date.now(),
       }
       const next = [...messages, userMessage, assistantMessage]

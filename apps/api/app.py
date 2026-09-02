@@ -7,8 +7,11 @@ Run with PowerShell:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
 import os
+from collections.abc import AsyncIterator
 from datetime import datetime, time as dtime, timedelta, timezone as tzone
 from collections import Counter
 from typing import Any
@@ -18,7 +21,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from security import RequestGuardMiddleware
 from ai_explainer import (
@@ -33,10 +36,14 @@ from ai_explainer import (
     build_signed_context,
     derive_context_group,
     explain_with_ai,
+    get_provider_config,
     provider_is_available,
+    reserve_daily_budget,
+    verified_reading_context,
 )
+from reading_agent import stream_reading
 from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest, QuestionsResponse
-from dreams.service import generate_questions, interpret_dream_request
+from dreams.service import generate_questions, interpret_dream_request, stream_interpret_events
 
 from fortune_core.bazi import active_great_luck, calculate_bazi
 from fortune_core.models import (
@@ -438,6 +445,42 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         )
         if qz_bundle is not None:
             contexts["qizheng"] = qz_bundle
+    # 八字 bundle：双体系合参的第二只脚。四柱/十神/藏干/纳音/大运一律以
+    # 排盘快照为准，AI 只做解读不做计算。
+    if chart.bazi.verification_status == "verified":
+        bazi_texts: list[str] = []
+        pillars = chart.bazi.pillars
+        bazi_texts.append(
+            f"八字四柱：年柱{pillars.year}、月柱{pillars.month}、日柱{pillars.day}、时柱{pillars.hour}"
+        )
+        for detail in chart.bazi.pillar_details:
+            hidden = "、".join(f"{item.stem}（{item.ten_god}）" for item in detail.hidden_stems)
+            bazi_texts.append(
+                f"{detail.pillar}柱：十神{detail.ten_god}，纳音{detail.nayin}，藏干{hidden}"
+            )
+        luck_start = chart.bazi.great_luck_start
+        bazi_texts.append(
+            f"大运起运：{luck_start.years}岁{luck_start.months}个月{luck_start.days}天，"
+            f"{'顺排' if luck_start.direction == 'forward' else '逆排'}，首运{luck_start.first_pillar}"
+        )
+        for period in chart.bazi.great_luck_periods[:10]:
+            bazi_texts.append(f"大运{period.pillar}：{period.start_age}-{period.end_age}岁")
+        try:
+            active_period = active_great_luck(chart.bazi, datetime.now(tzone.utc).date())
+        except Exception:
+            active_period = None
+        if active_period is not None:
+            bazi_texts.append(
+                f"当前大运：{active_period.pillar}（{active_period.start_age}-{active_period.end_age}岁）——十年主旋律的参照"
+            )
+        bazi_bundle = build_signed_context(
+            "domain",
+            [AiFact(id=f"bazi-{index + 1}", text=text[:400]) for index, text in enumerate(bazi_texts[:24])],
+            bundle_type="bazi.chart",
+            context_group=chart.trace_id,
+        )
+        if bazi_bundle is not None:
+            contexts["bazi"] = bazi_bundle
     return contexts
 
 
@@ -684,6 +727,53 @@ QIZHENG_STAR_NAMES = {
 }
 
 
+@app.post("/v1/dreams/interpret/stream")
+async def dreams_interpret_stream(request: InterpretRequest) -> StreamingResponse:
+    """解梦流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。"""
+    async def event_stream() -> AsyncIterator[str]:
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def pump() -> None:
+            try:
+                async for event in stream_interpret_events(request):
+                    await queue.put(event)
+                await queue.put({"type": "closed"})
+            except Exception as error:
+                await queue.put({"type": "error", "detail": f"{type(error).__name__}"})
+
+        pump_task = asyncio.create_task(pump())
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if event.get("type") == "closed":
+                    yield "data: [DONE]\n\n"
+                    return
+                if event.get("type") == "error":
+                    logger.warning("dream stream failed mid-stream")
+                    yield (
+                        "data: "
+                        + json.dumps(
+                            {"type": "error", "detail": "这一篇没写成，请稍后重试。"},
+                            ensure_ascii=False,
+                        )
+                        + "\n\n"
+                    )
+                    return
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            pump_task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @app.get("/v1/ai/status", response_model=AiStatusResponse)
 def ai_status() -> AiStatusResponse:
     return AiStatusResponse(available=provider_is_available())
@@ -717,6 +807,94 @@ async def explain_result(request: AiExplainRequest) -> AiExplainResponse:
             detail="AI 讲解这次没有生成，请稍后重试。",
             headers={"X-Trace-Id": trace_id},
         ) from error
+
+
+@app.post("/v1/ai/reading")
+async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
+    """Skill 全量语境 + 双体系 facts 的流式解读（SSE）。
+
+    契约：请求体与 /v1/ai/explain 相同（question 即任务描述）；响应为
+    text/event-stream，事件 data: {"type":"delta","text":…} / {"type":"done"}
+    / {"type":"error","detail":…}，期间以 SSE 注释行做心跳保活。
+    """
+    config = get_provider_config()
+    if config is None:
+        raise HTTPException(status_code=503, detail="AI 讲解暂未配置，规则结果不受影响。")
+    try:
+        facts, bundle_types = verified_reading_context(request, config.context_secret)
+        reserve_daily_budget(config.daily_limit)
+    except AiBudgetExceeded as error:
+        raise HTTPException(
+            status_code=429,
+            detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",
+            headers={"Retry-After": "3600"},
+        ) from error
+    except AiProviderError as error:
+        trace_id = str(uuid4())
+        logger.warning(
+            "reading context rejected trace_id=%s error_type=%s",
+            trace_id,
+            type(error).__name__,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="这份解读的上下文校验未通过，请重新排盘后再使用。",
+            headers={"X-Trace-Id": trace_id},
+        ) from error
+
+    history = [{"role": turn.role, "content": turn.text} for turn in request.history]
+
+    async def event_stream() -> AsyncIterator[str]:
+        # 心跳不能直接 wait_for(anext(agen))——超时会取消并关闭整个上游
+        # 生成器（思考期常超 20 秒）。改用后台 pump + 队列，心跳只等队列。
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def pump() -> None:
+            try:
+                async for delta in stream_reading(
+                    question=request.question,
+                    facts=facts,
+                    bundle_types=bundle_types,
+                    history=history,
+                ):
+                    await queue.put(("delta", delta))
+                await queue.put(("done", None))
+            except Exception as error:
+                logger.warning("reading stream failed: %s: %s", type(error).__name__, error)
+                await queue.put(("error", f"{type(error).__name__}"))
+
+        pump_task = asyncio.create_task(pump())
+        try:
+            while True:
+                try:
+                    kind, _payload = await asyncio.wait_for(queue.get(), timeout=20.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if kind == "delta":
+                    yield f"data: {json.dumps({'type': 'delta', 'text': _payload}, ensure_ascii=False)}\n\n"
+                elif kind == "done":
+                    yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
+                    return
+                else:
+                    logger.warning("reading stream failed mid-stream kind=%s", _payload)
+                    yield (
+                        "data: "
+                        + json.dumps(
+                            {"type": "error", "detail": "AI 解读这次没有生成，请稍后重试。"},
+                            ensure_ascii=False,
+                        )
+                        + "\n\n"
+                    )
+                    return
+        finally:
+            pump_task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/v1/dreams/questions", response_model=QuestionsResponse)
