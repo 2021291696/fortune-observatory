@@ -11,6 +11,7 @@ import { ProfileView } from './components/ProfileView'
 import { API_BASE } from './apiBase'
 import { findArea } from './birthPlaces'
 import { dateKey, fortuneWindow } from './dates'
+import { loadReadingSystem, saveReadingSystem, type ReadingSystem } from './readingSystem'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
 
@@ -128,6 +129,7 @@ function initialSavedReadings(): SavedReading[] {
       title: item.title.slice(0, 120), summary: item.summary.slice(0, 600),
       details: item.details.slice(0, 12).map((detail: unknown) => String(detail).slice(0, 500)),
       userName: typeof item.userName === 'string' ? item.userName.slice(0, 12) : undefined,
+      system: item.system === 'bazi' || item.system === 'ziwei' ? item.system : undefined,
     }))
     try {
       writeLocalStorage(SAVED_READINGS_KEY, JSON.stringify(sanitized))
@@ -223,6 +225,7 @@ export function App() {
   const [shuffleSeed, setShuffleSeed] = useState(initialSeed)
   const [isThemeChanging, setIsThemeChanging] = useState(false)
   const [motionPaused, setMotionPaused] = useState(() => readLocalStorage('fortune-motion-paused') === 'true')
+  const [readingSystem, setReadingSystem] = useState<ReadingSystem>(loadReadingSystem)
   const [users, setUsers] = useState<StoredUser[]>(loadUsers)
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => null)
   const [editingUserId, setEditingUserId] = useState<string | null>(() => null)
@@ -322,6 +325,7 @@ export function App() {
     const record: SavedReading = {
       ...draft,
       userName: currentUser?.name,
+      system: readingSystem,
       id: crypto.randomUUID(),
       savedAt: new Date().toISOString(),
     }
@@ -359,6 +363,11 @@ export function App() {
       writeLocalStorage('fortune-motion-paused', String(next))
       return next
     })
+  }
+
+  function selectReadingSystem(next: ReadingSystem) {
+    setReadingSystem(next)
+    saveReadingSystem(next)
   }
 
   async function requestChart(user: StoredUser): Promise<boolean> {
@@ -638,6 +647,7 @@ export function App() {
             <FortuneConsole
               chartReady={Boolean(chart || isSubmitting)}
               aiOwner={currentUserId ?? 'anon'}
+              readingSystem={readingSystem}
               daily={daily} periods={periods} windowTransit={windowTransit}
               scope={fortuneScope} requestedScope={requestedFortuneScope} error={fortuneError}
               isLoading={isLoadingFortune || (isSubmitting && !chart)} theme={theme}
@@ -669,7 +679,7 @@ export function App() {
           <h1 id="ask-title">问事</h1>
         </header>
         {!chart ? <div className="task-gate"><ShieldCheck size={34} weight="bold" /><div><strong>先完成一次排盘</strong></div><a href="#fortune" onClick={() => navigate('fortune')}>去排盘 <ArrowRight size={18} /></a></div>
-          : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} theme={theme} onSave={saveReading} />}
+          : <DomainAnalysisConsole chart={chart} aiOwner={currentUserId ?? 'anon'} readingSystem={readingSystem} theme={theme} onSave={saveReading} />}
       </section>
 
       <div hidden={activeView !== 'dream'}>
@@ -697,6 +707,7 @@ export function App() {
       <div hidden={activeView !== 'profile'}>
         <ProfileView
           activeTheme={themeId} motionPaused={motionPaused} savedReadings={savedReadings}
+          readingSystem={readingSystem} onSelectReadingSystem={selectReadingSystem}
           onSelectTheme={selectTheme} onToggleMotion={toggleMotion}
           onRemoveSaved={removeSaved} onClearSaved={clearSaved}
         />

@@ -109,6 +109,17 @@
 .card-kicker { display: flex; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--soft-line); }
 .card-kicker span { font-size: 14px; font-weight: 900; }
 .card-kicker small { color: var(--muted); font-size: 10px; }
+/* 解读体系偏好卡：分段控件 + 两行说明。加入后偏好卡共三张，隐私卡横跨两列避免留洞。 */
+.reading-system-picker { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
+.reading-system-picker button { min-height: 66px; display: grid; gap: 3px; justify-items: center; align-content: center; padding: 10px 12px; border: 1px solid var(--soft-line); border-radius: 11px; color: var(--ink); background: transparent; font-size: 15px; font-weight: 900; }
+.reading-system-picker button small { color: var(--muted); font-size: 10px; font-weight: 700; }
+.reading-system-picker button:hover { border-color: var(--ink); }
+.reading-system-picker button.is-active, .reading-system-picker button.is-active:hover { border-color: var(--ink); background: var(--ink); color: #fff; }
+.reading-system-picker button.is-active small { color: color-mix(in srgb, #fff 72%, transparent); }
+.reading-system-note { margin: 14px 0 0; color: var(--ink); font-size: 12px; line-height: 1.6; }
+.reading-system-note.is-muted { color: var(--muted); font-size: 11px; }
+.profile-grid > .privacy-card { grid-column: 1 / -1; }
+.profile-grid > .privacy-card ul { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .profile-view .theme-remote { position: static; min-height: 0; display: grid; grid-template-columns: 1fr auto; gap: 14px; margin-top: 16px; padding: 0; border: 0; background: transparent; backdrop-filter: none; }
 .profile-view .remote-label { display: block; grid-column: 1 / -1; color: var(--muted); font-size: 11px; font-weight: 750; }
 .profile-view .remote-options { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }

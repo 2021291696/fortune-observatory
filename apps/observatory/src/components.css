@@ -304,6 +304,7 @@
 .saved-kind { min-width: 0; max-width: 100%; padding: 5px 7px; border-radius: 999px; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, #fff); font-size: 10px; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .saved-kind svg { margin-right: 5px; vertical-align: -2px; }
 .saved-kind.is-fortune { color: #8b5600; background: #fff3c7; }
+.saved-system { margin-right: auto; padding: 5px 7px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--wash) 55%, #fff); font-size: 10px; font-weight: 850; white-space: nowrap; }
 .saved-grid article > header button { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; color: var(--muted); background: transparent; }
 .saved-grid article > header button:hover { color: #fff; background: #bd2833; }
 .saved-grid h3 { margin: 14px 0 8px; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

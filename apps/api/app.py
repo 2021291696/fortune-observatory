@@ -62,7 +62,7 @@ from fortune_core.models import (
     ZiweiYearlySnapshot,
 )
 from fortune_core.qizheng import calculate_physical_baseline
-from fortune_core.qizheng.traditional import calculate_traditional, sun_moon_mansions
+from fortune_core.qizheng.traditional import calculate_traditional
 from fortune_core.signals import build_natal_insights
 from fortune_core.time_location import build_time_trace
 from fortune_core.transit import calculate_daily_transit, calculate_transit, calculate_transit_window
@@ -175,13 +175,8 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
     # medical diagnosis and investment instructions, so facts stay on star
     # placements and lifestyle framing only.
     domain_palaces = {"health": "疾厄", "relationship": "夫妻", "career": "官禄", "wealth": "财帛"}
-    # 跨盘锚点（四柱+紫微整体格局），给各领域解读提供领域宫之外的语境。
-    STEM_ELEMENTS = {
-        "甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
-        "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水",
-    }
-    day_stem = chart.bazi.pillars.day[0]
-    day_element = STEM_ELEMENTS.get(day_stem, "")
+    # 领域语境锚点：只收紫微口径（命身宫、生年四化、当前大限）。
+    # 八字日主与七政锚点已移除——「紫微批解」的模型输入与证据列表都必须单体系。
     life_palace = next((item for item in chart.ziwei.palaces if item.name == "命宫"), None)
     body_palace = next((item for item in chart.ziwei.palaces if item.is_body_palace), None)
     life_anchor = (
@@ -193,45 +188,12 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
     body_anchor = (
         f"身宫落于{body_palace.name}宫（{body_palace.branch}）" if body_palace else ""
     )
-    daymaster_anchor = f"八字日主为{day_stem}（{day_element}）" if day_element else ""
     mutagen_anchor = (
         "生年四化：" + "、".join(f"{item.star}化{item.mutagen}" for item in chart.ziwei.birth_mutagens)
         if chart.ziwei.birth_mutagens
         else ""
     )
-    traditional = chart.qizheng.traditional
-    qizheng_anchors: list[str] = []
-    if traditional is not None and traditional.bodies:
-        if traditional.life_lord:
-            day_night = (
-                "昼" if traditional.is_day_chart
-                else "夜" if traditional.is_day_chart is False
-                else None
-            )
-            qizheng_anchors.append(
-                "七政四余盘（第三盘）："
-                + (f"{day_night}盘，" if day_night else "")
-                + f"命主{QIZHENG_STAR_NAMES[traditional.life_lord]}（命宫支守护星）、"
-                + f"身主{QIZHENG_STAR_NAMES[traditional.body_lord]}"
-            )
-        dignified = "、".join(
-            f"{QIZHENG_STAR_NAMES[body.body]}{body.dignity}"
-            for body in traditional.bodies if body.dignity
-        )
-        grouped: dict[str, list[str]] = {}
-        for body in traditional.bodies:
-            if body.relation:
-                grouped.setdefault(body.relation, []).append(QIZHENG_STAR_NAMES[body.body])
-        bits = []
-        if dignified:
-            bits.append(f"庙旺：{dignified}")
-        if grouped:
-            bits.append("恩难仇用：" + "，".join(f"{key}星{'、'.join(names)}" for key, names in grouped.items()))
-        if bits:
-            qizheng_anchors.append("七政星曜：" + "；".join(bits))
-        if traditional.verification_status != "verified":
-            qizheng_anchors = [f"{item}（传统层未核验）" for item in qizheng_anchors]
-    # 当前人生阶段锚（治"泛泛一生描述"：让解读聚焦当下大限/行限阶段）。
+    # 当前人生阶段锚（治"泛泛一生描述"：让解读聚焦当下大限阶段）。
     current_stage_anchor = ""
     birth_year = chart.bazi.calculation_datetime.year
     nominal_age = datetime.now(tzone.utc).year - birth_year + 1
@@ -244,24 +206,11 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         stage_bits.append(
             f"紫微大限行{decadal_palace.name}宫（{decadal_palace.decadal_range[0]}-{decadal_palace.decadal_range[1]}岁）"
         )
-    if traditional is not None and traditional.limit_rows:
-        limit_row = next(
-            (row for row in traditional.limit_rows if row.start_age <= nominal_age < row.end_age),
-            None,
-        )
-        if limit_row is not None:
-            palace_label = limit_row.palace if limit_row.palace.endswith("宫") else f"{limit_row.palace}宫"
-            stage_bits.append(
-                f"七政洞微行限在{palace_label}（{limit_row.branch}支，"
-                f"{limit_row.start_age:.0f}-{limit_row.end_age:.0f}岁，{limit_row.segment}段）"
-            )
     if len(stage_bits) > 1:
         current_stage_anchor = (
             "当前人生阶段：" + "，".join(stage_bits) + "。"
             + _life_stage_line(nominal_age, sex_for_rule)
         )
-        if traditional is not None and traditional.verification_status != "verified" and "七政" in current_stage_anchor:
-            current_stage_anchor += "（传统层未核验）"
     buckets = _decadal_buckets(chart.ziwei.palaces, nominal_age)
     decadal_rows = _decadal_fact_rows(buckets)
     contexts: dict[str, AiContextBundle] = {}
@@ -304,20 +253,17 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         trinity_labels = [_label(other) for other in trinity_palaces if other]
         if trinity_labels:
             fact_texts.append(f"该宫三合会照：{'；'.join(trinity_labels)}")
-        # 锚点合并（命宫+身宫一行），为七政三盘联动腾出事实位（上限 12）。
+        # 锚点合并（命宫+身宫一行），保持领域语境为紫微单体系。
         palace_anchors = []
         if life_anchor and body_anchor:
             palace_anchors.append(f"{life_anchor}；{body_anchor}")
         elif life_anchor or body_anchor:
             palace_anchors.append(life_anchor or body_anchor)
-        if daymaster_anchor:
-            palace_anchors.append(daymaster_anchor)
         if current_stage_anchor:
             palace_anchors.append(current_stage_anchor)
         if mutagen_anchor:
             palace_anchors.append(mutagen_anchor)
         fact_texts.extend(palace_anchors)
-        fact_texts.extend(qizheng_anchors)
         fact_texts.extend(decadal_rows)
         bundle = build_signed_context(
             "domain",
@@ -580,7 +526,6 @@ def _daily_ai_context(
     response: DailyTransitResponse,
     context_group: str,
     internal: Any = None,
-    transit_qizheng_fact: str | None = None,
     sex_for_rule: str = "",
 ) -> AiContextBundle | None:
     transit = response.transit
@@ -630,9 +575,8 @@ def _daily_ai_context(
             f"当前{'童限' if decadal.is_childhood else '大限'}{decadal.branch}宫（{decadal.stem}{decadal.branch}，"
             f"{decadal.start_age}-{decadal.end_age}岁），限内四化：{decadal_mutagens}"
         )
-    # period 上下文最多 7 条、两包合并上限 12：daily 已达 8 条时不再追加七政流日。
-    if transit_qizheng_fact and len(texts) < 8:
-        texts.insert(1, transit_qizheng_fact)
+    # 紫微侧流日语境只收紫微术语（宫位/四化/流曜/大限）；七政流日不再混入，
+    # 否则「紫微批解」里会出现另一体系的依据。
     return build_signed_context(
         "fortune",
         [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
@@ -1129,16 +1073,6 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     except ValueError:
         ziwei_yearly = None
     response = DailyTransitResponse(transit=transit, trace_id=str(uuid4()), ziwei_yearly=ziwei_yearly)
-    try:
-        transit_noon = datetime.combine(
-            request.transit_date, dtime(12, 0), tzinfo=tzone(timedelta(hours=8))
-        )
-        sun_mansion, sun_branch, moon_mansion, _moon_branch = sun_moon_mansions(transit_noon)
-        transit_qizheng_fact = (
-            f"七政流日：太阳入{sun_mansion}宿（{sun_branch}宫）、月亮入{moon_mansion}宿（恒星黄道口径）"
-        )
-    except ValueError:
-        transit_qizheng_fact = None
     context_group = _fortune_context_group(
         bazi.calculation_datetime.isoformat(),
         (pillars.year, pillars.month, pillars.day, pillars.hour),
@@ -1148,7 +1082,7 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
     return DailyTransitApiResponse(
         **response.model_dump(),
         ai_context=_daily_ai_context(
-            response, context_group, daily_internal, transit_qizheng_fact, request.birth.sex_for_rule
+            response, context_group, daily_internal, request.birth.sex_for_rule
         ),
         ai_context_bazi=_daily_bazi_ai_context(bazi, response, context_group),
     )

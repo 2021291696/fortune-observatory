@@ -14,7 +14,7 @@ from ai_explainer import (
     build_signed_context,
     verified_reading_context,
 )
-from app import create_daily_transit, create_transit_window
+from app import create_chart, create_daily_transit, create_transit_window
 from fortune_core.models import BirthInput, DailyTransitRequest, TransitWindowRequest
 from reading_agent import build_reading_system
 
@@ -30,6 +30,20 @@ def _birth() -> BirthInput:
         latitude=39.9042,
         sex_for_rule="male",
     )
+
+
+def test_domain_contexts_are_single_system_pure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """领域语境包只收紫微口径：不得混入七政锚点或八字日主锚点。"""
+    monkeypatch.setenv("FORTUNE_AI_CONTEXT_SECRET", SECRET)
+    result = create_chart(_birth())
+    for domain in ("health", "relationship", "career", "wealth"):
+        bundle = result.ai_contexts.get(domain)
+        assert bundle is not None, domain
+        texts = [fact.text for fact in bundle.facts]
+        assert all("七政" not in text for text in texts), (domain, texts)
+        assert all("日主" not in text for text in texts), (domain, texts)
+        # 领域包仍须保留紫微宫位事实（本宫/对宫/三合/大限）。
+        assert any("宫" in text for text in texts), (domain, texts)
 
 
 def test_daily_returns_bazi_context_for_verified_birth(monkeypatch: pytest.MonkeyPatch) -> None:

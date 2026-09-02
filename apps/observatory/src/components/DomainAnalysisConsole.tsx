@@ -5,6 +5,7 @@ import { analysisDomains } from '../types'
 import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
 import { buildDomainNarrative, type NarrativeBlock } from '../readingNarrative'
+import { readingSystemLabels, type ReadingSystem } from '../readingSystem'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
@@ -99,9 +100,10 @@ function buildResult(chart: ChartResponse, domain: AnalysisDomain): DomainResult
   }
 }
 
-export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
+export function DomainAnalysisConsole({ chart, aiOwner, readingSystem, theme, onSave }: {
   chart: ChartResponse
   aiOwner: string
+  readingSystem: ReadingSystem
   theme: ThemeConfig
   onSave: (draft: SaveDraft) => void
 }) {
@@ -145,6 +147,10 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
       chart.ai_contexts.bazi?.token,
     ].filter((token): token is string => Boolean(token)),
   } : null
+  // 全局解读体系偏好：点击领域只渲染选定体系的一张批解卡；
+  // 缓存键仍按体系分开（-zw/-bz），切回来可秒读已生成的那份。
+  const activeSource = readingSystem === 'ziwei' ? ziweiSource : baziSource
+  const activeSuffix = readingSystem === 'ziwei' ? 'zw' : 'bz'
 
   return <section className="analysis-section" id="analysis">
     <div className="domain-console is-ready">
@@ -174,25 +180,20 @@ export function DomainAnalysisConsole({ chart, aiOwner, theme, onSave }: {
       </div>
 
       <div className="domain-output" aria-live="polite">
-        {active === 'chat' && <AiChat chart={chart} aiOwner={aiOwner} />}
+        {active === 'chat' && <AiChat chart={chart} aiOwner={aiOwner} readingSystem={readingSystem} />}
         {!result && active !== 'chat' && <div className="feature-empty"><span>选择一个领域看 AI 解读，或直接和 AI 聊你的盘。</span></div>}
         {result && activeConfig && domainActive && <article className="domain-reading">
           <MemeCompanion theme={theme} />
           <header><span>{activeConfig.label}</span><h3>{result.title}</h3></header>
           <p className="domain-lead">{result.lead}</p>
-          {ziweiSource && activeConfig && <AiExplainPanel
+          {activeSource && activeConfig && <AiExplainPanel
             auto
-            cacheKey={`ai-v11-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}-zw`}
-            heading={`${activeConfig.label} · 紫微批解`}
-            source={ziweiSource}
-            defaultQuestion={`结合紫微斗数命盘，详细批解我的${activeConfig.label}：先给总纲，再按宫、星、四化分节深入，引原典，结尾给「可以先做」与「注意」。`}
-          />}
-          {baziSource && activeConfig && <AiExplainPanel
-            auto
-            cacheKey={`ai-v11-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}-bz`}
-            heading={`${activeConfig.label} · 八字批解`}
-            source={baziSource}
-            defaultQuestion={`结合子平八字命盘，详细批解我的${activeConfig.label}：先给总纲，再按四柱、十神、大运分节深入，引原典，结尾给「可以先做」与「注意」。`}
+            cacheKey={`ai-v11-${aiOwner ?? 'anon'}-${domainActive}-${chart.trace_id}-${activeSuffix}`}
+            heading={`${activeConfig.label} · ${readingSystemLabels[readingSystem]}批解`}
+            source={activeSource}
+            defaultQuestion={readingSystem === 'ziwei'
+              ? `结合紫微斗数命盘，详细批解我的${activeConfig.label}：先给总纲，再按宫、星、四化分节深入，引原典，结尾给「可以先做」与「注意」。`
+              : `结合子平八字命盘，详细批解我的${activeConfig.label}：先给总纲，再按四柱、十神、大运分节深入，引原典，结尾给「可以先做」与「注意」。`}
           />}
           <details className="fact-details"><summary>查看命盘依据与规则建议</summary>
             <p>{result.lead}</p>
@@ -253,18 +254,21 @@ const domainKeywords: Array<[AnalysisDomain, RegExp]> = [
   ['wealth', /财|钱|投资|攒|赚|消费/],
 ]
 
-function pickTokens(question: string, contexts: ChartResponse['ai_contexts']): string[] {
+function pickTokens(question: string, contexts: ChartResponse['ai_contexts'], system: ReadingSystem): string[] {
   const hits = domainKeywords.filter(([, pattern]) => pattern.test(question)).map(([domain]) => domain)
   const chosen: AnalysisDomain[] = hits.length > 0 && hits.length <= 2 ? hits : ['career', 'relationship']
-  // 双体系合参：领域宫事实之外，始终带上紫微全盘与八字四柱大运。
+  // 按解读体系偏好路由：紫微带领域宫+紫微全盘；八字只带四柱大运——
+  // 领域宫事实是紫微宫位口径，八字语境混入会造成术语串门。
+  if (system === 'bazi') {
+    return [contexts.bazi?.token].filter((token): token is string => Boolean(token))
+  }
   return [
     ...chosen.map((domain) => contexts[domain]?.token),
     contexts.ziwei?.token,
-    contexts.bazi?.token,
   ].filter((token): token is string => Boolean(token))
 }
 
-function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
+function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwner: string; readingSystem: ReadingSystem }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadChat(aiOwner))
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -299,7 +303,7 @@ function AiChat({ chart, aiOwner }: { chart: ChartResponse; aiOwner: string }) {
 
   async function send(question: string) {
     const clean = question.trim().slice(0, 300)
-    const tokens = pickTokens(clean, chart.ai_contexts)
+    const tokens = pickTokens(clean, chart.ai_contexts, readingSystem)
     if (!clean || isLoading || !tokens.length) return
     setError(null)
     setInput('')

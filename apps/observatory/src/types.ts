@@ -234,6 +234,8 @@ export type SaveDraft = {
 export type SavedReading = SaveDraft & {
   id: string
   savedAt: string
+  // 保存时的解读体系（解梦不适用）；缺省按紫微处理（拆分上线前的存量收藏）。
+  system?: 'bazi' | 'ziwei'
 }
 
 export type AiFact = { id: string; text: string }

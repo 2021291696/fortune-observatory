@@ -4,6 +4,7 @@ import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, Tr
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
 import { factDomain, plainFactLine } from '../terminology'
+import { readingSystemLabels, type ReadingSystem } from '../readingSystem'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
@@ -68,6 +69,7 @@ const weekdayLabels = ['一', '二', '三', '四', '五', '六', '日']
 type FortuneProps = {
   chartReady: boolean
   aiOwner: string
+  readingSystem: ReadingSystem
   daily: DailyTransitResponse | null
   periods: TransitResponse | null
   windowTransit: TransitWindowResponse | null
@@ -81,7 +83,7 @@ type FortuneProps = {
 }
 
 export function FortuneConsole(props: FortuneProps) {
-  const { chartReady, aiOwner, daily, periods, windowTransit, scope, requestedScope, error, isLoading, theme, onRequest, onSave } = props
+  const { chartReady, aiOwner, readingSystem, daily, periods, windowTransit, scope, requestedScope, error, isLoading, theme, onRequest, onSave } = props
   const selectedLabel = fortuneScopes.find(([key]) => key === scope)?.[1] ?? '今日'
   const requestedLabel = fortuneScopes.find(([key]) => key === requestedScope)?.[1] ?? '今日'
   const windowDays = windowTransit?.transit.daily ?? []
@@ -115,6 +117,10 @@ export function FortuneConsole(props: FortuneProps) {
     facts: daily.ai_context_bazi?.facts ?? [],
     contextTokens: daily.ai_context_bazi ? [daily.ai_context_bazi.token] : [],
   } : null
+
+  // 全局解读体系偏好：只渲染选定体系的一张卡；缓存键仍按体系分开，切回来可秒读。
+  const activeDailyAi = readingSystem === 'ziwei' ? dailyAi : dailyAiBazi
+  const activeDailySuffix = readingSystem === 'ziwei' ? 'zw' : 'bz'
 
   function saveFortune() {
     if (isLoading) return
@@ -161,19 +167,14 @@ export function FortuneConsole(props: FortuneProps) {
             <MemeCompanion theme={theme} />
             <header><div><span>{daily.transit.transit_date}</span><h3>流日 {daily.transit.day_pillar}</h3></div><span className={`day-tone is-${plain.tone}`}>{plain.keyword}</span></header>
             <p className="reading-lead">{plain.line}</p>
-            {dailyAi && <AiExplainPanel
+            {activeDailyAi && <AiExplainPanel
               auto
-              cacheKey={`ai-v11-${aiOwner}-${daily.transit.transit_date}-zw`}
-              heading={`${selectedLabel}运势 · 紫微`}
-              source={dailyAi}
-              defaultQuestion={`结合紫微命盘，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日冲合怎么落到生活节奏、与流年四化和当前大限怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
-            />}
-            {dailyAiBazi && <AiExplainPanel
-              auto
-              cacheKey={`ai-v11-${aiOwner}-${daily.transit.transit_date}-bz`}
-              heading={`${selectedLabel}运势 · 八字`}
-              source={dailyAiBazi}
-              defaultQuestion={`结合子平八字，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日干支与你四柱的刑冲合害怎么落到生活节奏、与大运流年的十神关系怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
+              cacheKey={`ai-v11-${aiOwner}-${daily.transit.transit_date}-${activeDailySuffix}`}
+              heading={`${selectedLabel}运势 · ${readingSystemLabels[readingSystem]}`}
+              source={activeDailyAi}
+              defaultQuestion={readingSystem === 'ziwei'
+                ? `结合紫微命盘，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日冲合怎么落到生活节奏、与流年四化和当前大限怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`
+                : `结合子平八字，详细解读 ${daily.transit.transit_date}（流日${daily.transit.day_pillar}）这一天：流日干支与你四柱的刑冲合害怎么落到生活节奏、与大运流年的十神关系怎么叠加，分节展开，引原典，结尾给「可以先做」与「注意」。`}
             />}
             <details className="fact-details"><summary>查看依据（流年流月流日与冲合明细）</summary>
               <p>{dailyRead}</p>
@@ -190,6 +191,7 @@ export function FortuneConsole(props: FortuneProps) {
             windowTransit={windowTransit}
             todayKey={todayKey}
             aiOwner={aiOwner}
+            readingSystem={readingSystem}
             selectedLabel={selectedLabel}
             onSave={saveFortune}
             isLoading={isLoading}
@@ -200,10 +202,11 @@ export function FortuneConsole(props: FortuneProps) {
   </section>
 }
 
-function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave, isLoading }: {
+function CalendarView({ windowTransit, todayKey, aiOwner, readingSystem, selectedLabel, onSave, isLoading }: {
   windowTransit: TransitWindowResponse
   todayKey: string
   aiOwner: string
+  readingSystem: ReadingSystem
   selectedLabel: string
   onSave: () => void
   isLoading: boolean
@@ -241,6 +244,9 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
     contextTokens: [windowTransit.ai_context_bazi.token],
   } : null
 
+  const activeSelectedAi = readingSystem === 'ziwei' ? selectedAi : selectedAiBazi
+  const activeSelectedSuffix = readingSystem === 'ziwei' ? 'zw' : 'bz'
+
   const clashDays = days.filter((day) => day.facts.filter((f) => f.relation === 'branch_clash').length > day.facts.filter((f) => f.relation === 'branch_combination').length).length
   const smoothDays = days.filter((day) => day.facts.filter((f) => f.relation === 'branch_combination').length > day.facts.filter((f) => f.relation === 'branch_clash').length).length
 
@@ -273,19 +279,14 @@ function CalendarView({ windowTransit, todayKey, aiOwner, selectedLabel, onSave,
           ))}
         </ul>
       )}
-      {selectedAi && <AiExplainPanel
+      {activeSelectedAi && <AiExplainPanel
         auto
-        cacheKey={`ai-v11-${aiOwner}-${selected.transit_date}-zw`}
-        heading={`${selectedLabel} · 紫微`}
-        source={selectedAi}
-        defaultQuestion={`结合紫微命盘，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：当天冲合落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
-      />}
-      {selectedAiBazi && <AiExplainPanel
-        auto
-        cacheKey={`ai-v11-${aiOwner}-${selected.transit_date}-bz`}
-        heading={`${selectedLabel} · 八字`}
-        source={selectedAiBazi}
-        defaultQuestion={`结合子平八字，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：流日干支与你四柱的刑冲合害、与大运流年十神的关系，落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
+        cacheKey={`ai-v11-${aiOwner}-${selected.transit_date}-${activeSelectedSuffix}`}
+        heading={`${selectedLabel} · ${readingSystemLabels[readingSystem]}`}
+        source={activeSelectedAi}
+        defaultQuestion={readingSystem === 'ziwei'
+          ? `结合紫微命盘，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：当天冲合落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`
+          : `结合子平八字，详细解读 ${selected.transit_date}（${selectedLabel}）这一天：流日干支与你四柱的刑冲合害、与大运流年十神的关系，落到哪层生活、这一周怎么安排、哪些不必过度解读，分节展开，结尾给「可以先做」与「注意」。`}
       />}
       <details className="fact-details"><summary>查看依据</summary><p>{selected.facts.length ? selected.facts.map((fact) => `${relationLabels[fact.relation]}：${fact.natal_pillar} / ${fact.transit_pillar}`).join('；') : '该日未检测到已定义的冲合关系。'}</p></details>
     </div>}
