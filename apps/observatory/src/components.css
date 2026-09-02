@@ -333,6 +333,8 @@
   .fortune-reading { position: relative; }
   .fortune-reading > header { padding-right: 100px; }
   .result-header { position: relative; padding-right: 100px; }
+  /* 锚点：meme-companion 是 absolute，缺了这个会飞出卡片压到别的内容。 */
+  .domain-reading { position: relative; }
   .domain-reading > header { position: relative; padding-right: 100px; }
   .verification-badge { width: max-content; }
   .board-row { grid-template-columns: 52px repeat(4, minmax(0, 1fr)); }
