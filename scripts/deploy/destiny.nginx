@@ -10,7 +10,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         # AI 讲解接口耗时较长（超时 40s 量级），放宽读超时
-        proxy_read_timeout 120s;
+        proxy_read_timeout 300s;
         client_max_body_size 2m;
     }
 }
