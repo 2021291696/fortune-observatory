@@ -65,17 +65,28 @@ export function estimatedProgress(elapsedMs: number): number {
   return Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000))))
 }
 
+// 思考期文案：进度未封顶时报百分比；封顶后（长思考）改报已用时——
+// 百分比纹丝不动会让用户以为卡死，秒数在走才说明模型还在工作。
+export function aiThinkingLabel(progress: number, elapsedMs: number): string {
+  if (progress >= 96) return `AI 正在梳理命盘依据… 已用时 ${Math.max(1, Math.round(elapsedMs / 1000))} 秒`
+  return `AI 正在结合你的盘思考… ${progress}%`
+}
+
 const noopSubscribe = () => () => {}
 const emptySnapshot: StreamSnapshot = { text: '', phase: 'idle', startedAt: 0 }
 
 // 行内 **加粗** 转 strong（模型爱用 Markdown 加粗，正文直排时不能漏星号）。
+// 流式尾部允许"加粗未闭合"：奇数个 ** 时最后一段直接按加粗渲染，
+// 避免闭合前星号裸显、闭合瞬间又突变加粗的闪烁。
 function InlineText({ text }: { text: string }) {
   const parts = text.split('**')
   if (parts.length === 1) return <>{text}</>
+  const unclosedTail = parts.length % 2 === 0
   return <>
-    {parts.map((part, index) => index % 2 === 1
-      ? <strong key={index}>{part}</strong>
-      : <span key={index}>{part}</span>)}
+    {parts.map((part, index) => {
+      const bold = index % 2 === 1 || (unclosedTail && index === parts.length - 1)
+      return bold ? <strong key={index}>{part}</strong> : <span key={index}>{part}</span>
+    })}
   </>
 }
 
@@ -136,11 +147,13 @@ export function AiExplainPanel({
   const [cachedText, setCachedText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState(0)
+  const [thinkingMs, setThinkingMs] = useState(0)
   // 进度条可见性：思考期常显；正文首字到达时冲到 100%，短暂停留后让位给流式正文。
   const [progressVisible, setProgressVisible] = useState(false)
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
   const generationId = useRef(0)
+  const answerRef = useRef<HTMLElement | null>(null)
 
   const snapshot: StreamSnapshot | null = useSyncExternalStore(
     stream ? stream.subscribe : noopSubscribe,
@@ -152,10 +165,13 @@ export function AiExplainPanel({
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
     setProgress(estimatedProgress(Date.now() - startedAt))
+    setThinkingMs(Date.now() - startedAt)
     setProgressVisible(true)
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = window.setInterval(() => {
-      setProgress(estimatedProgress(Date.now() - startedAt))
+      const elapsedMs = Date.now() - startedAt
+      setProgress(estimatedProgress(elapsedMs))
+      setThinkingMs(elapsedMs)
     }, 150)
   }
 
@@ -175,6 +191,7 @@ export function AiExplainPanel({
     setCachedText(null)
     setError(null)
     setProgress(0)
+    setThinkingMs(0)
     setProgressVisible(false)
     setFollowUp(false)
     setFollowUpText('')
@@ -197,6 +214,7 @@ export function AiExplainPanel({
       finishProgress()
       setProgressVisible(false)
       setProgress(0)
+      setThinkingMs(0)
     }
   }, [phase])
 
@@ -302,6 +320,18 @@ export function AiExplainPanel({
   const hasText = Boolean(streamText || cachedText)
   const bodyText = streamText ?? cachedText ?? ''
 
+  // 流式滚动跟随：正文底缘刚滑出视口下沿时把页面轻轻下推，保证"字在往外
+  // 蹦"始终可见；用户向上回读后底缘远离视口，就不再打扰。
+  useEffect(() => {
+    if (!isStreaming || !streamText) return
+    const el = answerRef.current
+    if (!el) return
+    const overflow = el.getBoundingClientRect().bottom - window.innerHeight
+    if (overflow > 0 && overflow < 140) {
+      window.scrollBy({ top: overflow + 24, behavior: 'auto' })
+    }
+  }, [streamText, isStreaming])
+
   return <section className="ai-explain-panel" aria-label={auto ? heading : '可选 AI 讲解'}>
     {!auto && <div className="ai-explain-intro">
       <div>
@@ -332,13 +362,13 @@ export function AiExplainPanel({
         {!followUp && !isStreaming && phase === 'done' && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setFollowUpText(''); setQuestion(defaultQuestion) }}>换个问题追问 AI</button>}
         {!followUp && !isStreaming && phase === 'error' && <button type="button" className="ai-followup-toggle" onClick={() => { setStream(null); generateManual() }}>重新生成讲解</button>}
 
-        {(isThinking || progressVisible) && <div className="ai-progress" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+        {(isThinking || progressVisible) && <div className="ai-progress" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
-          <span>{progress >= 100 ? '开始输出' : `AI 正在结合你的盘思考… ${progress}%`}</span>
+          <span>{progress >= 100 ? '开始输出' : aiThinkingLabel(progress, thinkingMs)}</span>
         </div>}
 
         {error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
-        {bodyText && <article className="ai-answer">
+        {bodyText && <article className="ai-answer" ref={answerRef}>
           <header><CheckCircle size={21} weight="fill" /><div><strong>{heading}</strong></div>{isStreaming && <SpinnerGap className="spin" size={16} />}</header>
           {lists
             ? <ReadingBody text={bodyText} />

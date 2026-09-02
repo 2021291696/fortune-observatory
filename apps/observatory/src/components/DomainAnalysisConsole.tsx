@@ -6,7 +6,7 @@ import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
 import { buildDomainNarrative, type NarrativeBlock } from '../readingNarrative'
 import { readingSystemLabels, type ReadingSystem } from '../readingSystem'
-import { AiExplainPanel } from './AiExplainPanel'
+import { AiExplainPanel, aiThinkingLabel, ReadingBody } from './AiExplainPanel'
 import { MemeCompanion } from './MemeCompanion'
 
 type DomainResult = {
@@ -273,17 +273,32 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [thinkingMs, setThinkingMs] = useState(0)
+  // 流式中的回复：null = 还在思考（没有正文），string = 逐字渲染中。
+  const [streamText, setStreamText] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
   const progressTimer = useRef<number | null>(null)
+  const answerRef = useRef('')
+  const rafRef = useRef<number | null>(null)
+  // 用户上滚回读时暂停吸底，滚回底部附近自动恢复。
+  const stickBottomRef = useRef(true)
   const hasAnyToken = Object.values(chart.ai_contexts).some((bundle) => bundle.token)
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, isLoading])
 
+  // 流式期间吸底跟随：用瞬时滚动（smooth 动画跟不上逐字速度）。
+  useEffect(() => {
+    if (streamText === null || !stickBottomRef.current) return
+    const el = listRef.current
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
+  }, [streamText])
+
   useEffect(() => () => {
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
+    if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current)
   }, [])
 
   function startChatProgress() {
@@ -291,7 +306,9 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
     const startedAt = Date.now()
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = window.setInterval(() => {
-      setProgress(Math.min(96, Math.round(100 * (1 - Math.exp(-(Date.now() - startedAt) / 7000)))))
+      const elapsedMs = Date.now() - startedAt
+      setProgress(Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000)))))
+      setThinkingMs(elapsedMs)
     }, 150)
   }
 
@@ -299,6 +316,17 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
     if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
     progressTimer.current = null
     setProgress(100)
+  }
+
+  // delta 合帧：一帧最多 setState 一次，长回复高频 delta 不拖垮渲染。
+  function appendDelta(text: string) {
+    answerRef.current += text
+    if (rafRef.current === null) {
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null
+        setStreamText(answerRef.current)
+      })
+    }
   }
 
   async function send(question: string) {
@@ -311,6 +339,8 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
     const history = [...messages, userMessage].slice(-12).map((item) => ({ role: item.role, text: item.text.slice(0, 600) }))
     setMessages((current) => [...current, userMessage])
     setIsLoading(true)
+    stickBottomRef.current = true
+    answerRef.current = ''
     startChatProgress()
     try {
       const response = await fetch(`${API_BASE}/v1/ai/reading`, {
@@ -330,7 +360,6 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
-      let answerText = ''
       let streamError: string | null = null
       while (true) {
         const { done, value } = await reader.read()
@@ -351,15 +380,15 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
             event = null
           }
           if (!event) continue
-          if (event.type === 'delta' && typeof event.text === 'string') answerText += event.text
+          if (event.type === 'delta' && typeof event.text === 'string') appendDelta(event.text)
           if (event.type === 'error') streamError = typeof event.detail === 'string' ? event.detail : 'AI 这次没有回复。'
         }
       }
       if (streamError) throw new Error(streamError)
-      if (!answerText.trim()) throw new Error('AI 回复为空，请重试。')
+      if (!answerRef.current.trim()) throw new Error('AI 回复为空，请重试。')
       const assistantMessage: ChatMessage = {
         role: 'assistant',
-        text: answerText,
+        text: answerRef.current,
         ts: Date.now(),
       }
       const next = [...messages, userMessage, assistantMessage]
@@ -369,6 +398,12 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
       setError(reason instanceof Error ? reason.message : 'AI 这次没有回复。')
       setMessages((current) => current.filter((item) => item.ts !== userMessage.ts))
     } finally {
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+      setStreamText(null)
+      answerRef.current = ''
       finishChatProgress()
       setIsLoading(false)
     }
@@ -384,7 +419,14 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
   }
 
   return <div className="ai-chat">
-    <div className="chat-list" ref={listRef} aria-label="与 AI 的对话">
+    <div
+      className="chat-list" ref={listRef}
+      aria-label="与 AI 的对话"
+      onScroll={() => {
+        const el = listRef.current
+        if (el) stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48
+      }}
+    >
       {messages.length === 0 && <div className="chat-empty">
         <ChatCircleDots size={34} weight="bold" />
         <div><strong>和 AI 聊聊你的盘</strong><p>每轮回答都基于你命盘的核验事实；对话记录只存在这台设备上。</p></div>
@@ -392,16 +434,20 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
       </div>}
       {messages.map((message) => message.role === 'user'
         ? <div className="chat-msg is-user" key={message.ts}><p>{message.text}</p></div>
-        : <div className="chat-msg is-assistant" key={message.ts}>
-            <p>{message.text}</p>
+        : <div className="chat-msg is-assistant is-doc" key={message.ts}>
+            <ReadingBody text={message.text} />
             {message.actions && message.actions.length > 0 && <ul>{message.actions.map((action) => <li key={action}>{action}</li>)}</ul>}
           </div>)}
-      {isLoading && <div className="chat-msg is-assistant is-typing" role="status" aria-label={`AI 正在思考，进度 ${progress}%`}>
+      {isLoading && streamText !== null && <div className="chat-msg is-assistant is-doc is-streaming">
+        <ReadingBody text={streamText} />
+        <p className="chat-writing" aria-live="polite" role="status"><SpinnerGap className="spin" size={14} /> 生成中…</p>
+      </div>}
+      {isLoading && streamText === null && <div className="chat-msg is-assistant is-typing" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>
         <SpinnerGap className="spin" size={18} />
-        <span>AI 正在结合你的盘思考… {progress}%</span>
+        <span>{aiThinkingLabel(progress, thinkingMs)}</span>
         <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
       </div>}
-      {error && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
+      {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
     </div>
     <form className="chat-input" onSubmit={submit}>
       <textarea

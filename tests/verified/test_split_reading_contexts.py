@@ -85,6 +85,21 @@ def test_single_core_context_combination_is_allowed(monkeypatch: pytest.MonkeyPa
     assert facts
 
 
+def test_two_domain_bundles_plus_ziwei_pass_verification(monkeypatch: pytest.MonkeyPatch) -> None:
+    """回归：双领域合参（姻缘+财运+紫微全盘）不得因 fact id 撞号被拒。"""
+    monkeypatch.setenv("FORTUNE_AI_CONTEXT_SECRET", SECRET)
+    result = create_chart(_birth())
+    contexts = result.ai_contexts
+    tokens = [contexts[domain].token for domain in ("relationship", "wealth") if contexts.get(domain)]
+    tokens.append(contexts["ziwei"].token)
+    assert len(tokens) == 3
+    request = AiExplainRequest(question="姻缘和财运都讲讲", context_tokens=tokens)
+    facts, bundle_types = verified_reading_context(request, SECRET.encode())
+    assert bundle_types == {"domain.relationship", "domain.wealth", "ziwei.chart"}
+    ids = [fact.id for fact in facts]
+    assert len(ids) == len(set(ids)), "fact id 必须全局唯一（领域前缀）"
+
+
 def test_single_bazi_context_alone_is_allowed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("FORTUNE_AI_CONTEXT_SECRET", SECRET)
     bazi = build_signed_context(

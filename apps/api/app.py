@@ -265,9 +265,10 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
             palace_anchors.append(mutagen_anchor)
         fact_texts.extend(palace_anchors)
         fact_texts.extend(decadal_rows)
+        # ID 带领域前缀：两个领域包合参（如「姻缘+财运」一问）时 fact id 不得串号。
         bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"domain-{index + 1}", text=text) for index, text in enumerate(fact_texts[:24])],
+            [AiFact(id=f"domain-{domain}-{index + 1}", text=text) for index, text in enumerate(fact_texts[:24])],
             bundle_type=f"domain.{domain}",
             context_group=chart.trace_id,
         )

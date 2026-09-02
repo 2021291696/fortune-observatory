@@ -18,6 +18,8 @@ type StreamEntry = {
   snapshot: StreamSnapshot
   listeners: Set<() => void>
   controller: AbortController
+  // delta 的渲染合帧：一帧最多通知一次订阅者，收尾事件绕过合帧立即通知。
+  frame: number | null
 }
 
 const inflight = new Map<string, StreamEntry>()
@@ -30,10 +32,26 @@ function emit(entry: StreamEntry) {
   entry.listeners.forEach((listener) => listener())
 }
 
+function scheduleEmit(entry: StreamEntry) {
+  if (entry.frame !== null) return
+  entry.frame = window.requestAnimationFrame(() => {
+    entry.frame = null
+    emit(entry)
+  })
+}
+
+function flushEmit(entry: StreamEntry) {
+  if (entry.frame !== null) {
+    window.cancelAnimationFrame(entry.frame)
+    entry.frame = null
+  }
+  emit(entry)
+}
+
 function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown; detail?: unknown; sources?: unknown }) {
   if (event.type === 'delta' && typeof event.text === 'string') {
     entry.snapshot = { ...entry.snapshot, text: entry.snapshot.text + event.text, phase: 'streaming' }
-    emit(entry)
+    scheduleEmit(entry)
     return
   }
   if (event.type === 'done') {
@@ -43,14 +61,14 @@ function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown
       )
       : undefined
     entry.snapshot = { ...entry.snapshot, phase: 'done', sources }
-    emit(entry)
+    flushEmit(entry)
     inflight.delete(snapshotCacheKeyOf(entry))
     return
   }
   if (event.type === 'error') {
     const detail = typeof event.detail === 'string' ? event.detail.slice(0, 180) : 'AI 解读这次没有生成，请稍后重试。'
     entry.snapshot = { ...entry.snapshot, phase: 'error', error: detail }
-    emit(entry)
+    flushEmit(entry)
     inflight.delete(snapshotCacheKeyOf(entry))
   }
 }
@@ -76,7 +94,7 @@ async function run(entry: StreamEntry, key: string, endpoint: string, body: unkn
         ? String((payload as { detail?: unknown }).detail).slice(0, 180)
         : 'AI 解读这次没有生成，请稍后重试。'
       entry.snapshot = { ...entry.snapshot, phase: 'error', error: detail }
-      emit(entry)
+      flushEmit(entry)
       return
     }
     if (!response.body) throw new Error('当前浏览器不支持流式读取。')
@@ -104,7 +122,7 @@ async function run(entry: StreamEntry, key: string, endpoint: string, body: unkn
     }
     if (entry.snapshot.phase !== 'done' && entry.snapshot.phase !== 'error') {
       entry.snapshot = { ...entry.snapshot, phase: 'error', error: '连接中断，请重试。' }
-      emit(entry)
+      flushEmit(entry)
     }
   } catch (reason) {
     if (entry.controller.signal.aborted) return
@@ -113,8 +131,12 @@ async function run(entry: StreamEntry, key: string, endpoint: string, body: unkn
       phase: 'error',
       error: reason instanceof Error ? reason.message.slice(0, 180) : 'AI 解读这次没有生成，请稍后重试。',
     }
-    emit(entry)
+    flushEmit(entry)
   } finally {
+    if (entry.frame !== null) {
+      window.cancelAnimationFrame(entry.frame)
+      entry.frame = null
+    }
     if (inflight.get(key) === entry) inflight.delete(key)
   }
 }
@@ -133,6 +155,7 @@ export function joinStream(key: string, endpoint: string, body: unknown): Stream
     snapshot: { text: '', phase: 'thinking', startedAt: Date.now() },
     listeners: new Set(),
     controller: new AbortController(),
+    frame: null,
   }
   entryKeys.set(entry, key)
   inflight.set(key, entry)
