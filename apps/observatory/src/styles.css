@@ -15,11 +15,23 @@
   --soft-line: rgba(17,17,17,.14);
   --shadow: 0 8px 0 rgba(17,17,17,.12);
   --radius: 14px;
+  /* 阅读字体：霞鹜文楷（GB 屏显版），缺字回退系统楷体 */
+  --font-read: 'LXGW WenKai GB Screen', 'STKaiti', 'KaiTi', 'Microsoft YaHei UI', serif;
 }
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 76px; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--paper); }
+/* 纸纹噪点：固定层、不吃事件，2.8% 透明度消除纯平面的"数字感" */
+body::after {
+  content: '';
+  position: fixed;
+  z-index: 2000;
+  inset: 0;
+  pointer-events: none;
+  opacity: .028;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 body, button, input, select, textarea { font: inherit; }
 button, input, select, textarea, summary, a { -webkit-tap-highlight-color: transparent; }
 button, summary { cursor: pointer; }

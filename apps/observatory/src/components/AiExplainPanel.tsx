@@ -411,7 +411,8 @@ export function AiExplainPanel({
 
         {error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {bodyText && <article className="ai-answer" ref={answerRef}>
-          <header><CheckCircle size={21} weight="fill" /><div><strong>{heading}</strong></div>{isStreaming && <SpinnerGap className="spin" size={16} />}</header>
+          {/* auto 场景标题已在 ai-auto-head 出现过，这里只留核验信号，避免同一行字出现两遍 */}
+          <header><CheckCircle size={21} weight="fill" /><div><strong>{auto ? '已核验 · 结合盘面事实' : heading}</strong></div>{isStreaming && <SpinnerGap className="spin" size={16} />}</header>
           {lists
             ? <ReadingBody text={bodyText} />
             : bodyText.split(/\n{2,}/).map((paragraph, index) => <p key={index}>{paragraph}</p>)}

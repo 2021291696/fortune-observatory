@@ -7,6 +7,9 @@ import type { SaveDraft } from '../types'
 const noopSubscribe = () => () => {}
 const emptySnapshot: StreamSnapshot = { text: '', displayText: '', thinkText: '', phase: 'idle', startedAt: 0 }
 
+// 空态引导：一键填入的示例梦，降低"不知道写什么"的起步门槛。
+const DREAM_EXAMPLES = ['梦见一条蛇钻进怀里', '梦见牙齿掉了几颗', '梦见自己在天上飞', '梦见大水漫过脚面']
+
 export function DreamConsole({ onSave }: {
   onSave: (draft: SaveDraft) => void
 }) {
@@ -101,6 +104,12 @@ export function DreamConsole({ onSave }: {
             placeholder="发生了什么、中间怎么转、有没有做完。"
           />
         </label>
+        <div className="dream-examples">
+          <span>试试：</span>
+          {DREAM_EXAMPLES.map((example) => (
+            <button key={example} type="button" disabled={busy} onClick={() => setDream(example)}>{example}</button>
+          ))}
+        </div>
         {(phase === 'thinking' || progressVisible) && <div className="ai-progress" role="status" aria-live="polite">
           <span>{progress >= 100 ? '开始输出' : `AI 正在结合梦书思考… ${progress}%`}</span>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>

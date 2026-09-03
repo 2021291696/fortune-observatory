@@ -24,7 +24,7 @@
   pointer-events: none;
 }
 .chart-result:hover, .domain-console:hover, .fortune-console:hover, .dream-console:hover {
-  transform: translateY(-2px);
+  /* 大阅读卡不做位移 hover——正文阅读时鼠标划过就跳动很晃眼，只加深阴影 */
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.95),
     inset 0 0 0 1px rgba(255,255,255,.28),
@@ -63,7 +63,7 @@
 .board-head b { color: var(--muted); font-size: 11px; font-weight: 900; letter-spacing: .05em; }
 .board-row > b { font-size: 13px; font-weight: 800; }
 .board-row > b.is-daymaster { color: #fff; background: var(--ink); border-radius: 8px; padding: 4px 8px; width: max-content; margin: 0 auto; }
-.gan-zhi { display: inline-grid; place-items: center; justify-self: center; width: clamp(44px, 4.6vw, 58px); height: clamp(44px, 4.6vw, 58px); border: 2px solid currentColor; border-radius: 12px; background: color-mix(in srgb, currentColor 9%, #fff); font-family: 'STKaiti', 'KaiTi', serif; font-size: clamp(26px, 3vw, 36px); font-weight: 700; }
+.gan-zhi { display: inline-grid; place-items: center; justify-self: center; width: clamp(44px, 4.6vw, 58px); height: clamp(44px, 4.6vw, 58px); border: 2px solid currentColor; border-radius: 12px; background: color-mix(in srgb, currentColor 9%, #fff); font-family: var(--font-read); font-size: clamp(26px, 3vw, 36px); font-weight: 700; }
 .board-zhi .gan-zhi { border-radius: 50% 46% 50% 46%; }
 .hidden-stack { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .hidden-stack i { display: inline-flex; align-items: center; gap: 4px; padding: 2px 7px; border-radius: 7px; background: color-mix(in srgb, currentColor 9%, #fff); font-size: 13px; font-style: normal; font-weight: 750; }
@@ -76,7 +76,7 @@
 .dayun-label { display: grid; place-content: center; text-align: center; color: var(--accent); font-size: 12px; font-weight: 900; line-height: 1.5; background: rgba(255,255,255,.5); }
 .dayun-cell { display: grid; justify-items: center; gap: 2px; padding: 8px 2px; background: rgba(255,255,255,.42); }
 .dayun-cell small { color: var(--muted); font-size: 9px; font-weight: 750; }
-.dayun-cell b { font-family: 'STKaiti', 'KaiTi', serif; font-size: 21px; font-weight: 700; letter-spacing: .04em; }
+.dayun-cell b { font-family: var(--font-read); font-size: 21px; font-weight: 700; letter-spacing: .04em; }
 .dayun-cell b > span + span { margin-left: 2px; }
 .result-summary { display: grid; grid-template-columns: 1fr 1fr; }
 .result-fact { padding: 20px 28px; }
@@ -170,12 +170,13 @@
 .feature-empty p { margin: 5px 0 0; font-size: 12px; }
 .domain-reading { padding: clamp(28px, 4vw, 48px); }
 .domain-reading > header span { color: var(--accent); font-size: 12px; font-weight: 900; letter-spacing: .09em; }
-.domain-reading h3 { margin: 8px 0 0; font-size: clamp(27px, 3.6vw, 42px); letter-spacing: -.045em; }
-.domain-lead { max-width: 900px; margin: 24px 0; font-size: clamp(16px, 2vw, 21px); line-height: 1.75; font-weight: 650; }
-.domain-interpretation { display: grid; grid-template-columns: 90px 1fr; gap: 18px; padding: 20px 0; border-block: 1px solid var(--soft-line); }
+.domain-reading h3 { margin: 8px 0 0; font-size: clamp(27px, 3.6vw, 42px); letter-spacing: -.045em; font-family: var(--font-read); font-weight: 800; }
+/* 阅读列宽：汉字正文 38-42 字/行最舒适，压住长文在宽卡里拉满的问题 */
+.domain-lead { max-width: 42em; margin: 24px 0; font-size: clamp(16px, 2vw, 20px); line-height: 1.85; font-weight: 650; font-family: var(--font-read); }
+.domain-interpretation { display: grid; grid-template-columns: 90px 1fr; gap: 18px; padding: 20px 0; border-block: 1px solid var(--soft-line); max-width: 46em; }
 .domain-interpretation span { color: var(--accent); font-size: 11px; font-weight: 900; }
-.domain-interpretation p { margin: 0; color: var(--muted); line-height: 1.7; }
-.domain-reading blockquote { margin: 24px 0; padding: 21px 24px; border: 1px solid var(--soft-line); border-radius: 12px; background: color-mix(in srgb, var(--wash) 22%, #fff); box-shadow: inset 0 3px 0 var(--accent); font-size: 14px; line-height: 1.7; }
+.domain-interpretation p { margin: 0; color: var(--muted); line-height: 1.8; font-size: 13.5px; }
+.domain-reading blockquote { margin: 24px 0; max-width: 46em; padding: 21px 24px; border: 1px solid var(--soft-line); border-radius: 12px; background: color-mix(in srgb, var(--wash) 22%, #fff); box-shadow: inset 0 3px 0 var(--accent); font-size: 14.5px; line-height: 1.9; font-family: var(--font-read); }
 .domain-reading blockquote span { display: block; margin-bottom: 5px; color: var(--accent); font-size: 10px; font-weight: 900; }
 .domain-disclaimer { color: #9c2d24; font-size: 10px; font-weight: 750; }
 .domain-reading > footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; margin-top: 24px; }
@@ -208,16 +209,16 @@
 .fortune-reading { padding: clamp(28px, 4.5vw, 52px); }
 .fortune-reading > header { display: flex; justify-content: space-between; gap: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--soft-line); }
 .fortune-reading > header span { color: var(--muted); font-size: 12px; font-weight: 750; }
-.fortune-reading > header h3 { margin: 6px 0 0; font-size: clamp(27px, 4vw, 45px); letter-spacing: -.04em; }
+.fortune-reading > header h3 { margin: 6px 0 0; font-size: clamp(27px, 4vw, 45px); letter-spacing: -.04em; color: var(--ink); font-family: var(--font-read); font-weight: 800; }
 .fortune-reading > header em { height: max-content; padding: 6px 9px; border: 1px solid var(--soft-line); border-radius: 999px; font-size: 10px; font-style: normal; font-weight: 800; }
-.reading-lead { max-width: 900px; margin: 24px 0; font-size: clamp(16px, 2vw, 21px); line-height: 1.7; font-weight: 650; }
+.reading-lead { max-width: 42em; margin: 24px 0; font-size: clamp(16px, 2vw, 20px); line-height: 1.85; font-weight: 650; font-family: var(--font-read); }
 .fortune-layers { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--soft-line); border-radius: 12px; overflow: hidden; }
 .fortune-layers > span { min-width: 0; min-height: 90px; display: grid; align-content: center; gap: 5px; padding: 14px; border-right: 1px solid var(--soft-line); }
 .fortune-layers > span:last-child { border-right: 0; }
 .fortune-layers small { color: var(--muted); font-size: 10px; }
 .fortune-layers b { font-size: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fortune-layers i { color: var(--accent); font-size: 10px; font-style: normal; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fortune-fact-lines { margin: 0 0 18px; padding-left: 1.2em; color: var(--ink); font-size: 14px; line-height: 1.7; }
+.fortune-fact-lines { margin: 0 0 18px; max-width: 42em; padding-left: 1.2em; color: var(--ink); font-size: 14px; line-height: 1.8; font-family: var(--font-read); }
 .fortune-fact-lines li { margin: 0 0 6px; }
 .fortune-insights { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 10px; }
 .yearly-ziwei { display: grid; gap: 6px; margin: -8px 0 18px; padding: 12px 14px; border: 1px solid var(--soft-line); border-radius: 12px; background: color-mix(in srgb, var(--wash) 16%, #fff); }
@@ -271,16 +272,17 @@
 .ai-inline-error > div > button { min-height: 44px; margin-top: 8px; padding: 0 11px; border: 1px solid var(--ink); border-radius: 8px; color: var(--ink); background: #fff; font-size: 11px; font-weight: 850; }
 .ai-answer-error { display: flex; align-items: flex-start; gap: 7px; margin: 14px 0 0; color: #9c2d24; font-size: 11px; line-height: 1.55; }
 .ai-answer-error svg { flex: 0 0 auto; }
-.ai-answer { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--soft-line); }
-.ai-answer > header { display: flex; align-items: center; gap: 9px; }
+.ai-answer { margin-top: 18px; max-width: 46em; padding-top: 18px; border-top: 1px solid var(--soft-line); font-family: var(--font-read); }
+.ai-answer > header { display: flex; align-items: center; gap: 9px; font-family: 'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif; }
 .ai-answer > header svg { color: #08743d; }
 .ai-answer > header div { display: grid; gap: 1px; }
 .ai-answer > header span { color: var(--muted); font-size: 9px; font-weight: 750; }
 .ai-answer > header strong { font-size: 14px; }
-.ai-answer > p { margin: 14px 0; font-size: 14px; line-height: 1.75; }
+.ai-answer > p { margin: 0 0 1.05em; font-size: 15.5px; line-height: 1.92; }
+.ai-answer > p:last-of-type { margin-bottom: 0; }
 .ai-answer > div { margin-top: 14px; }
-.ai-answer > div > strong { color: var(--accent); font-size: 11px; }
-.ai-answer ul { margin: 7px 0 0; padding-left: 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.ai-answer > div > strong { color: var(--accent); font-size: 12px; }
+.ai-answer ul { margin: 7px 0 14px; padding-left: 20px; color: var(--ink); font-size: 13.5px; line-height: 1.8; }
 .ai-caveats { padding: 12px 14px; border-left: 3px solid #e2a100; background: #fff8de; }
 .ai-answer details { margin-top: 15px; border-top: 1px solid var(--soft-line); }
 .ai-answer summary { min-height: 44px; display: flex; align-items: center; color: var(--muted); font-size: 10px; font-weight: 850; }
@@ -383,7 +385,7 @@
 }
 
 /* Daily plain-language tone chips */
-.day-tone { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 850; }
+.day-tone { display: inline-flex; align-items: center; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 800; letter-spacing: .02em; }
 .day-tone.is-tension { color: #9c2d24; background: #ffe3e6; }
 .day-tone.is-support { color: #08743d; background: #dff5e7; }
 .day-tone.is-neutral { color: #6b5b1e; background: #fff3c7; }
@@ -428,7 +430,7 @@
 .ai-auto-head > small { color: var(--muted); font-size: 10px; }
 .essay-block + .essay-block { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--soft-line); }
 .essay-block h3 { margin: 0 0 8px; color: var(--accent); font-size: 12px; font-weight: 900; }
-.essay-block p { margin: 14px 0; font-size: 14px; line-height: 1.75; }
+.essay-block p { margin: 12px 0 16px; max-width: 46em; font-size: 15.5px; line-height: 1.92; font-family: var(--font-read); }
 .domain-essay .ai-answer-error { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ai-followup-toggle { min-height: 44px; padding: 0 12px; border: 1px dashed var(--soft-line); border-radius: 9px; color: var(--accent); background: #fff; font-size: 11px; font-weight: 850; }
 .ai-followup-toggle:hover { border-color: var(--accent); border-style: solid; }
@@ -443,7 +445,7 @@
 .chat-quick { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; margin-top: 6px; }
 .chat-quick button { min-height: 44px; padding: 6px 13px; border: 1px dashed var(--soft-line); border-radius: 999px; color: var(--accent); background: #fff; font-size: 11px; font-weight: 750; }
 .chat-quick button:hover { border-style: solid; border-color: var(--accent); }
-.chat-msg { max-width: 86%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.7; }
+.chat-msg { max-width: 86%; padding: 10px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.85; font-family: var(--font-read); }
 .chat-msg.is-user { justify-self: end; color: #fff; background: var(--accent); border-bottom-right-radius: 4px; }
 .chat-msg.is-user p { margin: 0; }
 .chat-msg.is-assistant { justify-self: start; border: 1px solid var(--soft-line); background: var(--paper); border-bottom-left-radius: 4px; }
@@ -455,7 +457,7 @@
 .think-trace { border: 1px dashed var(--soft-line); border-radius: 10px; overflow: hidden; }
 .think-trace > button { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; border: 0; background: color-mix(in srgb, var(--wash) 40%, #fff); color: var(--accent); font-size: 11px; font-weight: 800; text-align: left; }
 .think-trace > button span:last-child { color: var(--muted); }
-.think-body { max-height: 220px; overflow-y: auto; padding: 9px 11px; border-top: 1px dashed var(--soft-line); color: var(--muted); font-size: 12px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
+.think-body { max-height: 220px; overflow-y: auto; padding: 9px 11px; border-top: 1px dashed var(--soft-line); color: var(--muted); font-size: 12.5px; line-height: 1.75; font-family: var(--font-read); white-space: pre-wrap; word-break: break-word; }
 /* Markdown 回复气泡（流式生成中与落定消息共用）：多段落间距，列表回到正文字号。 */
 .chat-msg.is-doc { display: grid; gap: 8px; align-content: start; }
 .chat-msg.is-doc p { margin: 0; }
@@ -476,7 +478,11 @@
 .is-typing .ai-progress-line { height: 5px; margin-top: 4px; width: 100%; }
 
 .dream-composer, .dream-result { margin: 0; padding: 22px 26px; }
-.dream-result { border-top: 1px solid var(--soft-line); }
+.dream-result { border-top: 1px solid var(--soft-line); font-family: var(--font-read); }
+.dream-result h2 { font-family: 'Microsoft YaHei UI', 'PingFang SC', system-ui, sans-serif; }
+.dream-examples { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin: 0 0 4px; color: var(--muted); font-size: 11px; font-weight: 750; }
+.dream-examples button { min-height: 36px; padding: 4px 12px; border: 1px dashed var(--soft-line); border-radius: 999px; color: var(--muted); background: transparent; font-size: 11px; font-weight: 750; transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
+.dream-examples button:hover:not(:disabled) { border-style: solid; border-color: var(--accent); color: var(--accent); background: #fff; }
 .dream-composer label { display: grid; gap: 6px; margin: 0 0 12px; font-size: 13px; font-weight: 750; }
 .dream-composer textarea, .dream-questions input {
   width: 100%;
@@ -496,14 +502,18 @@
 .dream-composer > button, .dream-result > button, .dream-error button {
   min-height: 44px;
   margin-top: 8px;
-  padding: 0 14px;
-  border: 1px solid rgba(17,17,17,.42);
+  padding: 0 18px;
+  border: 0;
   border-radius: 9px;
-  color: var(--ink);
-  background: transparent;
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--accent) 55%, #071b54);
   font-size: 13px;
   font-weight: 850;
+  transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
 }
+.dream-composer > button:hover:not(:disabled), .dream-result > button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 55%, #071b54); }
+.dream-composer > button:active:not(:disabled), .dream-result > button:active:not(:disabled) { transform: translateY(1px); box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 55%, #071b54); }
 .dream-result dl { display: grid; grid-template-columns: 64px 1fr; gap: 6px 12px; margin: 14px 0; }
 .dream-result dt { color: var(--accent); font-size: 12px; font-weight: 850; }
 .dream-referral {
@@ -514,3 +524,14 @@
 }
 .saved-kind.is-dream { color: #4338ca; background: #eef2ff; }
 
+
+/* 交互一致性：可点元素统一过渡时长与按压反馈（覆盖各自零散的旧规则）。 */
+.domain-choices button, .fortune-scopes button, .reading-save, .domain-reading > footer button,
+.ai-generate, .ai-explain-intro > button, .ai-followup-toggle, .chat-quick button,
+.chat-input button, .ai-answer details summary, .fact-details > summary {
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+.domain-choices button:active:not(:disabled), .fortune-scopes button:active:not(:disabled),
+.reading-save:active:not(:disabled), .ai-generate:active:not(:disabled),
+.domain-reading > footer button:active, .chat-quick button:active,
+.chat-input button:active:not(:disabled) { transform: translateY(1px); }

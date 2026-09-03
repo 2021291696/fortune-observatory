@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
+    "cn-fontsource-lxgw-wen-kai-gb-screen": "^1.0.6",
     "liquid-glass-react": "^1.1.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

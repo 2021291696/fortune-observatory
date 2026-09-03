@@ -4,7 +4,7 @@ import json
 import socket
 
 import pytest
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
 
 
 FRONTEND = "http://127.0.0.1:5173"
@@ -92,12 +92,13 @@ def test_observatory_main_path_desktop(require_servers: None) -> None:
         page.locator('.primary-nav a[href="#ask"]').click()
         page.locator(".domain-choices button", has_text="事业").click()
         page.locator("#analysis .ai-answer").wait_for(timeout=15_000)
-        assert "拆小再验证" in page.locator("#analysis .ai-answer").inner_text()
+        # 打字机节奏器在 done 后仍需十几毫秒排空尾部字符，断言必须自动重试等全文。
+        expect(page.locator("#analysis .ai-answer")).to_contain_text("拆小再验证", timeout=10_000)
         page.locator('.primary-nav a[href="#dream"]').click()
         page.locator("#dream textarea").fill("梦见一条蛇钻进怀里然后醒了")
         page.get_by_role("button", name="解读").click()
         page.locator(".dream-result").wait_for(timeout=15_000)
-        assert "蛇入怀" in page.locator(".dream-result").inner_text()
+        expect(page.locator(".dream-result")).to_contain_text("蛇入怀", timeout=10_000)
         browser.close()
 
 
