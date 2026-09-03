@@ -5,7 +5,7 @@ import { joinStream, type StreamHandle, type StreamSnapshot } from '../streamRea
 import type { SaveDraft } from '../types'
 
 const noopSubscribe = () => () => {}
-const emptySnapshot: StreamSnapshot = { text: '', phase: 'idle', startedAt: 0 }
+const emptySnapshot: StreamSnapshot = { text: '', displayText: '', thinkText: '', phase: 'idle', startedAt: 0 }
 
 export function DreamConsole({ onSave }: {
   onSave: (draft: SaveDraft) => void
@@ -23,7 +23,9 @@ export function DreamConsole({ onSave }: {
   )
   const phase = snapshot?.phase ?? null
   const busy = Boolean(stream) && (phase === 'thinking' || phase === 'streaming')
+  // essay 是完整文本（保存用）；渲染走打字机节奏层。
   const essay = snapshot?.text ?? ''
+  const essayDisplay = snapshot?.displayText ?? ''
   const sources = snapshot?.sources ?? []
 
   function startProgress(fromTimestamp?: number) {
@@ -109,8 +111,8 @@ export function DreamConsole({ onSave }: {
       </div>
       {error && <p className="dream-error" role="alert">{error} <button type="button" onClick={() => void interpret()}>重试</button></p>}
       {snapshot?.phase === 'error' && <p className="dream-error" role="alert">{snapshot.error} <button type="button" onClick={() => void interpret()}>重试</button></p>}
-      {essay && <article className="dream-result" aria-live="polite">
-        <div className="dream-essay"><ReadingBody text={essay} /></div>
+      {essayDisplay && <article className="dream-result" aria-live="polite">
+        <div className="dream-essay"><ReadingBody text={essayDisplay} /></div>
         {sources.length > 0 && <section>
           <h2>本次匹配到的资料</h2>
           <ul>{sources.map((item) => <li key={`${item.channel}-${item.work}-${item.quote}`}>

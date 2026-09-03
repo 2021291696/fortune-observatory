@@ -7,9 +7,12 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import json
 import logging
 import os
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -146,40 +149,50 @@ _THINK_CLOSE = "</think>"
 
 
 class _ThinkFilter:
-    """M 系模型把思考链以 <think>…</think> 内联在正文里流式吐出；本过滤器
-    只放行正文，并容忍标签跨 chunk 被切断的情况。"""
+    """M 系模型把思考链以 <think>…</think> 内联在正文里流式吐出。拆成
+    ("think"|"delta", 文本) 分片段转发——思考转播给前端折叠展示，正文走
+    原链路；标签跨 chunk 被切断的情况已容忍。"""
 
     def __init__(self) -> None:
         self._in_think = False
         self._tail = ""
 
-    def feed(self, text: str) -> str:
+    def feed(self, text: str) -> list[tuple[str, str]]:
         self._tail += text
-        out: list[str] = []
+        segments: list[tuple[str, str]] = []
         while self._tail:
             if self._in_think:
                 index = self._tail.find(_THINK_CLOSE)
                 if index == -1:
-                    self._tail = self._tail[-(len(_THINK_CLOSE) - 1):]
+                    keep = max(0, len(self._tail) - (len(_THINK_CLOSE) - 1))
+                    if keep:
+                        segments.append(("think", self._tail[:keep]))
+                    self._tail = self._tail[keep:]
                     break
+                if index:
+                    segments.append(("think", self._tail[:index]))
                 self._tail = self._tail[index + len(_THINK_CLOSE):]
                 self._in_think = False
             else:
                 index = self._tail.find(_THINK_OPEN)
                 if index == -1:
                     keep = max(0, len(self._tail) - (len(_THINK_OPEN) - 1))
-                    out.append(self._tail[:keep])
+                    if keep:
+                        segments.append(("delta", self._tail[:keep]))
                     self._tail = self._tail[keep:]
                     break
-                out.append(self._tail[:index])
+                if index:
+                    segments.append(("delta", self._tail[:index]))
                 self._tail = self._tail[index + len(_THINK_OPEN):]
                 self._in_think = True
-        return "".join(out)
+        return segments
 
-    def flush(self) -> str:
+    def flush(self) -> list[tuple[str, str]]:
         tail = self._tail
         self._tail = ""
-        return "" if self._in_think else tail
+        if not tail:
+            return []
+        return [("think", tail)] if self._in_think else [("delta", tail)]
 
 
 def _max_output_tokens() -> int:
@@ -195,8 +208,9 @@ async def stream_completion(
     user: str,
     config: Any,
     history: list[dict[str, str]] | None = None,
-) -> AsyncIterator[str]:
-    """通用 M3 流式补全：逐段产出过滤掉思考链后的正文文本。"""
+) -> AsyncIterator[tuple[str, str]]:
+    """通用 M3 流式补全：产出 ("think"|"delta", 文本) 分段——思考链转播给
+    前端折叠展示，正文走原链路。"""
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system},
         *[{"role": item["role"], "content": item["content"]} for item in (history or [])],
@@ -256,12 +270,12 @@ async def stream_completion(
                         finish_reason = choice_finish
                     text = delta.get("content") or ""
                     if text:
-                        visible = think_filter.feed(text)
-                        if visible:
-                            yield visible
-                tail = think_filter.flush()
-                if tail:
-                    yield tail
+                        for kind, segment in think_filter.feed(text):
+                            if segment:
+                                yield (kind, segment)
+                for kind, segment in think_filter.flush():
+                    if segment:
+                        yield (kind, segment)
     except httpx.HTTPError as error:
         raise AiProviderError("AI provider stream failed") from error
     if finish_reason == "length":
@@ -274,12 +288,138 @@ async def stream_reading(
     facts: list[AiFact],
     bundle_types: set[str],
     history: list[dict[str, str]] | None = None,
-) -> AsyncIterator[str]:
+) -> AsyncIterator[tuple[str, str]]:
     """向 M3 发起一次流式解读（skill 语料注入 + 签名 facts）。"""
     config = get_provider_config()
     if config is None:
         raise AiProviderError("AI provider is not configured")
     system = build_reading_system(bundle_types)
     user = build_reading_user(question, facts)
-    async for delta in stream_completion(system=system, user=user, config=config, history=history):
-        yield delta
+    async for kind, segment in stream_completion(system=system, user=user, config=config, history=history):
+        yield (kind, segment)
+
+
+# ---------------------------------------------------------------------------
+# 在途流注册表：把"一次生成"与"一条 HTTP 连接"解耦。
+#
+# 跨境长连接会被中间设备间歇性掐断（实测 27-95 秒静默 EOF / RST；服务器自连
+# 对照组 135s+ 全部存活）。若生成跟着连接走，每次断线都白烧一次预算、重试从
+# 零再来。注册表让生成在后台独立跑完：客户端断开不中止；同一 stream_key 的
+# 重试 attach 回来——先回放已生成文本再续播实时增量，不重复计费、不重复生成。
+# ---------------------------------------------------------------------------
+
+_STREAM_SESSION_TTL = 900.0        # done/error 会话保留窗口（供重试回放）
+_STREAM_SESSION_HARD_CAP = 600.0   # streaming 会话硬上限（上游读超时 280s，超此必是僵死）
+
+
+class StreamSession:
+    """一次生成会话：事件全量历史 + 实时订阅者扇出。事件元组 (kind, text)，
+    kind ∈ think/delta/done/error/:ping（:ping 仅供连接保活，不入历史）。"""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        self.events: list[tuple[str, str | None]] = []
+        self.subscribers: set[asyncio.Queue] = set()
+        self.lock = asyncio.Lock()
+        self.status = "streaming"
+        self.error_detail: str | None = None
+        self.task: asyncio.Task | None = None
+        self.updated = time.monotonic()
+
+    async def publish(self, kind: str, text: str | None) -> None:
+        async with self.lock:
+            self.events.append((kind, text))
+            self.updated = time.monotonic()
+            for queue in self.subscribers:
+                queue.put_nowait((kind, text))
+
+    async def attach(self) -> AsyncIterator[tuple[str, str | None]]:
+        """回放全部既有事件后续播实时增量；终止于 done/error。"""
+        queue: asyncio.Queue = asyncio.Queue()
+        async with self.lock:
+            for event in self.events:
+                queue.put_nowait(event)
+            live = self.status == "streaming"
+            if live:
+                self.subscribers.add(queue)
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=10.0)
+                except asyncio.TimeoutError:
+                    yield (":ping", None)
+                    if not live:
+                        return
+                    continue
+                yield event
+                if event[0] in ("done", "error"):
+                    return
+        finally:
+            self.subscribers.discard(queue)
+
+
+_sessions: dict[str, StreamSession] = {}
+_sessions_lock = asyncio.Lock()
+
+
+def stream_session_key(
+    *,
+    context_tokens: list[str],
+    question: str,
+    history: list[dict[str, str]] | None,
+    stream_key: str | None,
+) -> str:
+    """会话 key = context_tokens 摘要 + 客户端 stream_key（校验不过则由
+    问题+历史确定性派生）。绑定 token 集合防止跨盘串用他人的会话回放。"""
+    token_digest = hashlib.sha256("\x00".join(sorted(context_tokens)).encode()).hexdigest()[:16]
+    client_key = (stream_key or "").strip()
+    if not (8 <= len(client_key) <= 80 and all(ch.isalnum() or ch in "-_." for ch in client_key)):
+        history_text = json.dumps(history or [], ensure_ascii=False, separators=(",", ":"))
+        client_key = hashlib.sha256(f"{question}\x00{history_text}".encode()).hexdigest()[:16]
+    return f"{token_digest}:{client_key}"
+
+
+async def get_or_create_stream_session(key: str) -> tuple[StreamSession, bool]:
+    """返回 (会话, 是否复用)。复用 = attach 在途流或回放已完结流——不再计费。
+    error 会话直接丢弃：重试语义 = 重新生成（真实生成成本已发生，重新计费）。"""
+    async with _sessions_lock:
+        now = time.monotonic()
+        for expired in [k for k, s in _sessions.items() if s.status != "streaming" and now - s.updated > _STREAM_SESSION_TTL]:
+            _sessions.pop(expired, None)
+        for stuck in [k for k, s in _sessions.items() if s.status == "streaming" and now - s.updated > _STREAM_SESSION_HARD_CAP]:
+            session = _sessions.pop(stuck)
+            if session.task is not None and not session.task.done():
+                session.task.cancel()
+        existing = _sessions.get(key)
+        if existing is not None and existing.status in ("streaming", "done"):
+            return existing, True
+        session = StreamSession(key)
+        _sessions[key] = session
+        return session, False
+
+
+def friendly_reading_error(detail: str) -> str:
+    return "这段描述触发了内容安全过滤，请换一种说法再试。" if "content filter" in detail else "AI 解读这次没有生成，请稍后重试。"
+
+
+async def generate_into_session(
+    session: StreamSession,
+    *,
+    question: str,
+    facts: list[AiFact],
+    bundle_types: set[str],
+    history: list[dict[str, str]] | None = None,
+) -> None:
+    """后台生成任务：事件写进会话并扇出给订阅者；生命周期独立于任何连接。"""
+    try:
+        async for kind, text in stream_reading(question=question, facts=facts, bundle_types=bundle_types, history=history):
+            await session.publish(kind, text)
+        session.status = "done"
+        await session.publish("done", None)
+    except asyncio.CancelledError:
+        raise
+    except Exception as error:
+        logger.warning("reading generation failed key=%s: %s: %s", session.key, type(error).__name__, error)
+        session.status = "error"
+        session.error_detail = f"{type(error).__name__}: {error}"
+        await session.publish("error", session.error_detail)

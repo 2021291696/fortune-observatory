@@ -57,6 +57,22 @@ def mock_ai(page: Page) -> None:
             "referral": None,
         }, ensure_ascii=False),
     ))
+    # 流式解读/解梦（真实模型思考时长波动大，必须 mock 保证 e2e 确定、不烧配额）。
+    page.route("**/v1/ai/reading", lambda route: route.fulfill(
+        status=200, content_type="text/event-stream",
+        body=(
+            'data: {"type":"think","text":"推演中"}\n\n'
+            'data: {"type":"delta","text":"把这一步拆小再验证。"}\n\n'
+            'data: {"type":"done"}\n\n'
+        ),
+    ))
+    page.route("**/v1/dreams/interpret/stream", lambda route: route.fulfill(
+        status=200, content_type="text/event-stream",
+        body=(
+            'data: {"type":"delta","text":"蛇入怀，传统多作亲近或子息之象。"}\n\n'
+            'data: {"type":"done","sources":[{"work":"周公解梦","quote":"蛇入怀中生贵子","channel":"字面"}]}\n\n'
+        ),
+    ))
 
 
 def test_observatory_main_path_desktop(require_servers: None) -> None:

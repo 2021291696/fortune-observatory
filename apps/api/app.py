@@ -41,7 +41,7 @@ from ai_explainer import (
     reserve_daily_budget,
     verified_reading_context,
 )
-from reading_agent import stream_reading
+from reading_agent import friendly_reading_error, generate_into_session, get_or_create_stream_session, stream_session_key
 from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest, QuestionsResponse
 from dreams.service import generate_questions, interpret_dream_request, stream_interpret_events
 
@@ -887,16 +887,21 @@ async def explain_result(request: AiExplainRequest) -> AiExplainResponse:
 async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
     """Skill 全量语境 + 双体系 facts 的流式解读（SSE）。
 
-    契约：请求体与 /v1/ai/explain 相同（question 即任务描述）；响应为
-    text/event-stream，事件 data: {"type":"delta","text":…} / {"type":"done"}
-    / {"type":"error","detail":…}，期间以 SSE 注释行做心跳保活。
+    契约：请求体与 /v1/ai/explain 相同（question 即任务描述），可选
+    stream_key（断线续传键）；响应为 text/event-stream，事件 data:
+    {"type":"think","text":…}（思考链转播，前端折叠展示）/
+    {"type":"delta","text":…} / {"type":"done"} / {"type":"error","detail":…}，
+    期间以填充注释行做心跳保活。
+
+    断线续传：生成跑在与连接解耦的后台会话里——连接断开不中止生成、不浪费
+    预算；同一 stream_key 重试会先回放已生成文本再续播实时增量（复用不重复
+    计费）。key 绑定 context_tokens 摘要，防跨盘串用他人会话。
     """
     config = get_provider_config()
     if config is None:
         raise HTTPException(status_code=503, detail="AI 讲解暂未配置，规则结果不受影响。")
     try:
         facts, bundle_types = verified_reading_context(request, config.context_secret)
-        reserve_daily_budget(config.daily_limit)
     except AiBudgetExceeded as error:
         raise HTTPException(
             status_code=429,
@@ -917,54 +922,49 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
         ) from error
 
     history = [{"role": turn.role, "content": turn.text} for turn in request.history]
+    session_key = stream_session_key(
+        context_tokens=request.context_tokens,
+        question=request.question,
+        history=history,
+        stream_key=request.stream_key,
+    )
+    session, resumed = await get_or_create_stream_session(session_key)
+    if not resumed:
+        # 复用（续播/回放）不重复计费；只有真正发起新生成才扣预算。
+        reserve_daily_budget(config.daily_limit)
+        session.task = asyncio.create_task(
+            generate_into_session(
+                session,
+                question=request.question,
+                facts=facts,
+                bundle_types=bundle_types,
+                history=history,
+            )
+        )
 
     async def event_stream() -> AsyncIterator[str]:
-        # 心跳不能直接 wait_for(anext(agen))——超时会取消并关闭整个上游
-        # 生成器（思考期常超 20 秒）。改用后台 pump + 队列，心跳只等队列。
-        queue: asyncio.Queue = asyncio.Queue()
-
-        async def pump() -> None:
-            try:
-                async for delta in stream_reading(
-                    question=request.question,
-                    facts=facts,
-                    bundle_types=bundle_types,
-                    history=history,
-                ):
-                    await queue.put(("delta", delta))
-                await queue.put(("done", None))
-            except Exception as error:
-                logger.warning("reading stream failed: %s: %s", type(error).__name__, error)
-                await queue.put(("error", f"{type(error).__name__}: {error}"))
-
-        pump_task = asyncio.create_task(pump())
+        # 订阅会话：先回放既有事件再续播实时增量。连接断开只会取消这里的
+        # 订阅，后台生成照常跑完——重试同 stream_key 即续播。
         try:
-            while True:
-                try:
-                    kind, payload = await asyncio.wait_for(queue.get(), timeout=20.0)
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-                    continue
-                if kind == "delta":
-                    yield f"data: {json.dumps({'type': 'delta', 'text': payload}, ensure_ascii=False)}\n\n"
+            async for kind, text in session.attach():
+                if kind == ":ping":
+                    # 填充心跳：纯 8 字节 ping 容易被中间设备当死流清掉。
+                    yield ": " + ("k" * 200) + "\n\n"
+                elif kind in ("delta", "think"):
+                    yield f"data: {json.dumps({'type': kind, 'text': text}, ensure_ascii=False)}\n\n"
                 elif kind == "done":
                     yield f"data: {json.dumps({'type': 'done'}, ensure_ascii=False)}\n\n"
                     return
                 else:
-                    logger.warning("reading stream failed mid-stream kind=%s", payload)
-                    friendly = (
-                        "这段描述触发了内容安全过滤，请换一种说法再试。"
-                        if "content filter" in payload
-                        else "AI 解读这次没有生成，请稍后重试。"
-                    )
+                    logger.warning("reading stream failed mid-stream key=%s detail=%s", session.key, text)
                     yield (
                         "data: "
-                        + json.dumps({"type": "error", "detail": friendly}, ensure_ascii=False)
+                        + json.dumps({"type": "error", "detail": friendly_reading_error(text or "")}, ensure_ascii=False)
                         + "\n\n"
                     )
                     return
         finally:
-            pump_task.cancel()
+            pass  # 生成生命周期独立于连接，断开仅解除订阅
 
     return StreamingResponse(
         event_stream(),

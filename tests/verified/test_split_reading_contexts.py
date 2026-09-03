@@ -16,7 +16,14 @@ from ai_explainer import (
 )
 from app import create_chart, create_daily_transit, create_transit_window
 from fortune_core.models import BirthInput, DailyTransitRequest, TransitWindowRequest
-from reading_agent import build_reading_system
+from reading_agent import (
+    StreamSession,
+    _ThinkFilter,
+    build_reading_system,
+    get_or_create_stream_session,
+    stream_session_key,
+)
+import asyncio
 
 SECRET = "context-signing-secret-that-is-long-enough"
 GROUP = "group-abcdefgh"
@@ -140,3 +147,61 @@ def test_reading_system_selects_single_system_corpus_and_terms() -> None:
     assert "双体系合参" in combined_sys
     assert "ziwei-doushu/SKILL.md" in combined_sys and "bazi/references" in combined_sys
     assert "只用紫微斗数术语" in daily_ziwei_sys and "ziwei-doushu/SKILL.md" in daily_ziwei_sys
+
+
+def test_think_filter_splits_think_and_body_segments() -> None:
+    """思考链拆分：think/delta 分段转发；标签跨 chunk 切断不错切正文。"""
+    f = _ThinkFilter()
+    out: list[tuple[str, str]] = []
+    for chunk in ("<thi", "nk>推演命宫", "与官禄</th", "ink>", "结论：", "先说结论"):
+        out.extend(f.feed(chunk))
+    out.extend(f.flush())
+    assert "".join(text for kind, text in out if kind == "delta") == "结论：先说结论"
+    assert "".join(text for kind, text in out if kind == "think") == "推演命宫与官禄"
+
+    # 思考直到流结束都未闭合：剩余内容按 think 落地，不混进正文。
+    f2 = _ThinkFilter()
+    out2 = f2.feed("正文A<think>悄悄想") + f2.flush()
+    assert "".join(text for kind, text in out2 if kind == "delta") == "正文A"
+    assert "".join(text for kind, text in out2 if kind == "think") == "悄悄想"
+
+
+def test_stream_session_replay_and_reuse() -> None:
+    """断线续传注册表：同 key 复用会话回放全部事件；error 会话不复用。"""
+
+    async def scenario() -> None:
+        key = stream_session_key(context_tokens=["t-1", "t-2"], question="q", history=None, stream_key="abcd-1234")
+        session, resumed = await get_or_create_stream_session(key)
+        assert resumed is False and session.status == "streaming"
+        await session.publish("think", "推演中")
+        await session.publish("delta", "结论")
+        session.status = "done"
+        await session.publish("done", None)
+
+        again, reused = await get_or_create_stream_session(key)
+        assert reused is True and again is session
+        events = [event async for event in again.attach()]
+        assert events[-1][0] == "done"
+        assert ("delta", "结论") in events and ("think", "推演中") in events
+
+        # error 会话不复用：重试语义 = 重新生成。
+        bad_key = stream_session_key(context_tokens=["t-1", "t-2"], question="q2", history=None, stream_key="abcd-1234")
+        bad, _ = await get_or_create_stream_session(bad_key)
+        bad.status = "error"
+        await bad.publish("error", "boom")
+        _bad_again, reused_error = await get_or_create_stream_session(bad_key)
+        assert reused_error is False
+
+    asyncio.run(scenario())
+
+
+def test_stream_session_key_binds_tokens_and_falls_back() -> None:
+    """key 绑定 token 集；stream_key 缺失/非法时由问题+历史确定性派生。"""
+    base = stream_session_key(context_tokens=["a", "b"], question="q", history=None, stream_key="abcd-1234")
+    other_tokens = stream_session_key(context_tokens=["a", "c"], question="q", history=None, stream_key="abcd-1234")
+    assert base != other_tokens
+
+    derived = stream_session_key(context_tokens=["a", "b"], question="q", history=None, stream_key=None)
+    illegal = stream_session_key(context_tokens=["a", "b"], question="q", history=None, stream_key="短")
+    assert derived == illegal
+    assert derived != base

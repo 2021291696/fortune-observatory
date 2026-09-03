@@ -49,6 +49,9 @@ class AiExplainRequest(StrictModel):
     split_questions: list[str] = Field(default_factory=list, max_length=3)
     context_tokens: list[str] = Field(min_length=1, max_length=4)
     history: list[ChatTurn] = Field(default_factory=list, max_length=12)
+    # 断线续传：同一逻辑请求重试时携带同一 stream_key，服务端在途流注册表
+    # 据此回放/续播既有生成（会话 key 还会绑定 context_tokens 摘要防串用）。
+    stream_key: str | None = Field(default=None, min_length=8, max_length=80)
 
     @field_validator("context_tokens")
     @classmethod

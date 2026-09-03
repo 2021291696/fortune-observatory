@@ -450,6 +450,12 @@
 .chat-msg.is-assistant p { margin: 0; }
 .chat-msg.is-assistant ul { margin: 8px 0 0; padding-left: 17px; color: var(--muted); font-size: 12px; }
 .chat-msg.is-typing { display: inline-flex; align-items: center; gap: 8px; color: var(--accent); font-size: 12px; font-weight: 750; }
+/* 思考过程折叠条：聊天气泡内与运势面板共用；思考中自动展开，正文来自动收起。 */
+.chat-msg.is-thinking { width: 86%; }
+.think-trace { border: 1px dashed var(--soft-line); border-radius: 10px; overflow: hidden; }
+.think-trace > button { width: 100%; min-height: 34px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 11px; border: 0; background: color-mix(in srgb, var(--wash) 40%, #fff); color: var(--accent); font-size: 11px; font-weight: 800; text-align: left; }
+.think-trace > button span:last-child { color: var(--muted); }
+.think-body { max-height: 220px; overflow-y: auto; padding: 9px 11px; border-top: 1px dashed var(--soft-line); color: var(--muted); font-size: 12px; line-height: 1.65; white-space: pre-wrap; word-break: break-word; }
 /* Markdown 回复气泡（流式生成中与落定消息共用）：多段落间距，列表回到正文字号。 */
 .chat-msg.is-doc { display: grid; gap: 8px; align-content: start; }
 .chat-msg.is-doc p { margin: 0; }

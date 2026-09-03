@@ -1,12 +1,12 @@
 import { Briefcase, ChatCircleDots, Coins, FloppyDisk, Heart, Heartbeat, PaperPlaneRight, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
-import { useEffect, useRef, useState, type ComponentType, type FormEvent } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type ComponentType, type FormEvent } from 'react'
 import type { AnalysisDomain, ChartResponse, SaveDraft } from '../types'
 import { analysisDomains } from '../types'
-import { API_BASE } from '../apiBase'
 import type { ThemeConfig } from '../themes'
 import { buildDomainNarrative, type NarrativeBlock } from '../readingNarrative'
 import { readingSystemLabels, type ReadingSystem } from '../readingSystem'
-import { AiExplainPanel, aiThinkingLabel, ReadingBody } from './AiExplainPanel'
+import { AiExplainPanel, ReadingBody, ThinkingTrace } from './AiExplainPanel'
+import { joinStream, streamKeyOf, type StreamHandle, type StreamSnapshot } from '../streamReading'
 import { MemeCompanion } from './MemeCompanion'
 
 type DomainResult = {
@@ -268,145 +268,94 @@ function pickTokens(question: string, contexts: ChartResponse['ai_contexts'], sy
   ].filter((token): token is string => Boolean(token))
 }
 
+// 在途聊天轮次：模块级注册表（key=aiOwner）。切走标签页组件卸载后生成继续
+// （fetch 活在共享注册表里，连接不断、后端照常出字），切回来无缝重接——
+// 问题气泡、真实进度、流式正文都在。done 后等打字机放完才落定写入消息列表。
+type ChatTurn = {
+  question: string
+  userTs: number
+  handle: StreamHandle
+  settled: boolean
+}
+const chatTurns = new Map<string, ChatTurn>()
+const noopSubscribe = () => () => {}
+const chatEmptySnapshot: StreamSnapshot = { text: '', displayText: '', thinkText: '', phase: 'idle', startedAt: 0 }
+
 function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwner: string; readingSystem: ReadingSystem }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadChat(aiOwner))
   const [input, setInput] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
-  const [progress, setProgress] = useState(0)
-  const [thinkingMs, setThinkingMs] = useState(0)
-  // 流式中的回复：null = 还在思考（没有正文），string = 逐字渲染中。
-  const [streamText, setStreamText] = useState<string | null>(null)
+  const [turn, setTurn] = useState<ChatTurn | null>(() => chatTurns.get(aiOwner) ?? null)
   const [error, setError] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement | null>(null)
-  const progressTimer = useRef<number | null>(null)
-  const answerRef = useRef('')
-  const rafRef = useRef<number | null>(null)
   // 用户上滚回读时暂停吸底，滚回底部附近自动恢复。
   const stickBottomRef = useRef(true)
   const hasAnyToken = Object.values(chart.ai_contexts).some((bundle) => bundle.token)
 
+  const snapshot = useSyncExternalStore(
+    turn ? turn.handle.subscribe : noopSubscribe,
+    turn ? turn.handle.getSnapshot : () => chatEmptySnapshot,
+  )
+  const phase = snapshot.phase
+  const busy = turn !== null
+
+  // 重挂/换用户重接在途轮次。
+  useEffect(() => {
+    setTurn(chatTurns.get(aiOwner) ?? null)
+  }, [aiOwner])
+
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, isLoading])
+  }, [messages, busy])
 
   // 流式期间吸底跟随：用瞬时滚动（smooth 动画跟不上逐字速度）。
   useEffect(() => {
-    if (streamText === null || !stickBottomRef.current) return
+    if (!turn || !stickBottomRef.current) return
     const el = listRef.current
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'auto' })
-  }, [streamText])
+  }, [turn, snapshot.displayText])
 
-  useEffect(() => () => {
-    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
-    if (rafRef.current !== null) window.cancelAnimationFrame(rafRef.current)
-  }, [])
-
-  function startChatProgress() {
-    setProgress(0)
-    const startedAt = Date.now()
-    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
-    progressTimer.current = window.setInterval(() => {
-      const elapsedMs = Date.now() - startedAt
-      setProgress(Math.min(96, Math.round(100 * (1 - Math.exp(-elapsedMs / 7000)))))
-      setThinkingMs(elapsedMs)
-    }, 150)
-  }
-
-  function finishChatProgress() {
-    if (progressTimer.current !== null) window.clearInterval(progressTimer.current)
-    progressTimer.current = null
-    setProgress(100)
-  }
-
-  // delta 合帧：一帧最多 setState 一次，长回复高频 delta 不拖垮渲染。
-  function appendDelta(text: string) {
-    answerRef.current += text
-    if (rafRef.current === null) {
-      rafRef.current = window.requestAnimationFrame(() => {
-        rafRef.current = null
-        setStreamText(answerRef.current)
-      })
-    }
-  }
-
-  async function send(question: string) {
-    const clean = question.trim().slice(0, 300)
-    const tokens = pickTokens(clean, chart.ai_contexts, readingSystem)
-    if (!clean || isLoading || !tokens.length) return
-    setError(null)
-    setInput('')
-    const userMessage: ChatMessage = { role: 'user', text: clean, ts: Date.now() }
-    const history = [...messages, userMessage].slice(-12).map((item) => ({ role: item.role, text: item.text.slice(0, 600) }))
-    setMessages((current) => [...current, userMessage])
-    setIsLoading(true)
-    stickBottomRef.current = true
-    answerRef.current = ''
-    startChatProgress()
-    try {
-      const response = await fetch(`${API_BASE}/v1/ai/reading`, {
-        method: 'POST',
-        headers: { accept: 'text/event-stream', 'content-type': 'application/json' },
-        body: JSON.stringify({ question: clean, context_tokens: tokens, history }),
-        credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer',
-      })
-      if (!response.ok) {
-        const body: unknown = await response.json().catch(() => null)
-        const detail = body && typeof body === 'object' && 'detail' in body
-          ? String((body as { detail?: unknown }).detail).slice(0, 180)
-          : 'AI 这次没有回复。'
-        throw new Error(detail)
-      }
-      if (!response.body) throw new Error('当前浏览器不支持流式读取。')
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      let streamError: string | null = null
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        let newlineIndex = buffer.indexOf('\n')
-        while (newlineIndex >= 0) {
-          const line = buffer.slice(0, newlineIndex).trim()
-          buffer = buffer.slice(newlineIndex + 1)
-          newlineIndex = buffer.indexOf('\n')
-          if (!line.startsWith('data:')) continue
-          const payloadText = line.slice(5).trim()
-          if (!payloadText || payloadText === '[DONE]') continue
-          let event: { type?: string; text?: string; detail?: string } | null = null
-          try {
-            event = JSON.parse(payloadText) as { type?: string; text?: string; detail?: string }
-          } catch {
-            event = null
-          }
-          if (!event) continue
-          if (event.type === 'delta' && typeof event.text === 'string') appendDelta(event.text)
-          if (event.type === 'error') streamError = typeof event.detail === 'string' ? event.detail : 'AI 这次没有回复。'
-        }
-      }
-      if (streamError) throw new Error(streamError)
-      if (!answerRef.current.trim()) throw new Error('AI 回复为空，请重试。')
-      const assistantMessage: ChatMessage = {
-        role: 'assistant',
-        text: answerRef.current,
-        ts: Date.now(),
-      }
+  // 收尾落定：done 后等打字机把 displayText 放完才写入消息列表并持久化；
+  // error（含 HTTP 非 200、内容安全、连接中断）立即落定只报错。
+  useEffect(() => {
+    if (!turn || turn.settled) return
+    if (phase !== 'done' && phase !== 'error') return
+    if (phase === 'done' && snapshot.displayText.length < snapshot.text.length) return
+    turn.settled = true
+    chatTurns.delete(aiOwner)
+    setTurn(null)
+    if (phase === 'done' && snapshot.text.trim()) {
+      const userMessage: ChatMessage = { role: 'user', text: turn.question, ts: turn.userTs }
+      const assistantMessage: ChatMessage = { role: 'assistant', text: snapshot.text, ts: Date.now() }
       const next = [...messages, userMessage, assistantMessage]
       setMessages(next)
       persistChat(aiOwner, next)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'AI 这次没有回复。')
-      setMessages((current) => current.filter((item) => item.ts !== userMessage.ts))
-    } finally {
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current)
-        rafRef.current = null
-      }
-      setStreamText(null)
-      answerRef.current = ''
-      finishChatProgress()
-      setIsLoading(false)
+    } else if (phase === 'error') {
+      setError(snapshot.error || 'AI 这次没有回复。')
+    } else {
+      setError('AI 回复为空，请重试。')
     }
+  }, [turn, phase, snapshot, messages, aiOwner])
+
+  function send(question: string) {
+    const clean = question.trim().slice(0, 300)
+    const tokens = pickTokens(clean, chart.ai_contexts, readingSystem)
+    if (!clean || busy || !tokens.length) return
+    setError(null)
+    setInput('')
+    stickBottomRef.current = true
+    const userTs = Date.now()
+    const history = [...messages, { role: 'user' as const, text: clean }]
+      .slice(-12)
+      .map((item) => ({ role: item.role, text: item.text.slice(0, 600) }))
+    const handle = joinStream(`chat-${aiOwner}-${userTs}`, '/v1/ai/reading', {
+      question: clean,
+      context_tokens: tokens,
+      history,
+      stream_key: streamKeyOf('chat', aiOwner, String(userTs)),
+    })
+    const next: ChatTurn = { question: clean, userTs, handle, settled: false }
+    chatTurns.set(aiOwner, next)
+    setTurn(next)
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -418,6 +367,8 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
     return <div className="feature-empty"><span>当前命盘还没有可用的核验上下文，重新排盘后再来聊。</span></div>
   }
 
+  const thinking = turn && phase === 'thinking'
+
   return <div className="ai-chat">
     <div
       className="chat-list" ref={listRef}
@@ -427,7 +378,7 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
         if (el) stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48
       }}
     >
-      {messages.length === 0 && <div className="chat-empty">
+      {messages.length === 0 && !turn && <div className="chat-empty">
         <ChatCircleDots size={34} weight="bold" />
         <div><strong>和 AI 聊聊你的盘</strong><p>每轮回答都基于你命盘的核验事实；对话记录只存在这台设备上。</p></div>
         <div className="chat-quick">{quickQuestions.map((item) => <button key={item} type="button" onClick={() => void send(item)}>{item}</button>)}</div>
@@ -438,16 +389,18 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
             <ReadingBody text={message.text} />
             {message.actions && message.actions.length > 0 && <ul>{message.actions.map((action) => <li key={action}>{action}</li>)}</ul>}
           </div>)}
-      {isLoading && streamText !== null && <div className="chat-msg is-assistant is-doc is-streaming">
-        <ReadingBody text={streamText} />
+      {turn && <div className="chat-msg is-user"><p>{turn.question}</p></div>}
+      {turn && thinking && <div className="chat-msg is-assistant is-thinking">
+        <ThinkingTrace text={snapshot.thinkText} active startedAt={snapshot.startedAt} />
+      </div>}
+      {turn && phase === 'streaming' && <div className="chat-msg is-assistant is-doc is-streaming">
+        <ReadingBody text={snapshot.displayText} />
         <p className="chat-writing" aria-live="polite" role="status"><SpinnerGap className="spin" size={14} /> 生成中…</p>
       </div>}
-      {isLoading && streamText === null && <div className="chat-msg is-assistant is-typing" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>
-        <SpinnerGap className="spin" size={18} />
-        <span>{aiThinkingLabel(progress, thinkingMs)}</span>
-        <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
+      {turn && phase === 'done' && <div className="chat-msg is-assistant is-doc is-streaming">
+        <ReadingBody text={snapshot.displayText} />
       </div>}
-      {error && !isLoading && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
+      {error && !busy && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
     </div>
     <form className="chat-input" onSubmit={submit}>
       <textarea
@@ -455,12 +408,12 @@ function AiChat({ chart, aiOwner, readingSystem }: { chart: ChartResponse; aiOwn
         rows={2}
         maxLength={300}
         placeholder="问点什么，比如：我换工作的时机怎么看？"
-        disabled={isLoading}
+        disabled={busy}
         onChange={(event) => setInput(event.target.value)}
         onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void send(input) } }}
       />
-      <button type="submit" disabled={isLoading || !input.trim()} aria-label="发送">
-        {isLoading ? <SpinnerGap className="spin" size={19} /> : <PaperPlaneRight size={19} weight="fill" />}
+      <button type="submit" disabled={busy || !input.trim()} aria-label="发送">
+        {busy ? <SpinnerGap className="spin" size={19} /> : <PaperPlaneRight size={19} weight="fill" />}
       </button>
     </form>
   </div>

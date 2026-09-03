@@ -1,7 +1,7 @@
 import { ChatCircleDots, CheckCircle, Info, LockKey, SpinnerGap, WarningCircle } from '@phosphor-icons/react'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { API_BASE } from '../apiBase'
-import { joinStream, type StreamHandle, type StreamSnapshot } from '../streamReading'
+import { joinStream, streamKeyOf, type StreamHandle, type StreamSnapshot } from '../streamReading'
 import type { AiExplainSource } from '../types'
 
 const DEFAULT_QUESTION = '结合命盘，把这段结果讲透：先给结论，再按语料框架分节展开，引原典，结尾给「可以先做」与「注意」。'
@@ -73,7 +73,7 @@ export function aiThinkingLabel(progress: number, elapsedMs: number): string {
 }
 
 const noopSubscribe = () => () => {}
-const emptySnapshot: StreamSnapshot = { text: '', phase: 'idle', startedAt: 0 }
+const emptySnapshot: StreamSnapshot = { text: '', displayText: '', thinkText: '', phase: 'idle', startedAt: 0 }
 
 // 行内 **加粗** 转 strong（模型爱用 Markdown 加粗，正文直排时不能漏星号）。
 // 流式尾部允许"加粗未闭合"：奇数个 ** 时最后一段直接按加粗渲染，
@@ -123,6 +123,37 @@ export function ReadingBody({ text }: { text: string }) {
   </>
 }
 
+// 思考过程折叠条：思考中自动展开、流式显示推理链（秒数心跳由组件自驱），
+// 正文开始自动收起，留一行可随时点开回看。非思考模型 thinkText 恒空，自然不渲染。
+export function ThinkingTrace({ text, active, startedAt }: { text: string; active: boolean; startedAt: number }) {
+  const [open, setOpen] = useState(active)
+  const [, setTick] = useState(0)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    setOpen(active)
+    if (!active) return
+    const timer = window.setInterval(() => setTick((tick) => tick + 1), 150)
+    return () => window.clearInterval(timer)
+  }, [active])
+
+  // 展开时跟随新推理内容贴底。
+  useEffect(() => {
+    const el = bodyRef.current
+    if (open && el) el.scrollTop = el.scrollHeight
+  }, [text, open])
+
+  const seconds = active && startedAt ? Math.max(1, Math.round((Date.now() - startedAt) / 1000)) : null
+
+  return <div className="think-trace">
+    <button type="button" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+      <span>{active ? <>思考中…{seconds !== null && ` 已用时 ${seconds} 秒`}</> : '已深度推演 · 点击查看思路'}</span>
+      <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+    </button>
+    {open && <div className="think-body" ref={bodyRef}>{text || '（正在展开推演…）'}</div>}
+  </div>
+}
+
 export function AiExplainPanel({
   source,
   defaultQuestion = DEFAULT_QUESTION,
@@ -160,6 +191,8 @@ export function AiExplainPanel({
     stream ? stream.getSnapshot : () => emptySnapshot,
   )
   const streamText = snapshot && snapshot.text ? snapshot.text : null
+  // 渲染走打字机节奏层；完整 text 只用于缓存与收尾判定。
+  const streamDisplayText = snapshot && snapshot.displayText ? snapshot.displayText : null
   const phase = snapshot?.phase ?? null
 
   function startProgress(fromTimestamp?: number) {
@@ -241,6 +274,7 @@ export function AiExplainPanel({
     const handle = joinStream(cacheKey ?? source.key, '/v1/ai/reading', {
       question: defaultQuestion,
       context_tokens: source.contextTokens,
+      stream_key: streamKeyOf('auto', cacheKey ?? source.key),
     })
     setStream(handle)
     startProgress(handle.getSnapshot().startedAt)
@@ -292,6 +326,7 @@ export function AiExplainPanel({
     const handle = joinStream(`follow-${Date.now()}`, '/v1/ai/reading', {
       question: cleanQuestion,
       context_tokens: source.contextTokens,
+      stream_key: streamKeyOf('follow', source.key, cleanQuestion),
     })
     setStream(handle)
     setFollowUpText('')
@@ -304,6 +339,7 @@ export function AiExplainPanel({
     const handle = joinStream(cacheKey ?? source.key, '/v1/ai/reading', {
       question: question.trim() || defaultQuestion,
       context_tokens: source.contextTokens,
+      stream_key: streamKeyOf('manual', cacheKey ?? source.key, question.trim() || defaultQuestion),
     })
     setStream(handle)
     startProgress(handle.getSnapshot().startedAt)
@@ -318,19 +354,22 @@ export function AiExplainPanel({
   const isThinking = Boolean(stream) && phase === 'thinking'
   const isStreaming = Boolean(stream) && (phase === 'streaming' || isThinking)
   const hasText = Boolean(streamText || cachedText)
-  const bodyText = streamText ?? cachedText ?? ''
+  const bodyText = streamDisplayText ?? cachedText ?? ''
+  const thinkText = snapshot?.thinkText ?? ''
+  // 思考折叠条：思考期常驻（哪怕还没吐出第一个 think 字），之后有思考记录才留痕。
+  const showTrace = Boolean(stream) && (isThinking || Boolean(thinkText))
 
   // 流式滚动跟随：正文底缘刚滑出视口下沿时把页面轻轻下推，保证"字在往外
   // 蹦"始终可见；用户向上回读后底缘远离视口，就不再打扰。
   useEffect(() => {
-    if (!isStreaming || !streamText) return
+    if (!isStreaming || !streamDisplayText) return
     const el = answerRef.current
     if (!el) return
     const overflow = el.getBoundingClientRect().bottom - window.innerHeight
     if (overflow > 0 && overflow < 140) {
       window.scrollBy({ top: overflow + 24, behavior: 'auto' })
     }
-  }, [streamText, isStreaming])
+  }, [streamDisplayText, isStreaming])
 
   return <section className="ai-explain-panel" aria-label={auto ? heading : '可选 AI 讲解'}>
     {!auto && <div className="ai-explain-intro">
@@ -362,10 +401,13 @@ export function AiExplainPanel({
         {!followUp && !isStreaming && phase === 'done' && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setFollowUpText(''); setQuestion(defaultQuestion) }}>换个问题追问 AI</button>}
         {!followUp && !isStreaming && phase === 'error' && <button type="button" className="ai-followup-toggle" onClick={() => { setStream(null); generateManual() }}>重新生成讲解</button>}
 
-        {(isThinking || progressVisible) && <div className="ai-progress" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>
+        {/* 思考期只显示思考折叠条（已用时反馈在其中）；进度条仅在正文开始的瞬间闪一下「开始输出」。 */}
+        {progressVisible && !isThinking && <div className="ai-progress" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
           <span>{progress >= 100 ? '开始输出' : aiThinkingLabel(progress, thinkingMs)}</span>
         </div>}
+
+        {showTrace && <ThinkingTrace text={thinkText} active={isThinking} startedAt={snapshot?.startedAt ?? 0} />}
 
         {error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{error}</p>}
         {bodyText && <article className="ai-answer" ref={answerRef}>
