@@ -278,7 +278,6 @@ export function AiExplainPanel({
     })
     setStream(handle)
     startProgress(handle.getSnapshot().startedAt)
-    void run
   }, [auto, cacheKey, source.key, defaultQuestion])
 
   // 收尾写入本机缓存（追问不写）：守卫看 followUp 模式标志而非输入框文本——

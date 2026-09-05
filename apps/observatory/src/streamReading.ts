@@ -158,7 +158,7 @@ export function streamKeyOf(...parts: (string | undefined)[]): string {
   return `${base || 'stream'}-${(hash >>> 0).toString(36)}`
 }
 
-async function run(entry: StreamEntry, key: string, endpoint: string, body: unknown) {
+async function run(entry: StreamEntry, endpoint: string, body: unknown) {
   // 断流自动重连：跨境长连接会被中间设备间歇掐断（实测 27-95 秒静默 EOF
   // 或 RST）。同 stream_key 重发请求，服务端回放已生成文本再续播——不重复
   // 计费、不重新生成。重连前清空本地文本，服务端会全量回放。
@@ -228,13 +228,6 @@ async function run(entry: StreamEntry, key: string, endpoint: string, body: unkn
     resetForReplay()
     await new Promise((resolve) => setTimeout(resolve, 600))
   }
-  // 收尾：脱离注册表（终态已定，思考合帧若还挂着直接取消）。
-  const pendingThinkFrame: number | null = entry.thinkFrame
-  if (pendingThinkFrame !== null) {
-    window.cancelAnimationFrame(pendingThinkFrame as number)
-    entry.thinkFrame = null
-  }
-  if (inflight.get(key) === entry) inflight.delete(key)
 }
 
 export type StreamHandle = {
@@ -257,7 +250,7 @@ export function joinStream(key: string, endpoint: string, body: unknown): Stream
   }
   entryKeys.set(entry, key)
   inflight.set(key, entry)
-  void run(entry, key, endpoint, body)
+  void run(entry, endpoint, body)
   return { subscribe: existingSubscribe(entry), getSnapshot: () => snapshotOf(entry) }
 }
 

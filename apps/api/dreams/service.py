@@ -148,7 +148,7 @@ def _referral_result(dream: str) -> InterpretResponse:
     )
 
 
-def _parse_interpret(text: str, dream: str) -> InterpretResponse:
+def _parse_interpret(text: str) -> InterpretResponse:
     start = text.find("{")
     end = text.rfind("}")
     sources: list[SourceOut] = []
@@ -240,7 +240,7 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
         raise
     except Exception as error:
         raise AiProviderError("dream essay failed") from error
-    return _parse_interpret(raw, request.dream)
+    return _parse_interpret(raw)
 
 
 # 流式版：不再要求 JSON 回包，直接输出解梦正文；引用来源在收尾时后端提取。

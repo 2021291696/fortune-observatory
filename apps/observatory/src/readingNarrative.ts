@@ -1,5 +1,5 @@
-import type { ChartResponse, TransitFact } from './types'
-import { factDomain, plainFactLine, termGlossary } from './terminology'
+import type { ChartResponse } from './types'
+import { termGlossary } from './terminology'
 
 const palaceTheme: Record<string, string> = {
   疾厄: '身心状态、作息节奏和恢复能力',
@@ -90,48 +90,4 @@ export function buildDomainNarrative(chart: ChartResponse, palaceName: string): 
     text: `下面的 AI 讲解会把这组盘面翻成更长的白话。你自己先记住两件事：只观察能被记录的信号（睡眠、对话、交付、现金流），不把星曜名称当成诊断或保证；有持续不适、合同或资金决策，先交给对应的专业人士。`,
   })
   return blocks
-}
-
-export function buildFortuneNarrative(args: {
-  facts: TransitFact[]
-  yearLine?: string
-  decadeLine?: string
-}): NarrativeBlock[] {
-  const blocks: NarrativeBlock[] = []
-  if (args.facts.length) {
-    blocks.push({
-      label: '冲合落在哪',
-      text: args.facts.map((fact) => `${plainFactLine(fact)}。${factDomain(fact)}今天更需要留心节奏，而不是一次把大事做完。`).join(''),
-    })
-  }
-  if (args.yearLine) {
-    blocks.push({ label: '这一年', text: args.yearLine })
-  }
-  if (args.decadeLine) {
-    blocks.push({ label: '这一步大限', text: args.decadeLine })
-  }
-  blocks.push({
-    label: '用法',
-    text: '把今天当成观察日：记下被打断的事、谈成的事、想花钱或想躲避的瞬间。流日是一天的天气，流年是季节，大限是气候，三层不要混成一句吉凶。',
-  })
-  return blocks
-}
-
-export function yearlyPlain(yearPillar: string, mutagens: Array<{ star: string; mutagen: string; palace_name: string; palace_branch: string }>, nominalAge: number): string {
-  if (!mutagens.length) {
-    return `${yearPillar}年虚岁约${nominalAge}，当前没有列出可追溯的流年四化落宫；先用八字流年和大限看节奏，不要补写不存在的四化。`
-  }
-  const lines = mutagens.map((entry) => {
-    const palace = entry.palace_name || `${entry.palace_branch}宫`
-    const meaning = mutagenPlain[entry.mutagen] ?? '这是流年给这颗星加的属性'
-    return `${entry.star}化${entry.mutagen}入${palace.endsWith('宫') ? palace : `${palace}宫`}——${meaning}`
-  })
-  return `${yearPillar}年虚岁约${nominalAge}。流年四化是当年环境的四个焦点：${lines.join('；')}。`
-}
-
-export function decadePlain(start: number, end: number, isChildhood: boolean, branch: string, stem?: string): string {
-  if (isChildhood) {
-    return `当前仍在童限，按${branch}宫看这一阶段的主题。童限还不是十年大限，结论要更保守。`
-  }
-  return `当前大限约${start}-${end}岁，行${stem ?? ''}${branch}。这十年的题目比今天的冲合更大，适合用来选方向、立规矩，不适合用来赌某一天的结果。`
 }

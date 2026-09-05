@@ -23,10 +23,10 @@
 
 - `apps/api/lore.py` = 分体系解话语料（十四主星/四化论/十神旺衰/七政恩难仇用/运势断法），按 bundle_type 注入 system prompt；lore 只提供通识断语，禁止参与任何排盘计算
 - 断语权威 = `skills/*/references` 原文整包（`lore.py: skill_canon()` 注入，含 SKILL.md 第三阶段分析框架）；SKILL.md 无 LICENSE，原样收录
-- facts 上限 24 条 × 400 字符（2026-08-31 由 16×280 放宽，签名 token 上限同步 48K）；summary 上限 3600 字；`_parse_answer` 的安全正则（确定性断语/用药/投资指令）不许放松
+- facts 上限 24 条 × 400 字符（2026-08-31 由 16×280 放宽，签名 token 上限同步 48K；组装侧一律 `text[:400]` 截断）；summary 上限 3600 字；安全正则（确定性断语/用药/投资指令）不许放松——已抽成 `ai_explainer.safety_violation()`，非流式 `_parse_answer` 与流式（reading/解梦）收尾全文校验共用同一口径，命中以 error+code=safety 收尾
 - 流式解读引擎 = `apps/api/reading_agent.py`（skill 原典内联 + 流式 + `_ThinkFilter` 拆 think 链）；SSE 端点 `POST /v1/ai/reading` 与 `/v1/dreams/interpret/stream`。生成挂在服务端 StreamSession 注册表：断连不中止生成、同 stream_key 重连先回放再续播、预算只在全新生成时扣——改流式管道不得破坏这份续传契约
 - 前端流式消费统一走 `apps/observatory/src/streamReading.ts`：打字机节奏器分 displayText（渲染层）与 text（真值层），缓存/持久化只能用 text；思考折叠条 = `ThinkingTrace`；问事聊天跨页签存活靠 DomainAnalysisConsole 的 chatTurns 模块级注册表
-- AI 超时两套语义勿混用：非流式 `/v1/ai/explain` 默认 40s、硬顶 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；流式路径（reading_agent.py）自带 280s 下限，另 SSE 心跳 20s/续传 ping 10s
+- AI 超时三层勿混用：provider 单次调用默认 40s、上限 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；非流式端点被 RequestGuard 的 ai 门 62s 硬顶，explain/解梦的 provider 重试自带 56s 墙钟收手（改任何一层都要对齐另外两层）；流式路径（reading_agent.py）上游读超时 280s，另 SSE 心跳 20s/续传 ping 10s。AI 日预算按北京时间零点日切，429 的 Retry-After 动态算到零点
 - 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 固定 50s 长超时（不受 config 40s 约束）
 
 ## 生产部署

@@ -17,8 +17,8 @@ Send = Callable[[Message], Awaitable[None]]
 
 
 # AI 流式路径（reading/解梦 SSE）是长连接：M3 思考+输出可达数分钟，
-# 不套用单次调用总时长门（12s/28s），超时由 provider 侧 FORTUNE_AI_TIMEOUT_SECONDS
-# 兜底；客户端断开时生成器随之取消。仍走 AI 并发槽与限流。
+# 不套用单次调用总时长门（12s/62s），provider 侧读超时 280s 兜底；
+# reading 的生成挂在服务端会话注册表上，断开连接不会中止生成。仍走 AI 并发槽与限流。
 _STREAMING_AI_PATHS = frozenset({"/v1/ai/reading", "/v1/dreams/interpret/stream"})
 
 
