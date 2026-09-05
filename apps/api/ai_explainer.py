@@ -446,6 +446,31 @@ def _message_text(body: Any) -> str:
     raise AiProviderError("provider response content has an unsupported shape")
 
 
+# 内容红线（确定性断语/用药/投资）：非流式在 _parse_answer 拦、流式在收尾全文校验，
+# 两态共用同一套口径（safety_violation），命中返回类别名，供错误码细分。
+_SAFETY_CLAIM_PATTERNS: tuple[tuple[str, str], ...] = (
+    ("deterministic", r"(?:注定|必然|百分之百|保证你|一定会)"),
+    (
+        "medical",
+        r"(?:停药|换药|加药|减药|停用|口服|服用|注射|输液|调整剂量|"
+        r"阿司匹林|布洛芬|抗生素|处方药|手术治疗|\d+\s*(?:mg|毫克|片|粒|ml|毫升))",
+    ),
+    (
+        "investment",
+        r"(?:购买|买入|卖出|加仓|减仓|满仓|抄底|做多|做空|上杠杆|借贷投资|"
+        r"股票|基金|债券|期货|期权|虚拟币|加密货币)",
+    ),
+)
+
+
+def safety_violation(text: str) -> str | None:
+    """返回命中的内容红线类别名（deterministic/medical/investment），无命中为 None。"""
+    for name, pattern in _SAFETY_CLAIM_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE if name == "medical" else 0):
+            return name
+    return None
+
+
 def _parse_answer(
     text: str,
     allowed_fact_ids: set[str],
@@ -468,21 +493,13 @@ def _parse_answer(
     if any(not set(claim.fact_ids).issubset(allowed_fact_ids) for claim in claims):
         raise AiProviderError("provider response cited unknown facts")
     combined_text = "\n".join(claim.text for claim in claims)
-    if re.search(r"(?:注定|必然|百分之百|保证你|一定会)", combined_text):
+    violation = safety_violation(combined_text)
+    if violation == "deterministic":
         raise AiProviderError("provider response made a deterministic claim")
     source_types = bundle_types or set()
-    if re.search(
-        r"(?:停药|换药|加药|减药|停用|口服|服用|注射|输液|调整剂量|"
-        r"阿司匹林|布洛芬|抗生素|处方药|手术治疗|\d+\s*(?:mg|毫克|片|粒|ml|毫升))",
-        combined_text,
-        re.IGNORECASE,
-    ):
+    if violation == "medical":
         raise AiProviderError("provider response included medical instructions")
-    if re.search(
-        r"(?:购买|买入|卖出|加仓|减仓|满仓|抄底|做多|做空|上杠杆|借贷投资|"
-        r"股票|基金|债券|期货|期权|虚拟币|加密货币)",
-        combined_text,
-    ):
+    if violation == "investment":
         raise AiProviderError("provider response included investment instructions")
     return answer
 

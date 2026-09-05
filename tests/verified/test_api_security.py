@@ -547,7 +547,7 @@ def test_unhandled_error_is_generic_and_keeps_security_headers(monkeypatch: pyte
     monkeypatch.setattr(api_module, "calculate_bazi", fail_closed)
     status, headers, response_text = call_api("/v1/charts", api_birth())
     assert status == 500
-    assert json.loads(response_text)["detail"] == "Internal server error"
+    assert json.loads(response_text)["detail"] == "服务暂时出了点问题，请稍后重试。"
     assert "SENSITIVE_INTERNAL_MARKER" not in response_text
     assert headers[b"cache-control"] == b"no-store"
     assert headers[b"x-content-type-options"] == b"nosniff"

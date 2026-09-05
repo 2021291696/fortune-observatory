@@ -77,19 +77,19 @@ class RequestGuardMiddleware:
         if is_calculation:
             client = self._client_ip(scope)
             if not self._allow_request(client):
-                await self._send_json(guarded_send, 429, b'{"detail":"Too many requests"}', [(b"retry-after", b"60")])
+                await self._send_json(guarded_send, 429, '{"detail":"请求太频繁了，请稍后再试。"}', [(b"retry-after", b"60")])
                 return
             declared_length = self._content_length(scope)
             if declared_length is None:
-                await self._send_json(guarded_send, 400, b'{"detail":"Invalid Content-Length"}')
+                await self._send_json(guarded_send, 400, '{"detail":"请求头不完整，请刷新后重试。"}')
                 return
             if declared_length > self.max_body_bytes:
-                await self._send_json(guarded_send, 413, b'{"detail":"Request body too large"}')
+                await self._send_json(guarded_send, 413, '{"detail":"请求内容超出大小限制。"}')
                 return
             try:
                 await asyncio.wait_for(self._body_reader_slots.acquire(), timeout=1.0)
             except TimeoutError:
-                await self._send_json(guarded_send, 503, b'{"detail":"Server is busy"}', [(b"retry-after", b"2")])
+                await self._send_json(guarded_send, 503, '{"detail":"这会儿有点忙，请几秒后重试。"}', [(b"retry-after", b"2")])
                 return
             try:
                 body = await asyncio.wait_for(
@@ -97,15 +97,15 @@ class RequestGuardMiddleware:
                     timeout=self.request_body_timeout_seconds,
                 )
             except TimeoutError:
-                await self._send_json(guarded_send, 408, b'{"detail":"Request body timed out"}')
+                await self._send_json(guarded_send, 408, '{"detail":"请求发送超时，请重试。"}')
                 return
             finally:
                 self._body_reader_slots.release()
             if body is None:
-                await self._send_json(guarded_send, 413, b'{"detail":"Request body too large"}')
+                await self._send_json(guarded_send, 413, '{"detail":"请求内容超出大小限制。"}')
                 return
             if is_ai and not self._allow_ai_request(client, self._ai_request_units(body)):
-                await self._send_json(guarded_send, 429, b'{"detail":"Too many AI requests"}', [(b"retry-after", b"60")])
+                await self._send_json(guarded_send, 429, '{"detail":"AI 请求太频繁了，请稍后再试。"}', [(b"retry-after", b"60")])
                 return
 
             delivered = False
@@ -131,7 +131,7 @@ class RequestGuardMiddleware:
         try:
             await asyncio.wait_for(work_slots.acquire(), timeout=1.5)
         except TimeoutError:
-            await self._send_json(guarded_send, 503, b'{"detail":"Server is busy"}', [(b"retry-after", b"2")])
+            await self._send_json(guarded_send, 503, '{"detail":"这会儿有点忙，请几秒后重试。"}', [(b"retry-after", b"2")])
             return
         response_expired = False
 
@@ -168,7 +168,7 @@ class RequestGuardMiddleware:
                 await task
             except asyncio.CancelledError:
                 pass
-            await self._send_json(guarded_send, 504, b'{"detail":"Calculation timed out"}', [(b"retry-after", b"2")])
+            await self._send_json(guarded_send, 504, '{"detail":"这次计算没能在时限内完成，请重试。"}', [(b"retry-after", b"2")])
 
     def _finish_background_task(self, task: asyncio.Task[None]) -> None:
         self._background_tasks.discard(task)
@@ -300,7 +300,9 @@ class RequestGuardMiddleware:
         return wrapped
 
     @staticmethod
-    async def _send_json(send: Send, status: int, body: bytes, extra_headers: list[tuple[bytes, bytes]] | None = None) -> None:
+    async def _send_json(send: Send, status: int, body: bytes | str, extra_headers: list[tuple[bytes, bytes]] | None = None) -> None:
+        if isinstance(body, str):
+            body = body.encode("utf-8")
         headers = [(b"content-type", b"application/json"), (b"content-length", str(len(body)).encode())]
         if extra_headers:
             headers.extend(extra_headers)

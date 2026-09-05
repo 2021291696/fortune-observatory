@@ -17,6 +17,7 @@ from ai_explainer import (
     AiProviderError,
     get_provider_config,
     reserve_daily_budget,
+    safety_violation,
 )
 from dreams.lore import _WORK_TITLES, skill_profile
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse, SourceOut
@@ -287,4 +288,11 @@ async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[di
     essay = "".join(chunks).strip()
     if not essay:
         raise AiProviderError("empty essay")
+    # 内容红线收尾校验（与非流式/解读同一套口径）：正文已流出无法撤回，
+    # 命中以 error+code=safety 收尾，前端清空展示层并提示换问法。
+    violation = safety_violation(essay)
+    if violation is not None:
+        logger.warning("dream essay safety violation kind=%s", violation)
+        yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}
+        return
     yield {"type": "done", "sources": [item.model_dump(mode="json") for item in extract_sources(essay)]}

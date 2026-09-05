@@ -784,10 +784,11 @@ async def unexpected_error_handler(request: Request, error: Exception) -> JSONRe
         trace_id,
         request.url.path,
         type(error).__name__,
+        exc_info=error,
     )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "trace_id": trace_id},
+        content={"detail": "服务暂时出了点问题，请稍后重试。", "trace_id": trace_id},
         headers=ERROR_SECURITY_HEADERS,
     )
 
@@ -832,16 +833,22 @@ async def dreams_interpret_stream(request: InterpretRequest) -> StreamingRespons
                 if event.get("type") == "error":
                     logger.warning("dream stream failed mid-stream")
                     raw_detail = str(event.get("detail") or "")
+                    is_safety = event.get("code") == "safety"
                     friendly = (
-                        "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
+                        "这篇解梦的表述超出了输出规范（含确定的吉凶断语或用药、投资指引），已不展示，请换个问法再试。"
+                        if is_safety
+                        else "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
                         if "content filter" in raw_detail
                         else "今日解梦额度已用完，请明天再试。"
                         if "budget" in raw_detail
                         else "这一篇没写成，请稍后重试。"
                     )
+                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
+                    if is_safety:
+                        payload_event["code"] = "safety"
                     yield (
                         "data: "
-                        + json.dumps({"type": "error", "detail": friendly}, ensure_ascii=False)
+                        + json.dumps(payload_event, ensure_ascii=False)
                         + "\n\n"
                     )
                     return
@@ -967,9 +974,12 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
                     return
                 else:
                     logger.warning("reading stream failed mid-stream key=%s detail=%s", session.key, text)
+                    payload_event: dict[str, str] = {"type": "error", "detail": friendly_reading_error(text or "")}
+                    if "safety violation" in (text or ""):
+                        payload_event["code"] = "safety"
                     yield (
                         "data: "
-                        + json.dumps({"type": "error", "detail": friendly_reading_error(text or "")}, ensure_ascii=False)
+                        + json.dumps(payload_event, ensure_ascii=False)
                         + "\n\n"
                     )
                     return
@@ -1042,7 +1052,7 @@ def create_chart(birth: BirthInput) -> ChartApiResponse:
         )
         qizheng = qizheng.model_copy(update={"traditional": traditional})
     except ValueError as error:
-        raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
+        raise HTTPException(status_code=422, detail=f"计算输入超出当前支持范围（{str(error)[:160]}）。") from error
     chart = ChartResponse(
         bazi=snapshot,
         ziwei=ziwei,
@@ -1068,7 +1078,7 @@ def create_daily_transit(request: DailyTransitRequest) -> DailyTransitApiRespons
             from_attributes=True,
         )
     except ValueError as error:
-        raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
+        raise HTTPException(status_code=422, detail=f"计算输入超出当前支持范围（{str(error)[:160]}）。") from error
     if bazi.verification_status != "verified":
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
@@ -1113,7 +1123,7 @@ def create_transit_window(request: TransitWindowRequest) -> TransitWindowApiResp
             from_attributes=True,
         )
     except ValueError as error:
-        raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
+        raise HTTPException(status_code=422, detail=f"计算输入超出当前支持范围（{str(error)[:160]}）。") from error
     if bazi.verification_status != "verified":
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}
@@ -1148,7 +1158,7 @@ def create_transit(request: TransitRequest) -> TransitApiResponse:
             from_attributes=True,
         )
     except ValueError as error:
-        raise HTTPException(status_code=422, detail="计算输入超出当前支持范围。") from error
+        raise HTTPException(status_code=422, detail=f"计算输入超出当前支持范围（{str(error)[:160]}）。") from error
     if bazi.verification_status != "verified":
         transit = transit.model_copy(
             update={"verification_status": bazi.verification_status}

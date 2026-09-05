@@ -439,7 +439,10 @@ export function App() {
   }
 
   function renameUser(id: string, name: string) {
-    if (users.some((user) => user.id !== id && user.name === name)) return
+    if (users.some((user) => user.id !== id && user.name === name)) {
+      showSavedNotice('这个名字已经有人用了，换一个吧')
+      return
+    }
     persistUsers(users.map((user) => (user.id === id ? { ...user, name } : user)))
   }
 

@@ -25,6 +25,7 @@ from ai_explainer import (
     AiFact,
     AiProviderError,
     get_provider_config,
+    safety_violation,
 )
 
 logger = logging.getLogger("fortune.reading_agent")
@@ -326,6 +327,7 @@ async def stream_reading(
 
 _STREAM_SESSION_TTL = 900.0        # done/error 会话保留窗口（供重试回放）
 _STREAM_SESSION_HARD_CAP = 600.0   # streaming 会话硬上限（上游读超时 280s，超此必是僵死）
+_STREAM_SESSION_MAX = 128          # 会话总数上限：低频下 TTL 清理只在请求到达时触发，终态会话会无限堆积
 
 
 class StreamSession:
@@ -348,6 +350,20 @@ class StreamSession:
             self.updated = time.monotonic()
             for queue in self.subscribers:
                 queue.put_nowait((kind, text))
+
+    async def finish(self, kind: str, detail: str | None = None) -> None:
+        """终态收尾：status 变更与 done/error 事件入列在同一把锁内完成。
+
+        此前 status 先行赋值、publish 再拿锁，新订阅者可能恰好落在两步之间：
+        判定非 live、回放里又没有 done 事件 → 静默挂到 ping 超时。"""
+        async with self.lock:
+            self.status = "done" if kind == "done" else "error"
+            if detail is not None:
+                self.error_detail = detail
+            self.events.append((kind, detail))
+            self.updated = time.monotonic()
+            for queue in self.subscribers:
+                queue.put_nowait((kind, detail))
 
     async def attach(self) -> AsyncIterator[tuple[str, str | None]]:
         """回放全部既有事件后续播实时增量；终止于 done/error。"""
@@ -409,13 +425,27 @@ async def get_or_create_stream_session(key: str) -> tuple[StreamSession, bool]:
         existing = _sessions.get(key)
         if existing is not None and existing.status in ("streaming", "done"):
             return existing, True
+        # 总量上限：逐出最旧的终态会话（streaming 会话最多 3 个并发，不参与逐出）。
+        if len(_sessions) >= _STREAM_SESSION_MAX:
+            finished = sorted(
+                (s for k, s in _sessions.items() if s.status != "streaming" and k != key),
+                key=lambda s: s.updated,
+            )
+            for stale in finished[: max(0, len(_sessions) - _STREAM_SESSION_MAX + 1)]:
+                _sessions.pop(stale.key, None)
         session = StreamSession(key)
         _sessions[key] = session
         return session, False
 
 
 def friendly_reading_error(detail: str) -> str:
-    return "这段描述触发了内容安全过滤，请换一种说法再试。" if "content filter" in detail else "AI 解读这次没有生成，请稍后重试。"
+    if "content filter" in detail:
+        return "这段描述触发了内容安全过滤，请换一种说法再试。"
+    if "safety violation" in detail:
+        return "这次生成的内容超出了输出规范（含确定的吉凶断语或用药、投资指引），已不展示，请换个问法再试。"
+    if "budget" in detail:
+        return "今日 AI 讲解额度已用完，规则结果仍可正常使用。"
+    return "AI 解读这次没有生成，请稍后重试。"
 
 
 async def generate_into_session(
@@ -427,15 +457,22 @@ async def generate_into_session(
     history: list[dict[str, str]] | None = None,
 ) -> None:
     """后台生成任务：事件写进会话并扇出给订阅者；生命周期独立于任何连接。"""
+    body_parts: list[str] = []
     try:
         async for kind, text in stream_reading(question=question, facts=facts, bundle_types=bundle_types, history=history):
+            if kind == "delta":
+                body_parts.append(text)
             await session.publish(kind, text)
-        session.status = "done"
-        await session.publish("done", None)
+        # 内容红线收尾校验：正文已实时流出、无法撤回，命中时以 error+code 收尾，
+        # 前端按 code=safety 清空展示层，不落 done 语义（也就不会写缓存）。
+        violation = safety_violation("".join(body_parts))
+        if violation is not None:
+            logger.warning("reading safety violation key=%s kind=%s", session.key, violation)
+            await session.finish("error", f"safety violation: {violation}")
+            return
+        await session.finish("done")
     except asyncio.CancelledError:
         raise
     except Exception as error:
         logger.warning("reading generation failed key=%s: %s: %s", session.key, type(error).__name__, error)
-        session.status = "error"
-        session.error_detail = f"{type(error).__name__}: {error}"
-        await session.publish("error", session.error_detail)
+        await session.finish("error", f"{type(error).__name__}: {error}")

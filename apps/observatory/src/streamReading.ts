@@ -96,7 +96,7 @@ function scheduleThinkEmit(entry: StreamEntry) {
   })
 }
 
-function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown; detail?: unknown; sources?: unknown }) {
+function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown; detail?: unknown; code?: unknown; sources?: unknown }) {
   if (event.type === 'think' && typeof event.text === 'string') {
     entry.snapshot = { ...entry.snapshot, thinkText: entry.snapshot.thinkText + event.text }
     scheduleThinkEmit(entry)
@@ -126,7 +126,16 @@ function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown
   }
   if (event.type === 'error') {
     const detail = typeof event.detail === 'string' ? event.detail.slice(0, 180) : 'AI 解读这次没有生成，请稍后重试。'
-    entry.snapshot = { ...entry.snapshot, phase: 'error', error: detail }
+    // 内容红线命中（code=safety）：正文已不可信，清空展示层只留错误提示。
+    const safety = event.code === 'safety'
+    entry.snapshot = {
+      ...entry.snapshot,
+      text: safety ? '' : entry.snapshot.text,
+      displayText: safety ? '' : entry.snapshot.displayText,
+      thinkText: safety ? '' : entry.snapshot.thinkText,
+      phase: 'error',
+      error: detail,
+    }
     flushEmit(entry)
     startPacer(entry)
     inflight.delete(snapshotCacheKeyOf(entry))
