@@ -1,0 +1,226 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.yaml",
+ "name": "destiny-排盘运势问事解梦全流程",
+ "gate": "api",
+ "started_at": "2026-09-04T10:23:06+08:00",
+ "finished_at": "2026-09-04T10:23:06+08:00",
+ "target": {
+  "platform": "web",
+  "api_base": "https://destiny.solplum.com/api",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 182225,
+   "error": "步骤 dream_interpret: 断言不过: status=502 期望 200",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 3882,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 2497,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 2147,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 22978,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "PASS",
+     "ms": 32027,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "dream_questions",
+     "status": "PASS",
+     "ms": 66666,
+     "detail": "POST /v1/dreams/questions → 200"
+    },
+    {
+     "id": "dream_interpret",
+     "status": "RED",
+     "ms": 52024,
+     "detail": "断言不过: status=502 期望 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6Ijg1ZTY4ZWRlLWE0MTEtNGY4OC05NmE2LTFjNzQ3YzhkYjY5YiIsImV4cGlyZXNfYXQiOjE3ODg0OTAyMDgsImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.SYSOmsMv7u8-UCyZinFXabLFz3shFPj18OFbBpkzfbk",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiZjc3OTBhYWQ4Mzc3N2M5OTYzMDZlYTY3YzE5YTg5YmIiLCJleHBpcmVzX2F0IjoxNzg4NDkwMjEyLCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.s33k1I9PXFlQFiyMGmdRYHaL8sKYYZdprClJIwvLhS0"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "今日运势有动象但不算凶险——流日辛巳同时冲年柱乙亥、并临于时柱乙巳，等于在两条老根上同时敲了一锤。打个比方：地基（年柱）和屋顶（时柱）同日被风吹，主屋暂时没塌，但屋里人会觉得摇晃、吵得慌，注意力容易被拉散。你正处于丁亥大限（26–35岁），大限基调是文思与口才活跃、但暗藏辛劳与口舌（巨门化忌入本限），今天流日再叠加同支临于时柱，你今天更容易被人追问、要你解释或表态。今天的注意点不是大破财大是非，而是「输出节奏被打断」：本来说好的事，对方突然改口；或你刚发的文档/消息被人挑刺。如果你今天有重要会议、面试、签合同、对话沟通，反而要主动把节奏放慢——先听再说，先确认再落笔。今日适合做的：回顾旧案、整理文档、回应积压的信息。",
+       "fact_ids": [
+        "daily-1",
+        "daily-2",
+        "daily-3",
+        "daily-4",
+        "daily-7"
+       ]
+      },
+      "actions": [
+       {
+        "text": "今天若有人找你确认某事或要你表态，先复述一遍对方的原话再回应，避免你理解的版本和对方说的版本不同。",
+        "fact_ids": [
+         "daily-4",
+         "daily-7"
+        ]
+       },
+       {
+        "text": "今天发重要文字（合同、邮件、申请）前先放五分钟再看一遍，时柱同支临文昌位易笔误或用词被放大。",
+        "fact_ids": [
+         "daily-4",
+         "daily-1"
+        ]
+       },
+       {
+        "text": "把今天遇到的口舌摩擦当作信号而非事故——大限本身已带口舌功课（巨门化忌），今天只是放大，不必因此怀疑自己的表达。",
+        "fact_ids": [
+         "daily-7"
+        ]
+       },
+       {
+        "text": "今晚早些睡，年柱被冲的日子容易让长辈或老关系主动来问话，回旧信息比开新话题省力。",
+        "fact_ids": [
+         "daily-3"
+        ]
+       }
+      ],
+      "caveats": [
+       {
+        "text": "只需记住这一条：今天不要抢着先开口，先听再答，节奏让给你身边的人。",
+        "fact_ids": [
+         "daily-4",
+         "daily-7"
+        ]
+       }
+      ]
+     }
+    },
+    "ziwei_chart_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "你的命格是太阴太阳在丑未对宫相照的「日月同宫格」倾向，太阴化忌坐命，主性格底色为内秀细腻、重感情但容易内耗敏感。命格像一座外表平静、内里波光粼粼的湖——湖面映着日光（月亮借太阳光），湖底却藏着暗流（太阴化忌主内心功课）。\n\n第一段：命格总纲——太阴庙旺太阳不旺双星坐命丑宫（ziwei-1），构成「明珠出海」格局变体——命在丑宫，借对宫未宫（迁移无主星）之力，形成一种内在丰盈、外在低调的气质。太阴主柔美、细腻、积蓄，庙旺说明你有很强的感受力和审美力；太阳「不」即落陷减力，提示外在表现力、社交主动性需刻意锻炼（落陷之人有「不甘」二字推动，反能大成）。身宫在夫妻宫亥位（ziwei-3），主中年后归向以情感关系与生活品质为重心。\n\n第二段：四化论断——生年四化（ziwei-14）天机化禄落福德（ziwei-11）：精神世界有机谋、善策划、想法能变现，是内在享受的源头；天梁化权落官禄（ziwei-9）：事业上以长辈缘、医疗法律教育等专业权威立身，但天梁落陷减力，需以化权补位；紫微化科落田宅（ziwei-10）：居家有格调，名声与不动产相关；太阴化忌落命（ziwei-1）：这是命盘最深功课——情感细腻易内耗、对人对事容易过度付出与敏感，是必须面对而非逃避的功课（《全书·四化论》：化忌入命三方四正，一生有深刻功课，过得了就是大智慧）。\n\n第三段：用武之地——三方四正（命宫+财帛+官禄+迁移互照）构成功名财帛的格局。财帛宫酉位空宫无主星借官禄（ziwei-5、ziwei-9），官禄天梁化权自化忌——财源靠专业权威立身，自化忌提示事业上有反复调整之象；迁移未宫无主星（ziwei-7），借命宫太阴太阳之力，外出发展需借本身才华而不靠外地机缘。\n\n第四段：当前大限节奏——你当前虚岁32，正行夫妻宫大限26-35岁（ziwei-13），主旋律落在婚姻感情与合作关系。天同庙旺坐夫妻（ziwei-3）且自化权，这十年在感情上主动、有选择权，但需注意自化权过强易固执己见、忽略对方感受。天同为福德之星，温和随缘，这十年也是把生活节奏放慢、调整心态的十年。\n\n第五段：格局与警醒——命盘未成完整「机月同梁」或「杀破狼」大开大合格局，而是日月同宫格加化忌命宫的细腻内秀命。需特别留意父母宫贪狼平+火星陀罗（ziwei-12）：与长辈关系有摩擦或早年家庭氛围动荡；交友宫七杀旺+右弼地空（ziwei-8）：朋友圈层果决但易有空亡感，人脉虽广而深交少。这些都是命盘课题，不是凶兆。",
+       "fact_ids": [
+        "ziwei-1",
+        "ziwei-3",
+        "ziwei-9",
+        "ziwei-10",
+        "ziwei-11",
+        "ziwei-13",
+        "ziwei-14",
+        "ziwei-5",
+        "ziwei-7",
+        "ziwei-12",
+        "ziwei-8"
+       ]
+      },
+      "actions": [
+       {
+        "text": "把太阴化忌这个功课翻译成具体动作：每晚睡前写下当天让你「内耗」的三件事，挑一件下次用更直接的方式回应（不绕弯、不猜测），坚持一个月看变化。",
+        "fact_ids": [
+         "ziwei-1",
+         "ziwei-14"
+        ]
+       },
+       {
+        "text": "太阳落陷（ziwei-1）提示外在表现力需刻意练：每月至少一次主动在公开场合发言、汇报或分享观点，锻炼你的「向外推」能力。",
+        "fact_ids": [
+         "ziwei-1"
+        ]
+       },
+       {
+        "text": "天梁化权落官禄（ziwei-9）说明你的事业主轴是专业权威路线——选一个领域深耕（医疗、法律、教育、咨询均可），不要频繁换赛道。",
+        "fact_ids": [
+         "ziwei-9"
+        ]
+       },
+       {
+        "text": "当前大限夫妻宫自化权（ziwei-3）：如果目前有伴侣，多给彼此空间；如果尚未有，这十年别因内秀而被动等待，主动社交圈要扩出去。",
+        "fact_ids": [
+         "ziwei-3",
+         "ziwei-13"
+        ]
+       }
+      ],
+      "caveats": [
+       {
+        "text": "只需记住这一条：太阴化忌落命的功课是「别让敏感变成自我消耗」，感受力是天赋，过度了就是负担。",
+        "fact_ids": [
+         "ziwei-1",
+         "ziwei-14"
+        ]
+       },
+       {
+        "text": "命理分析仅供参考，性格底色是倾向不是定数，人生在于自身的努力和选择。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "dream_questions": {
+     "status": 200,
+     "json": {
+      "questions": [
+       {
+        "id": "finished",
+        "label": "黑板上那些看不懂的公式，你最后有没有真的擦掉？"
+       },
+       {
+        "id": "agency",
+        "label": "拿板擦动手这件事，是你心里急着要做，还是教室里有谁在催你？"
+       },
+       {
+        "id": "fear_of",
+        "label": "桌椅缩成小、公式越涌越黑、日光灯开始一闪，哪一幕最让你心里发慌？"
+       }
+      ]
+     }
+    },
+    "dream_interpret": {
+     "status": 502,
+     "json": {
+      "detail": "这一梦没写成，请稍后重试。"
+     }
+    }
+   },
+   "artifacts": [
+    "dream_interpret.resp.json"
+   ],
+   "finished_at": "2026-09-04T10:23:06+08:00"
+  }
+ ]
+}

@@ -1,0 +1,242 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.yaml",
+ "name": "destiny-排盘运势问事解梦全流程",
+ "gate": "api",
+ "started_at": "2026-09-04T11:28:37+08:00",
+ "finished_at": "2026-09-04T11:30:07+08:00",
+ "target": {
+  "platform": "web",
+  "api_base": "https://destiny.solplum.com/api",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 83771,
+   "error": "步骤 ziwei_chart_explain: 断言不过: status=502 期望 200",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 1038,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 7582,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 1531,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 32936,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "RED",
+     "ms": 40683,
+     "detail": "断言不过: status=502 期望 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6IjViMTliMmYxLTJjNDMtNDRkMC1hOTU5LWEyY2E0ZTE3N2JhMyIsImV4cGlyZXNfYXQiOjE3ODg0OTQyMzYsImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.tiudc6KPGmp54vc5S_MmUcqvi6WWZ3bMcUn_DldcVKQ",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiZjc3OTBhYWQ4Mzc3N2M5OTYzMDZlYTY3YzE5YTg5YmIiLCJleHBpcmVzX2F0IjoxNzg4NDk0MjQxLCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.mAmmYNv2pNBxN3H49Oc-YjhPjAGElrWFdBT9KjAUA_w"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "今天的运势像走过一条不太平整的石板路——脚步本身没问题，但要小心脚下的接缝绊人。流日辛巳与命局两根乙柱发生冲、同，容易在情绪上被过去的事或家里长辈的话题牵动；真正要防的是言语上的小摩擦，以及身体上火气上浮带来的小不适（比如咽喉、皮肤、心烦）。从流年来看，你目前在丁亥大限（26-35岁）的尾段，主旋律是\"内修\"——福德宫被化权，说明内心世界的掌控感在增强，但巨门化忌也提醒你要管住嘴、把是非挡在外面。当前阶段无论是婚恋、还是职业晋升，都还是窗口期而非既成事实，2026丙午年的四化把\"禄\"放在夫妻宫，提示如果现在有对象，关系会更有温度；廉贞化忌落疾厄则是一整年都要注意的火象健康议题。整体节奏是：今天适合稳住节奏、低调做事、避免冲动开口。",
+       "fact_ids": [
+        "daily-1",
+        "daily-2",
+        "daily-3",
+        "daily-4",
+        "daily-5",
+        "daily-6",
+        "daily-7"
+       ]
+      },
+      "actions": [
+       {
+        "text": "今天少说多听：流日辛巳冲动年柱乙亥，情绪容易被长辈议题或旧事勾起，不主动挑起话题，别人问到敏感家事就转话题。",
+        "fact_ids": [
+         "daily-3"
+        ]
+       },
+       {
+        "text": "管住嘴、管住手：流年命宫午位有流羊（擎羊星），行事带\"刺\"，今天签合同、发消息、动手操作前先停三秒，尤其涉及文书或承诺的内容。",
+        "fact_ids": [
+         "daily-6"
+        ]
+       },
+       {
+        "text": "注意火象身体信号：流日巳火当令、又冲动命局，咽喉、皮肤、心烦是今天的常见反应，少熬夜、少吃辛辣、多喝温水。",
+        "fact_ids": [
+         "daily-1",
+         "daily-3",
+         "daily-4"
+        ]
+       },
+       {
+        "text": "晚上留一段独处时间：大限化权在福德、天机化科在这一宫，内心正在做整合；安静下来比硬社交更养今天的运势。",
+        "fact_ids": [
+         "daily-7"
+        ]
+       }
+      ],
+      "caveats": [
+       {
+        "text": "只需记住这一条：今天\"少开口、多喝水\"，就是最稳的护身符。",
+        "fact_ids": [
+         "daily-1",
+         "daily-3",
+         "daily-4"
+        ]
+       },
+       {
+        "text": "今年（丙午）廉贞化忌落疾厄是一整年的功课，不只是今天；任何持续的身体小信号都值得认真对待，别硬扛。",
+        "fact_ids": [
+         "daily-5"
+        ]
+       }
+      ]
+     }
+    },
+    "ziwei_chart_explain": {
+     "status": 502,
+     "json": {
+      "detail": "AI 讲解这次没有生成，请稍后重试。"
+     }
+    }
+   },
+   "artifacts": [
+    "ziwei_chart_explain.resp.json"
+   ],
+   "finished_at": "2026-09-04T11:28:37+08:00"
+  },
+  {
+   "id": "base@invalid_input@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 56615,
+   "error": "步骤 fortune_daily_explain: 断言不过: status=502 期望 200",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 642,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 5100,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 8006,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "RED",
+     "ms": 42865,
+     "detail": "断言不过: status=502 期望 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6ImI1ZDNjZWNmLWRmYzctNDMwYi05NjEzLTMwNjcwMzdkYTQ3NiIsImV4cGlyZXNfYXQiOjE3ODg0OTQzMTgsImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.4d7bLBFqaBr-1IprwWkkhnmuQrdemauaHWmvOp3MEWs",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiZjc3OTBhYWQ4Mzc3N2M5OTYzMDZlYTY3YzE5YTg5YmIiLCJleHBpcmVzX2F0IjoxNzg4NDk0MzIzLCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.tFzKu1QNP2pnRiONQjV3qS0PY8DqWt9q0dwtNPQLS2o"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 502,
+     "json": {
+      "detail": "AI 讲解这次没有生成，请稍后重试。"
+     }
+    }
+   },
+   "artifacts": [
+    "fortune_daily_explain.resp.json"
+   ],
+   "finished_at": "2026-09-04T11:29:33+08:00"
+  },
+  {
+   "id": "base@duplicate_submit@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 33910,
+   "error": "步骤 create_chart: POST https://destiny.solplum.com/api/v1/charts 连接失败: <urlopen error _ssl.c:993: The handshake operation timed out>",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 2792,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "RED",
+     "ms": 31117,
+     "detail": "POST https://destiny.solplum.com/api/v1/charts 连接失败: <urlopen error _ssl.c:993: The handshake operation timed out>"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    }
+   },
+   "artifacts": [],
+   "finished_at": "2026-09-04T11:30:07+08:00"
+  }
+ ]
+}

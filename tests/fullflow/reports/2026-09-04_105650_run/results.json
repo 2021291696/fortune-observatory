@@ -1,0 +1,35 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-解梦常驻视图切换UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-04T10:57:11+08:00",
+ "finished_at": "2026-09-04T10:57:11+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 20567,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 20007,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-04T10:57:11+08:00"
+  }
+ ]
+}

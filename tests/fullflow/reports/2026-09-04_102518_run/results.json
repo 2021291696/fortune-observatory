@@ -1,0 +1,170 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.yaml",
+ "name": "destiny-排盘运势问事解梦全流程",
+ "gate": "api",
+ "started_at": "2026-09-04T10:28:05+08:00",
+ "finished_at": "2026-09-04T10:28:05+08:00",
+ "target": {
+  "platform": "web",
+  "api_base": "https://destiny.solplum.com/api",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "RED",
+   "ms": 166367,
+   "error": "步骤 dream_interpret: 断言不过: status=502 期望 200",
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 707,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 7880,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 6407,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 53433,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "PASS",
+     "ms": 29494,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "dream_questions",
+     "status": "PASS",
+     "ms": 11814,
+     "detail": "POST /v1/dreams/questions → 200"
+    },
+    {
+     "id": "dream_interpret",
+     "status": "RED",
+     "ms": 56628,
+     "detail": "断言不过: status=502 期望 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6IjM3Njc3NjViLWU0YWEtNDI2MC1hM2ZkLTRiOWE1OWFlOGU0NSIsImV4cGlyZXNfYXQiOjE3ODg0OTA1MTgsImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.MYTltE63GwcOM0W-S2qtBR99pdz8G-UlDNq_3Rnlg70",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiZjc3OTBhYWQ4Mzc3N2M5OTYzMDZlYTY3YzE5YTg5YmIiLCJleHBpcmVzX2F0IjoxNzg4NDkwNTMyLCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9._0z8SbGBvLpMekUdRDazhBEM6DjcdrTnsXpC1uoLA2I"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "今天不是平稳的一天，你本命根基（年柱乙亥）和表达输出（时柱乙巳）同时被流日辛巳触动，像是家里突然来电或手机弹出一条消息，把你从手头的事里拽出来。辛巳日天干辛金是你年柱乙木的七杀，地支巳亥冲直接打在年柱根基上（地支冲就是两个地支互相敌对、引发动荡），意味着今天容易有来自长辈、原生家庭或过去旧事的压力与突然事件；同时巳巳自刑落在时柱（自刑是地支自我纠缠、容易内耗），你做的东西、写的话、发出去的内容，今天容易反复琢磨、左右拉扯。\n\n你今年丙午（2026）整体基调是天同化禄落夫妻宫（化禄代表财源、好运和缘分，这是你今年最容易收获正缘、建立稳定关系的窗口），同时廉贞化忌在疾厄宫（化忌代表功课和消耗，落在疾厄宫说明今年身体和情绪管理是你的硬骨头，容易因情绪压力引发失眠、上火或心血管小信号）。你目前走丁亥大限（26-35岁），限内太阴化禄、天同化权、天机化科三吉齐照，唯独巨门化忌提醒你这十年要管住嘴、少与人起口舌争执。\n\n今天具体怎么落地：第一，年柱被冲意味着父母、家人、老家的事容易今天冒头，可能是一通电话、一笔旧账、一个需要你表态的家庭议题；处理原则是只听少说、不当场做重大决定，先稳住情绪再说。第二，时柱自刑意味着你今天做的东西——写的方案、发的消息、交出去的成果——容易自己反复改、反复怀疑；建议重要输出留到明天辛巳之后或推到下一周，别在今天跟自己较劲。第三，流年命宫在午宫坐文曲和擎羊（文曲代表感性表达，擎羊代表尖锐冲突），今天你的表达容易被误解为带刺，或者说者无心听者有意，重要沟通尽量走文字留底，少开会、多用邮件或微信文字确认。",
+       "fact_ids": [
+        "daily-1",
+        "daily-3",
+        "daily-4",
+        "daily-5",
+        "daily-6",
+        "daily-7"
+       ]
+      },
+      "actions": [
+       {
+        "text": "如果今天接到家里或长辈的电话，只回应不承诺，挂电话后先记下要点，等两天情绪平了再处理具体事项。",
+        "fact_ids": [
+         "daily-3"
+        ]
+       },
+       {
+        "text": "今天如果必须提交方案、回复邮件或发消息，先发给自己检查一遍，重点看有没有容易被误读的措辞，必要时加一句'我的意思是XX'。",
+        "fact_ids": [
+         "daily-4",
+         "daily-6"
+        ]
+       },
+       {
+        "text": "今天注意身体信号：胸闷、失眠、心跳偏快都是廉贞化忌在疾厄宫的提醒，别硬扛，晚上提前一小时放下手机。",
+        "fact_ids": [
+         "daily-5"
+        ]
+       },
+       {
+        "text": "今天尽量避开与同事、伴侣的当面争论；如果对方语气冲，先离场十分钟再回来谈，避免流曲带羊的锋芒。",
+        "fact_ids": [
+         "daily-6"
+        ]
+       }
+      ],
+      "caveats": [
+       {
+        "text": "只需记住这一条：今天所有重要输出和重要决定，都延后48小时再定稿。",
+        "fact_ids": [
+         "daily-3",
+         "daily-4"
+        ]
+       },
+       {
+        "text": "丙午年廉贞化忌在疾厄宫是全年基调，不是今天一天的事，规律作息和情绪管理是今年长线功课。",
+        "fact_ids": [
+         "daily-5"
+        ]
+       }
+      ]
+     }
+    },
+    "dream_questions": {
+     "status": 200,
+     "json": {
+      "questions": [
+       {
+        "id": "finished",
+        "label": "「梦见深夜回到小学教室，桌椅都变得」做到结尾了吗？"
+       },
+       {
+        "id": "agency",
+        "label": "走进这个场面，是你自己要去，还是被卷进去的？"
+       },
+       {
+        "id": "fear_of",
+        "label": "最怕的是哪一幕，或哪个人？"
+       }
+      ]
+     }
+    },
+    "dream_interpret": {
+     "status": 502,
+     "json": {
+      "detail": "这一梦没写成，请稍后重试。"
+     }
+    }
+   },
+   "artifacts": [
+    "dream_interpret.resp.json"
+   ],
+   "finished_at": "2026-09-04T10:28:05+08:00"
+  }
+ ]
+}

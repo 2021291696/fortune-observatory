@@ -1,0 +1,77 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.local.ui.yaml",
+ "name": "destiny-解梦常驻视图切换UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-04T09:18:51+08:00",
+ "finished_at": "2026-09-04T09:18:51+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "http://127.0.0.1:8765"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "PASS",
+   "ms": 1801,
+   "error": null,
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 727,
+     "detail": "goto http://127.0.0.1:8765"
+    },
+    {
+     "id": "ui_open_dream",
+     "status": "PASS",
+     "ms": 82,
+     "detail": "click .primary-nav a[href='#dream']"
+    },
+    {
+     "id": "ui_fill_dream",
+     "status": "PASS",
+     "ms": 14,
+     "detail": "fill #dream textarea"
+    },
+    {
+     "id": "ui_submit_dream",
+     "status": "PASS",
+     "ms": 58,
+     "detail": "click #dream .dream-composer > button"
+    },
+    {
+     "id": "ui_wait_dream_result",
+     "status": "PASS",
+     "ms": 90,
+     "detail": "visible .dream-result"
+    },
+    {
+     "id": "ui_switch_fortune",
+     "status": "PASS",
+     "ms": 125,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "ui_switch_back_dream",
+     "status": "PASS",
+     "ms": 54,
+     "detail": "click .primary-nav a[href='#dream']"
+    },
+    {
+     "id": "ui_dream_result_persists",
+     "status": "PASS",
+     "ms": 10,
+     "detail": "visible .dream-result"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-04T09:18:51+08:00"
+  }
+ ]
+}

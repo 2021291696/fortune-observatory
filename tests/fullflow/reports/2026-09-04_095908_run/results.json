@@ -1,0 +1,497 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.local.yaml",
+ "name": "destiny-排盘运势问事解梦全流程",
+ "gate": "api",
+ "started_at": "2026-09-04T09:59:09+08:00",
+ "finished_at": "2026-09-04T09:59:09+08:00",
+ "target": {
+  "platform": "web",
+  "api_base": "http://127.0.0.1:8765/api",
+  "ui_base": "http://127.0.0.1:8765"
+ },
+ "runs": [
+  {
+   "id": "base",
+   "kind": "normal",
+   "branch_trace": [],
+   "status": "PASS",
+   "ms": 387,
+   "error": null,
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 21,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 168,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 41,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 58,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "PASS",
+     "ms": 35,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "dream_questions",
+     "status": "PASS",
+     "ms": 32,
+     "detail": "POST /v1/dreams/questions → 200"
+    },
+    {
+     "id": "dream_interpret",
+     "status": "PASS",
+     "ms": 29,
+     "detail": "POST /v1/dreams/interpret → 200"
+    },
+    {
+     "id": "dream_referral",
+     "status": "PASS",
+     "ms": 1,
+     "detail": "POST /v1/dreams/interpret → 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6ImQzZGRkZDgwLTlhMjktNDkwMy05M2E4LWZmMGUwZDNjY2RmNCIsImV4cGlyZXNfYXQiOjE3ODg0ODg5NDgsImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.ah8XTj9Qe9qhKvqdCpyAR5eBkAfe6umbJcy6MRLeOTs",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiNWJjMTc0ZGFmZGZhMjVmMjhiNDQ0NGY0ODA4YmZkYmYiLCJleHBpcmVzX2F0IjoxNzg4NDg4OTQ5LCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.5rZstvVTiwtEORCA4rmjuSQDdZKJfppyC4VokTOC1Gs"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "ziwei_chart_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "dream_questions": {
+     "status": 200,
+     "json": {
+      "questions": [
+       {
+        "id": "finished",
+        "label": "梦到最后是完成了还是被打断？"
+       },
+       {
+        "id": "agency",
+        "label": "走进那个场面时，你是自愿的还是被带着走的？"
+       },
+       {
+        "id": "fear_of",
+        "label": "整场梦里最让你发紧的是哪一幕？"
+       }
+      ]
+     }
+    },
+    "dream_interpret": {
+     "status": 200,
+     "json": {
+      "essay": "这场梦把熟悉的场景变得陌生又失控，常见于现实里事情开始超出掌控的阶段。黑板擦不干净，往往对应「越努力收拾越觉得没收拾好」的紧绷感。按荣格的补偿视角，梦在提醒你：允许一些事暂时留在没做完的状态。",
+      "sources": [
+       {
+        "work": "荣格解梦方法论",
+        "quote": "梦是意识的补偿，先于判断地呈现另一侧",
+        "channel": "字面"
+       },
+       {
+        "work": "荣格象征词典",
+        "quote": "教室与考试常见于被评判焦虑的梦境素材",
+        "channel": "字面"
+       }
+      ],
+      "referral": null
+     }
+    },
+    "dream_referral": {
+     "status": 200,
+     "json": {
+      "essay": "",
+      "sources": [],
+      "referral": "这场梦提到了伤害自己。梦不等于现实意图，但如果这些念头在醒来后还在，建议找信得过的人或专业的心理援助聊一聊——这一步比任何解梦都重要。"
+     }
+    }
+   },
+   "artifacts": [],
+   "finished_at": "2026-09-04T09:59:09+08:00"
+  },
+  {
+   "id": "base@invalid_input@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "PASS",
+   "ms": 388,
+   "error": null,
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 11,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 145,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 52,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 45,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "PASS",
+     "ms": 44,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "dream_questions",
+     "status": "PASS",
+     "ms": 45,
+     "detail": "POST /v1/dreams/questions → 200"
+    },
+    {
+     "id": "dream_interpret",
+     "status": "PASS",
+     "ms": 30,
+     "detail": "POST /v1/dreams/interpret → 200"
+    },
+    {
+     "id": "probe:invalid_input",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "POST /v1/dreams/interpret → 422"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6ImFkZjRlYzdlLTQyMTYtNDdkYS1iMDM2LTk3NDRkMzE4Y2YzNSIsImV4cGlyZXNfYXQiOjE3ODg0ODg5NDksImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.30hpFNp7Y9Pwrgs2nJxxIrWFe_psWsoXfUVQrYAaS6I",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiNWJjMTc0ZGFmZGZhMjVmMjhiNDQ0NGY0ODA4YmZkYmYiLCJleHBpcmVzX2F0IjoxNzg4NDg4OTQ5LCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.5rZstvVTiwtEORCA4rmjuSQDdZKJfppyC4VokTOC1Gs"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "ziwei_chart_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "dream_questions": {
+     "status": 200,
+     "json": {
+      "questions": [
+       {
+        "id": "finished",
+        "label": "梦到最后是完成了还是被打断？"
+       },
+       {
+        "id": "agency",
+        "label": "走进那个场面时，你是自愿的还是被带着走的？"
+       },
+       {
+        "id": "fear_of",
+        "label": "整场梦里最让你发紧的是哪一幕？"
+       }
+      ]
+     }
+    },
+    "dream_interpret": {
+     "status": 200,
+     "json": {
+      "essay": "这场梦把熟悉的场景变得陌生又失控，常见于现实里事情开始超出掌控的阶段。黑板擦不干净，往往对应「越努力收拾越觉得没收拾好」的紧绷感。按荣格的补偿视角，梦在提醒你：允许一些事暂时留在没做完的状态。",
+      "sources": [
+       {
+        "work": "荣格解梦方法论",
+        "quote": "梦是意识的补偿，先于判断地呈现另一侧",
+        "channel": "字面"
+       },
+       {
+        "work": "荣格象征词典",
+        "quote": "教室与考试常见于被评判焦虑的梦境素材",
+        "channel": "字面"
+       }
+      ],
+      "referral": null
+     }
+    }
+   },
+   "artifacts": [
+    "probe_invalid_input.resp.json"
+   ],
+   "finished_at": "2026-09-04T09:59:09+08:00"
+  },
+  {
+   "id": "base@duplicate_submit@dream_interpret",
+   "kind": "probe",
+   "branch_trace": [],
+   "status": "PASS",
+   "ms": 292,
+   "error": null,
+   "steps": [
+    {
+     "id": "ai_status",
+     "status": "PASS",
+     "ms": 16,
+     "detail": "GET /v1/ai/status → 200"
+    },
+    {
+     "id": "create_chart",
+     "status": "PASS",
+     "ms": 128,
+     "detail": "POST /v1/charts → 200"
+    },
+    {
+     "id": "daily_transit",
+     "status": "PASS",
+     "ms": 21,
+     "detail": "POST /v1/transits/daily → 200"
+    },
+    {
+     "id": "fortune_daily_explain",
+     "status": "PASS",
+     "ms": 17,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "ziwei_chart_explain",
+     "status": "PASS",
+     "ms": 19,
+     "detail": "POST /v1/ai/explain → 200"
+    },
+    {
+     "id": "dream_questions",
+     "status": "PASS",
+     "ms": 19,
+     "detail": "POST /v1/dreams/questions → 200"
+    },
+    {
+     "id": "dream_interpret",
+     "status": "PASS",
+     "ms": 30,
+     "detail": "POST /v1/dreams/interpret → 200"
+    },
+    {
+     "id": "probe:duplicate_submit",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "重放 POST → 200"
+    }
+   ],
+   "vars": {
+    "birth_datetime": "1995-06-15T10:30:00+08:00",
+    "today": "2026-09-04",
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "ziwei_token": "eyJidW5kbGVfdHlwZSI6Inppd2VpLmNoYXJ0IiwiY29udGV4dF9ncm91cCI6IjJjMTZiY2YxLWVmNDQtNGNkZi05MzBhLTc0NmE2ZTUyZTllZiIsImV4cGlyZXNfYXQiOjE3ODg0ODg5NDksImZhY3RzIjpbeyJpZCI6Inppd2VpLTEiLCJ0ZXh0Ijoi5ZG95a6r5bmy5pSv5bex5LiR77yM5aSq6Zi05YyW5b-M77yM5Li75pif77ya5aSq6Ziz77yI5LiN77yJ44CB5aSq6Zi077yI5bqZ77yJ77yM5aSn6ZmQNuiHszE15bKBIn0seyJpZCI6Inppd2VpLTIiLCJ0ZXh0Ijoi5YWE5byf5a6r5bmy5pSv5oiK5a2Q77yM5Li75pif77ya5q2m5puy77yI5pe677yJ44CB5aSp5bqc77yI5bqZ77yJ77yM6L6F5pif77ya5aSp6a2B77yM5aSn6ZmQMTboh7MyNeWygSJ9LHsiaWQiOiJ6aXdlaS0zIiwidGV4dCI6IuWkq-Wmu-Wuq-W5suaUr-S4geS6pe-8iOi6q-Wuq--8ie-8jOiHquWMluadg--8jOS4u-aYn--8muWkqeWQjO-8iOW6me-8ie-8jOWkp-mZkDI26IezMzXlsoEifSx7ImlkIjoieml3ZWktNCIsInRleHQiOiLlrZDlpbPlrqvlubLmlK_kuJnmiIzvvIzkuLvmmJ_vvJrnoLTlhpvvvIjml7rvvInvvIzlpKfpmZAzNuiHszQ15bKBIn0seyJpZCI6Inppd2VpLTUiLCJ0ZXh0Ijoi6LSi5bib5a6r5bmy5pSv5LmZ6YWJ77yM5Li75pif77ya5peg5Li75pif77yM6L6F5pif77ya5paH5puy77yM5aSn6ZmQNDboh7M1NeWygSJ9LHsiaWQiOiJ6aXdlaS02IiwidGV4dCI6IueWvuWOhOWuq-W5suaUr-eUsueUs--8jOiHquWMluemhO-8jOS4u-aYn--8muW7iei0nu-8iOW6me-8ie-8jOi-heaYn--8muW3pui-heOAgeWkqemSuu-8jOWkp-mZkDU26IezNjXlsoEifSx7ImlkIjoieml3ZWktNyIsInRleHQiOiLov4Hnp7vlrqvlubLmlK_nmbjmnKrvvIzkuLvmmJ_vvJrml6DkuLvmmJ_vvIzlpKfpmZA2NuiHszc15bKBIn0seyJpZCI6Inppd2VpLTgiLCJ0ZXh0Ijoi5Lqk5Y-L5a6r5bmy5pSv5aOs5Y2I77yM5Li75pif77ya5LiD5p2A77yI5pe677yJ77yM6L6F5pif77ya5Y-z5by844CB5Zyw56m677yM5aSn6ZmQNzboh7M4NeWygSJ9LHsiaWQiOiJ6aXdlaS05IiwidGV4dCI6IuWumOemhOWuq-W5suaUr-i-m-W3s--8jOWkqeaigeWMluadg--8jOiHquWMluW_jO-8jOS4u-aYn--8muWkqeaige-8iOmZt--8ie-8jOi-heaYn--8muaWh-aYjOOAgeWkqemprO-8jOWkp-mZkDg26IezOTXlsoEifSx7ImlkIjoieml3ZWktMTAiLCJ0ZXh0Ijoi55Sw5a6F5a6r5bmy5pSv5bqa6L6w77yM57Sr5b6u5YyW56eR77yM5Li75pif77ya57Sr5b6u77yI5b6X77yJ44CB5aSp55u477yI5b6X77yJ77yM6L6F5pif77ya5Zyw5Yqr44CB5pOO576K77yM5aSn6ZmQOTboh7MxMDXlsoEifSx7ImlkIjoieml3ZWktMTEiLCJ0ZXh0Ijoi56aP5b635a6r5bmy5pSv5bex5Y2v77yM5aSp5py65YyW56aE77yM5Li75pif77ya5aSp5py677yI5pe677yJ44CB5beo6Zeo77yI5bqZ77yJ77yM6L6F5pif77ya56aE5a2Y44CB6ZOD5pif77yM5aSn6ZmQMTA26IezMTE15bKBIn0seyJpZCI6Inppd2VpLTEyIiwidGV4dCI6IueItuavjeWuq-W5suaUr-aIiuWvhe-8jOiHquWMluemhO-8jOS4u-aYn--8mui0queLvO-8iOW5s--8ie-8jOi-heaYn--8mueBq-aYn-OAgemZgOe9l--8jOWkp-mZkDExNuiHszEyNeWygSJ9LHsiaWQiOiJ6aXdlaS0xMyIsInRleHQiOiLlvZPliY3omZrlsoEzMu-8jOe0q-W-ruWkp-mZkOihjOWkq-Wmu-Wuq--8iDI2LTM15bKB77yJ77ya6K-l5a6r5Li65b2T5YmN5Y2B5bm05Li75peL5b6L5omA5ZyoIn0seyJpZCI6Inppd2VpLTE0IiwidGV4dCI6IueUn-W5tOWbm-WMluiQveWuq--8muWkqeacuuWMluemhOiQveemj-W-t-Wuq-OAgeWkqeaigeWMluadg-iQveWumOemhOWuq-OAgee0q-W-ruWMluenkeiQveeUsOWuheWuq-OAgeWkqumYtOWMluW_jOiQveWRveWuq-KAlOKAlOWbm-WMluaJgOWcqOWuq-S9jeWNs-S6uueUn-i1hOa6kOS4juivvumimOaJgOWcqCJ9XSwia2luZCI6ImRvbWFpbiIsInZlcnNpb24iOjF9.7tKyUvi4-Y3a436rEMr0T2t2XDcsIdRfImpI6LEMNww",
+    "daily_token": "eyJidW5kbGVfdHlwZSI6ImZvcnR1bmUuZGFpbHkiLCJjb250ZXh0X2dyb3VwIjoiNWJjMTc0ZGFmZGZhMjVmMjhiNDQ0NGY0ODA4YmZkYmYiLCJleHBpcmVzX2F0IjoxNzg4NDg4OTQ5LCJmYWN0cyI6W3siaWQiOiJkYWlseS0xIiwidGV4dCI6IjIwMjYtMDktMDTnmoTml6Xmn7HkuLrovpvlt7MifSx7ImlkIjoiZGFpbHktMiIsInRleHQiOiLmjpLnm5jmgKfliKvnlLfvvIzomZrlsoHnuqYzMuOAguaMieatpOmYtuauteWGmeaXpeW4uO-8muaIkOWutueql-WPo--8muWpmuaBi-WSjOiBjOS4mueUqOWBh-iuvuivreawlO-8m-S4jeimgeWGmeaIkOW3sue7j-e7k-WpmuOAgeW3suacieWtqeWtkOOAgeW3suaYr-mrmOeuoSJ9LHsiaWQiOiJkYWlseS0zIiwidGV4dCI6IuWcsOaUr-WGsu-8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveW5tOafseS5meS6pe-8jOS4u-imgea2ieWPiuW5tOafseixoeW-geagueWfuuS4jumVv-i-iOiurumimCJ9LHsiaWQiOiJkYWlseS00IiwidGV4dCI6IuWQjOaUr--8mua1geaXpei-m-W3s-S9nOeUqOS6juacrOWRveaXtuafseS5meW3s--8jOS4u-imgea2ieWPiuaXtuafseixoeW-geihqOi-vuOAgeS9nOWTgeS4juaZmui-iOiurumimCJ9LHsiaWQiOiJkYWlseS01IiwidGV4dCI6IuS4meWNiOW5tOWbm-WMlu-8muWkqeWQjOWMluemhOWFpeWkq-Wmu-Wuq-OAgeWkqeacuuWMluadg-WFpeemj-W-t-Wuq-OAgeaWh-aYjOWMluenkeWFpeWumOemhOWuq-OAgeW7iei0nuWMluW_jOWFpeeWvuWOhOWuqyJ9LHsiaWQiOiJkYWlseS02IiwidGV4dCI6Iua1geW5tOWRveWuq-WcqOWNiO-8jOWdkOa1geabsuOAgea1gee-iu-8iOa1geabnO-8mumaj-W5tOa1gei9rOeahOi-heaYn--8iSJ9LHsiaWQiOiJkYWlseS03IiwidGV4dCI6IuW9k-WJjeWkp-mZkOS6peWuq--8iOS4geS6pe-8jDI2LTM15bKB77yJ77yM6ZmQ5YaF5Zub5YyW77ya5aSq6Zi05YyW56aE44CB5aSp5ZCM5YyW5p2D44CB5aSp5py65YyW56eR44CB5beo6Zeo5YyW5b-MIn1dLCJraW5kIjoiZm9ydHVuZSIsInZlcnNpb24iOjF9.5rZstvVTiwtEORCA4rmjuSQDdZKJfppyC4VokTOC1Gs"
+   },
+   "snips": {
+    "ai_status": {
+     "status": 200,
+     "json": {
+      "available": true,
+      "mode": "on_demand",
+      "attaches_birth_profile": false
+     }
+    },
+    "fortune_daily_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "ziwei_chart_explain": {
+     "status": 200,
+     "json": {
+      "summary": {
+       "text": "按盘面事实，近期节奏偏稳，宜按部就班推进眼前的事。",
+       "fact_ids": []
+      },
+      "actions": [
+       {
+        "text": "把今天最重要的三件事写下来再开始。",
+        "fact_ids": []
+       }
+      ],
+      "caveats": [
+       {
+        "text": "运势只是参照，决定仍在你自己。",
+        "fact_ids": []
+       }
+      ]
+     }
+    },
+    "dream_questions": {
+     "status": 200,
+     "json": {
+      "questions": [
+       {
+        "id": "finished",
+        "label": "梦到最后是完成了还是被打断？"
+       },
+       {
+        "id": "agency",
+        "label": "走进那个场面时，你是自愿的还是被带着走的？"
+       },
+       {
+        "id": "fear_of",
+        "label": "整场梦里最让你发紧的是哪一幕？"
+       }
+      ]
+     }
+    },
+    "dream_interpret": {
+     "status": 200,
+     "json": {
+      "essay": "这场梦把熟悉的场景变得陌生又失控，常见于现实里事情开始超出掌控的阶段。黑板擦不干净，往往对应「越努力收拾越觉得没收拾好」的紧绷感。按荣格的补偿视角，梦在提醒你：允许一些事暂时留在没做完的状态。",
+      "sources": [
+       {
+        "work": "荣格解梦方法论",
+        "quote": "梦是意识的补偿，先于判断地呈现另一侧",
+        "channel": "字面"
+       },
+       {
+        "work": "荣格象征词典",
+        "quote": "教室与考试常见于被评判焦虑的梦境素材",
+        "channel": "字面"
+       }
+      ],
+      "referral": null
+     }
+    }
+   },
+   "artifacts": [
+    "probe_duplicate_submit.resp.json"
+   ],
+   "finished_at": "2026-09-04T09:59:09+08:00"
+  }
+ ]
+}

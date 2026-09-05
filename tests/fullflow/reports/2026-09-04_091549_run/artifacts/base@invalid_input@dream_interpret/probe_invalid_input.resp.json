@@ -1,0 +1,4 @@
+{
+ "status": 422,
+ "text": "{\"detail\":[{\"type\":\"string_too_short\",\"loc\":[\"body\",\"dream\"],\"msg\":\"String should have at least 4 characters\"}]}"
+}

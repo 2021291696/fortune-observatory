@@ -1,0 +1,161 @@
+# ═══════════════════════════════════════════════════════════════════
+# destiny（看运）全流程测试清单
+# 目标：生产环境真 LLM 全链路 + 常驻视图切换回归
+# 接口契约依据 apps/api/app.py 与 src/fortune_core/models.py 勘察（2026-08-31）
+# 2026-09-04 校正：迁离 CloudBase → destiny.solplum.com（nginx /api 反代）；
+# 解梦提交按钮实为 .dream-composer > button（type=button，无 submit）
+# ═══════════════════════════════════════════════════════════════════
+name: destiny-排盘运势问事解梦全流程
+target:
+  platform: web
+  api_base: http://127.0.0.1:8765/api
+  ui_base: http://127.0.0.1:8765
+
+environment:
+  start: manual                      # 生产已在线，无需启动
+  health:
+    method: GET
+    url: "http://127.0.0.1:8765/api/v1/ai/status"
+    expect: 200
+    timeout_s: 60
+
+# 无 fuzzy 分叉，不需要 llm 段；LLM 调用发生在被测服务端（生产已配置）
+
+variables:
+  birth_datetime: "1995-06-15T10:30:00+08:00"
+  today: "2026-08-31"
+  dream_text: "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+
+flow:
+  steps:
+    - id: ai_status
+      api: { method: GET, path: /v1/ai/status }
+      assert:
+        - { status: 200 }
+        - { json: "$.available", eq: true }
+
+    - id: create_chart
+      api:
+        method: POST
+        path: /v1/charts
+        body:
+          civil_datetime: "{birth_datetime}"
+          timezone_id: Asia/Shanghai
+          longitude: 120.15
+          latitude: 30.28
+          sex_for_rule: male
+      save:
+        ziwei_token: "$.ai_contexts.ziwei.token"
+      assert:
+        - { status: 200 }
+        - { json: "$.bazi.pillars.day", exists: true }
+        - { json: "$.ziwei.verification_status", exists: true }
+
+    - id: daily_transit
+      api:
+        method: POST
+        path: /v1/transits/daily
+        body:
+          birth:
+            civil_datetime: "{birth_datetime}"
+            timezone_id: Asia/Shanghai
+            longitude: 120.15
+            latitude: 30.28
+            sex_for_rule: male
+          transit_date: "{today}"
+      save:
+        daily_token: "$.ai_context.token"
+      assert:
+        - { status: 200 }
+        - { json: "$.transit.day_pillar", exists: true }
+
+    - id: fortune_daily_explain     # 运势口径：fortune.daily lore + skill 原文整包
+      api:
+        method: POST
+        path: /v1/ai/explain
+        body:
+          question: "我今天运势怎么样，需要注意什么？"
+          context_tokens: ["{daily_token}"]
+        timeout_s: 300
+      assert:
+        - { status: 200 }
+        - { json: "$.summary.text", exists: true }
+        - { json: "$.actions", exists: true }
+
+    - id: ziwei_chart_explain       # 命盘口径：ziwei.chart lore + skill 原文整包
+      api:
+        method: POST
+        path: /v1/ai/explain
+        body:
+          question: "帮我看看我的命格格局，性格底色如何？"
+          context_tokens: ["{ziwei_token}"]
+        timeout_s: 300
+      assert:
+        - { status: 200 }
+        - { json: "$.summary.text", exists: true }
+
+    - id: dream_questions
+      api:
+        method: POST
+        path: /v1/dreams/questions
+        body: { dream: "{dream_text}" }
+        timeout_s: 120
+      assert:
+        - { status: 200 }
+        - { json: "$.questions.0.label", exists: true }
+
+    - id: dream_interpret           # 解梦：荣格口径（skill references 注入）
+      api:
+        method: POST
+        path: /v1/dreams/interpret
+        body: { dream: "{dream_text}" }
+        timeout_s: 300
+      assert:
+        - { status: 200 }
+        - { json: "$.essay", exists: true }
+      error_probes: [invalid_input, duplicate_submit]
+
+    - id: dream_referral            # 自伤叙述 → 确定性转介（不走 LLM）
+      api:
+        method: POST
+        path: /v1/dreams/interpret
+        body: { dream: "我梦里冒出伤害自己的念头，醒不来" }
+        timeout_s: 60
+      assert:
+        - { status: 200 }
+        - { json: "$.referral", exists: true }
+
+    # ---- 门2：常驻视图切换回归（本次修复的直接验收）----
+    - id: ui_open_site
+      ui: { action: goto, url: "{ui_base}" }
+
+    - id: ui_open_dream
+      ui: { action: click, target: ".primary-nav a[href='#dream']" }
+
+    - id: ui_fill_dream
+      ui: { action: fill, target: "#dream textarea", value: "{dream_text}" }
+
+    - id: ui_submit_dream
+      ui: { action: click, target: "#dream .dream-composer > button" }
+
+    - id: ui_wait_dream_result
+      ui: { action: expect_visible, target: ".dream-result" }
+
+    - id: ui_switch_fortune
+      ui: { action: click, target: ".primary-nav a[href='#fortune']" }
+
+    - id: ui_switch_back_dream
+      ui: { action: click, target: ".primary-nav a[href='#dream']" }
+
+    - id: ui_dream_result_persists  # 切走再切回来，解梦结果必须还在
+      ui: { action: expect_visible, target: ".dream-result" }
+
+probes:
+  invalid_input:
+    api: { method: POST, path: /v1/dreams/interpret, body: { dream: "太短" } }
+    expect: [{ status: 422 }]
+  duplicate_submit:
+    expect: [{ status: 200 }]
+
+diagnosis:
+  logs: []                           # 生产环境无本地日志；失败时用 results.json 响应快照定位
