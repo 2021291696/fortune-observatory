@@ -10,6 +10,15 @@ WorkingDirectory=/opt/destiny
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONPATH=/opt/destiny/src:/opt/destiny/apps/api
 EnvironmentFile=/opt/destiny/.env
+# 沙箱加固：无新特权、/usr /boot /etc 只读、私有 tmp、隔离家目录与内核参数
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+ProtectKernelModules=true
+RestrictSUIDSGID=true
 ExecStart=/opt/destiny/.venv/bin/python -m uvicorn serve:serve --host 127.0.0.1 --port 8742 --proxy-headers --forwarded-allow-ips=127.0.0.1
 Restart=on-failure
 RestartSec=3

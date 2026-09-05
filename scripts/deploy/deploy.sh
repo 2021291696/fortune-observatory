@@ -39,13 +39,23 @@ sudo systemctl restart destiny
 sudo systemctl reload nginx || sudo systemctl restart nginx
 
 echo "==> 5/5 域名 HTTPS：certbot 的 SSL 配置会被第 3 步模板覆盖，检测到证书就重挂（幂等）"
+CERTBOT_FAILED=0
 if command -v certbot >/dev/null 2>&1 && certbot certificates 2>/dev/null | grep -q "destiny.solplum.com"; then
-  sudo certbot --nginx -d destiny.solplum.com --non-interactive \
-    || echo "!! certbot 重挂失败，站点暂时回退 HTTP，手动跑：sudo certbot --nginx -d destiny.solplum.com"
+  # 曾有证书而重挂失败 = 站点会回退 HTTP 明文（用户出生数据），按部署失败处理。
+  if ! sudo certbot --nginx -d destiny.solplum.com --non-interactive; then
+    echo "!! certbot 重挂失败，HTTPS 未恢复。手动跑：sudo certbot --nginx -d destiny.solplum.com" >&2
+    CERTBOT_FAILED=1
+  fi
+else
+  echo "!! 未检测到 destiny.solplum.com 证书（首次部署属预期），站点暂以 HTTP 运行；尽快执行：sudo certbot --nginx -d destiny.solplum.com" >&2
 fi
 
 for i in $(seq 1 30); do
   if curl -sf http://127.0.0.1:8742/api/health >/dev/null 2>&1; then
+    if [[ "$CERTBOT_FAILED" == "1" ]]; then
+      echo "服务本身已就绪，但 HTTPS 重挂失败，站点当前是 HTTP 明文——先修复再收工：sudo certbot --nginx -d destiny.solplum.com" >&2
+      exit 1
+    fi
     echo "部署完成，/api/health 就绪。验收：bash $APP_DIR/scripts/deploy/verify.sh 2>/dev/null || curl -s http://127.0.0.1:8742/api/health"
     exit 0
   fi

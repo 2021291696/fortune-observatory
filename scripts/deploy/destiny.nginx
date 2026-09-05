@@ -1,13 +1,54 @@
+# destiny.solplum.com 站点：80 强制跳 443，443 挂既有 LE 证书并全量反代。
+# 证书由 certbot 续期（authenticator=nginx）；本模板自带 443 块，
+# 不再依赖 certbot --nginx 在部署时动态注入（曾因此把证书装错站点）。
 server {
     listen 80;
-    server_name destiny.solplum.com _;
+    server_name destiny.solplum.com;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name destiny.solplum.com;
+
+    ssl_certificate /etc/letsencrypt/live/destiny.solplum.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/destiny.solplum.com/privkey.pem;
+
+    # 静态资产：跨境带宽是首屏瓶颈，gzip 把 555KB JS 压到约 200KB；
+    # hash 文件名资产可 immutable 长缓存，二次访问零下载。
+    # text/javascript = Starlette StaticFiles 对 .js 的 Content-Type，必须显式列入。
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_types text/css text/javascript application/javascript application/json image/svg+xml;
+
+    location /assets/ {
+        proxy_pass http://127.0.0.1:8742;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
 
     # 单进程 serve.py 同时提供 /api 与 SPA，这里全量反代
     location / {
         proxy_pass http://127.0.0.1:8742;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # 覆盖式设置（不用 $proxy_add_x_forwarded_for）：客户端可自带伪造
+        # XFF，追加式会让 uvicorn --proxy-headers 取到最左伪造值，per-IP
+        # 限流随之失效。
+        proxy_set_header X-Forwarded-For $remote_addr;
         proxy_set_header X-Forwarded-Proto $scheme;
         # AI 讲解接口耗时较长（超时 40s 量级），放宽读超时
         proxy_read_timeout 300s;
