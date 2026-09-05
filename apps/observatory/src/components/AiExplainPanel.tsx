@@ -281,11 +281,12 @@ export function AiExplainPanel({
     void run
   }, [auto, cacheKey, source.key, defaultQuestion])
 
-  // 收尾写入本机缓存（追问不写）。
+  // 收尾写入本机缓存（追问不写）：守卫看 followUp 模式标志而非输入框文本——
+  // 追问发起时 followUpText 已被清空，看它会让追问答案污染主缓存键。
   useEffect(() => {
-    if (phase !== 'done' || !streamText || !cacheKey || followUpText) return
+    if (phase !== 'done' || !streamText || !cacheKey || followUp) return
     writeCache(cacheKey, streamText)
-  }, [phase, streamText, cacheKey, followUpText])
+  }, [phase, streamText, cacheKey, followUp])
 
   async function checkAvailability() {
     request.current?.abort('superseded')

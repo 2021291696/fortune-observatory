@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import AsyncIterator
 
 import httpx
@@ -30,8 +31,11 @@ _REQUIRED_IDS = ("finished", "agency", "fear_of")
 _REFERRAL_PATTERNS = ("自杀", "轻生", "不想活", "伤害自己", "伤自己", "自残")
 
 
-def is_referral(dream: str) -> bool:
-    return any(pattern in dream for pattern in _REFERRAL_PATTERNS)
+def is_referral(dream: str, answers: list | None = None) -> bool:
+    # 追问回答与梦正文同等参与自伤信号检查：只查正文时，
+    # "梦是朋友的、追问答'怕他轻生'"即可绕过转介直进 LLM。
+    text = compose_query(dream, answers or [])
+    return any(pattern in text for pattern in _REFERRAL_PATTERNS)
 
 
 def compose_query(dream: str, answers: list) -> str:
@@ -80,10 +84,12 @@ async def _chat(system: str, user: str) -> str:
     if config is None:
         raise AiConfigurationError("AI provider is not configured")
     # 解梦 prompt 含全量 skill 口径（4 万+字符），生成耗时显著高于常规解读，
-    # 固定用长超时；config.timeout_seconds 被 28 秒级网关约束，这里不受其限。
+    # 固定用长超时（50s < RequestGuard 的 62s AI 门，不冲突）；重试同样受
+    # 墙钟约束，慢失败链不再顶到中间件门上被砍成 504。
     timeout_seconds = max(config.timeout_seconds, 50.0)
     timeout = httpx.Timeout(timeout_seconds, connect=min(3.0, timeout_seconds))
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
+        started = time.monotonic()
         response = None
         for attempt in range(_PROVIDER_RETRY_ATTEMPTS):
             response = await client.post(
@@ -102,6 +108,9 @@ async def _chat(system: str, user: str) -> str:
                 },
             )
             if _retry_provider_status(response.status_code) and attempt < _PROVIDER_RETRY_ATTEMPTS - 1:
+                if time.monotonic() - started > 56.0:
+                    logger.warning("dream provider retry skipped: wall clock exhausted attempt=%s", attempt + 1)
+                    break
                 logger.warning("dream provider retryable failure status=%s attempt=%s",
                                response.status_code, attempt + 1)
                 await asyncio.sleep(_PROVIDER_RETRY_BASE_SECONDS * (attempt + 1))
@@ -206,7 +215,7 @@ def extract_sources(text: str) -> list[SourceOut]:
 
 
 async def interpret_dream_request(request: InterpretRequest) -> InterpretResponse:
-    if is_referral(request.dream):
+    if is_referral(request.dream, request.answers):
         return _referral_result(request.dream)
 
     config = _provider()
@@ -243,7 +252,7 @@ _INTERPRET_STREAM = (
 
 async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[dict]:
     """流式解梦：产出 {"type":"delta","text"} 与 {"type":"done","sources":[…]} 事件。"""
-    if is_referral(request.dream):
+    if is_referral(request.dream, request.answers):
         yield {"type": "delta", "text": _referral_result(request.dream).referral}
         yield {"type": "done", "sources": []}
         return

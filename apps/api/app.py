@@ -13,6 +13,7 @@ import logging
 import os
 from collections.abc import AsyncIterator
 from datetime import datetime, time as dtime, timedelta, timezone as tzone
+from zoneinfo import ZoneInfo
 from collections import Counter
 from typing import Any
 from uuid import uuid4
@@ -39,9 +40,14 @@ from ai_explainer import (
     get_provider_config,
     provider_is_available,
     reserve_daily_budget,
+    seconds_until_budget_reset,
     verified_reading_context,
 )
 from reading_agent import friendly_reading_error, generate_into_session, get_or_create_stream_session, stream_session_key
+
+# 产品口径的「今天 / 当前年份」统一按北京时间计（界面默认北京时间，用户都在国内）；
+# UTC 口径会让凌晨 0-8 点的虚岁、当前大限、运势缓存整体偏移一天/一岁。
+_BEIJING = ZoneInfo("Asia/Shanghai")
 from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest, QuestionsResponse
 from dreams.service import generate_questions, interpret_dream_request, stream_interpret_events
 
@@ -141,7 +147,7 @@ app.add_middleware(
     request_body_timeout_seconds=5.0,
     max_concurrent_calculations=8,
     calculation_timeout_seconds=12.0,
-    ai_timeout_seconds=28.0,
+    ai_timeout_seconds=62.0,
     trust_proxy=os.getenv("FORTUNE_TRUST_PROXY", "").lower() == "true",
     client_ip_header=os.getenv("FORTUNE_CLIENT_IP_HEADER", "x-forwarded-for").strip().lower()
     or "x-forwarded-for",
@@ -196,7 +202,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
     # 当前人生阶段锚（治"泛泛一生描述"：让解读聚焦当下大限阶段）。
     current_stage_anchor = ""
     birth_year = chart.bazi.calculation_datetime.year
-    nominal_age = datetime.now(tzone.utc).year - birth_year + 1
+    nominal_age = datetime.now(_BEIJING).year - birth_year + 1
     stage_bits = [f"当前虚岁{nominal_age}"]
     decadal_palace = next(
         (item for item in chart.ziwei.palaces if item.decadal_range[0] <= nominal_age <= item.decadal_range[1]),
@@ -268,7 +274,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         # ID 带领域前缀：两个领域包合参（如「姻缘+财运」一问）时 fact id 不得串号。
         bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"domain-{domain}-{index + 1}", text=text) for index, text in enumerate(fact_texts[:24])],
+            [AiFact(id=f"domain-{domain}-{index + 1}", text=text[:400]) for index, text in enumerate(fact_texts[:24])],
             bundle_type=f"domain.{domain}",
             context_group=chart.trace_id,
         )
@@ -325,7 +331,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
     ziwei_bundle = build_signed_context(
         "domain",
         [
-            AiFact(id=f"ziwei-{index + 1}", text=text)
+            AiFact(id=f"ziwei-{index + 1}", text=text[:400])
             for index, text in enumerate((palace_texts[:12] + ziwei_summary_texts)[:24])
         ],
         bundle_type="ziwei.chart",
@@ -388,7 +394,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
             qz_texts = [f"{item}（传统层未核验）" for item in qz_texts]
         qz_bundle = build_signed_context(
             "domain",
-            [AiFact(id=f"qizheng-{index + 1}", text=text) for index, text in enumerate(qz_texts[:12])],
+            [AiFact(id=f"qizheng-{index + 1}", text=text[:400]) for index, text in enumerate(qz_texts[:12])],
             bundle_type="qizheng.chart",
             context_group=chart.trace_id,
         )
@@ -415,7 +421,7 @@ def _chart_ai_contexts(chart: ChartResponse, sex_for_rule: str = "") -> dict[str
         for period in chart.bazi.great_luck_periods[:10]:
             bazi_texts.append(f"大运{period.pillar}：{period.start_age}-{period.end_age}岁")
         try:
-            active_period = active_great_luck(chart.bazi, datetime.now(tzone.utc).date())
+            active_period = active_great_luck(chart.bazi, datetime.now(_BEIJING).date())
         except Exception:
             active_period = None
         if active_period is not None:
@@ -580,7 +586,7 @@ def _daily_ai_context(
     # 否则「紫微批解」里会出现另一体系的依据。
     return build_signed_context(
         "fortune",
-        [AiFact(id=f"daily-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
+        [AiFact(id=f"daily-{index + 1}", text=text[:400]) for index, text in enumerate(texts[:12])],
         bundle_type="fortune.daily",
         context_group=context_group,
     )
@@ -598,7 +604,7 @@ def _transit_ai_context(response: TransitResponse, context_group: str) -> AiCont
     texts.extend(f"{insight.title}：{insight.summary}；{insight.action}" for insight in transit.insights[:3])
     return build_signed_context(
         "fortune",
-        [AiFact(id=f"period-{index + 1}", text=text) for index, text in enumerate(texts[:7])],
+        [AiFact(id=f"period-{index + 1}", text=text[:400]) for index, text in enumerate(texts[:7])],
         bundle_type="fortune.period",
         context_group=context_group,
     )
@@ -627,7 +633,7 @@ def _window_ai_context(response: TransitWindowResponse, context_group: str) -> A
     ]
     return build_signed_context(
         "fortune",
-        [AiFact(id=f"window-{index + 1}", text=text) for index, text in enumerate(texts[:12])],
+        [AiFact(id=f"window-{index + 1}", text=text[:400]) for index, text in enumerate(texts[:12])],
         bundle_type="fortune.window",
         context_group=context_group,
     )
@@ -869,7 +875,7 @@ async def explain_result(request: AiExplainRequest) -> AiExplainResponse:
         raise HTTPException(
             status_code=429,
             detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",
-            headers={"Retry-After": "3600"},
+            headers={"Retry-After": str(seconds_until_budget_reset())},
         ) from error
     except AiProviderError as error:
         trace_id = str(uuid4())
@@ -904,12 +910,6 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
         raise HTTPException(status_code=503, detail="AI 讲解暂未配置，规则结果不受影响。")
     try:
         facts, bundle_types = verified_reading_context(request, config.context_secret)
-    except AiBudgetExceeded as error:
-        raise HTTPException(
-            status_code=429,
-            detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",
-            headers={"Retry-After": "3600"},
-        ) from error
     except AiProviderError as error:
         trace_id = str(uuid4())
         logger.warning(
@@ -933,7 +933,15 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
     session, resumed = await get_or_create_stream_session(session_key)
     if not resumed:
         # 复用（续播/回放）不重复计费；只有真正发起新生成才扣预算。
-        reserve_daily_budget(config.daily_limit)
+        # 预算扣减必须就地捕获 AiBudgetExceeded（此前在 try 外裸抛 → 全局 500）。
+        try:
+            reserve_daily_budget(config.daily_limit)
+        except AiBudgetExceeded as error:
+            raise HTTPException(
+                status_code=429,
+                detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",
+                headers={"Retry-After": str(seconds_until_budget_reset())},
+            ) from error
         session.task = asyncio.create_task(
             generate_into_session(
                 session,
@@ -985,7 +993,7 @@ async def dream_questions(request: QuestionsRequest) -> QuestionsResponse:
         raise HTTPException(
             status_code=429,
             detail="今日解梦额度已用完，排盘仍可正常使用。",
-            headers={"Retry-After": "3600"},
+            headers={"Retry-After": str(seconds_until_budget_reset())},
         ) from error
     except AiProviderError as error:
         raise HTTPException(status_code=502, detail="题目没写成，请稍后重试。") from error
@@ -1005,7 +1013,7 @@ async def interpret_dream(request: InterpretRequest) -> InterpretResponse:
         raise HTTPException(
             status_code=429,
             detail="今日解梦额度已用完，排盘仍可正常使用。",
-            headers={"Retry-After": "3600"},
+            headers={"Retry-After": str(seconds_until_budget_reset())},
         ) from error
     except AiProviderError as error:
         trace_id = str(uuid4())

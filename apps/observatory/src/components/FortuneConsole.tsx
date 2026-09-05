@@ -4,6 +4,7 @@ import type { DailyTransitResponse, FortuneScope, SaveDraft, TransitResponse, Tr
 import { fortuneScopes } from '../types'
 import type { ThemeConfig } from '../themes'
 import { factDomain, plainFactLine } from '../terminology'
+import { beijingCalendarDate } from '../dates'
 import { readingSystemLabels, type ReadingSystem } from '../readingSystem'
 import type { AiExplainSource } from '../types'
 import { AiExplainPanel } from './AiExplainPanel'
@@ -93,7 +94,8 @@ export function FortuneConsole(props: FortuneProps) {
   const sameCount = windowFacts.filter((fact) => fact.relation === 'branch_same').length
   const activeDays = windowDays.filter((day) => day.facts.length)
   const hasReading = Boolean(daily || windowTransit)
-  const todayKey = new Date().toISOString().slice(0, 10)
+  // 北京时间的"今天"：UTC 日期在凌晨 0-8 点会把日历"今天"标到前一天。
+  const todayKey = beijingCalendarDate()
   const dailyRead = daily?.transit.facts.length
     ? daily.transit.facts.map((fact) => plainFactLine(fact)).join('；')
     : '未检测到已定义的地支冲、合或同支关系。'

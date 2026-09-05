@@ -10,7 +10,7 @@ import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
 import { API_BASE } from './apiBase'
 import { findArea } from './birthPlaces'
-import { dateKey, fortuneWindow } from './dates'
+import { beijingCalendarDate, dateKey, fortuneWindow } from './dates'
 import { loadReadingSystem, saveReadingSystem, type ReadingSystem } from './readingSystem'
 import { resolveTheme, type ThemeId } from './themes'
 import type { ChartResponse, DailyTransitResponse, FortuneScope, SavedReading, SaveDraft, TransitResponse, TransitWindowResponse } from './types'
@@ -215,8 +215,10 @@ function birthFingerprint(birth: BirthPayload): string {
   return `${birth.civil_datetime}|${birth.longitude},${birth.latitude}|${birth.sex_for_rule}`
 }
 
+// 缓存日按北京时间翻新：与 fortuneWindow 的"今日"口径一致。
+// 此前用 UTC 日期，北京时间 0-8 点缓存键不翻新，"今日"运势最长滞后 8 小时。
 function todayCacheKey(): string {
-  return new Date().toISOString().slice(0, 10)
+  return beijingCalendarDate()
 }
 
 export function App() {

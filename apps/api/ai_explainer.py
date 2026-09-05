@@ -11,10 +11,12 @@ import json
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Literal
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger("fortune.ai_explainer")
 from urllib.parse import urlparse
@@ -137,6 +139,13 @@ class AiBudgetExceeded(RuntimeError):
 _RETRYABLE_PROVIDER_STATUS = frozenset({502, 503, 504, 529})
 _PROVIDER_RETRY_ATTEMPTS = 3
 _PROVIDER_RETRY_BASE_SECONDS = 2.0
+# 非流式生成的墙钟上限：必须低于 RequestGuard 的 ai_timeout 门（app.py 传 62s），
+# 否则重试烧掉预算后被中间件砍成 504，用户拿到的是最不可读的失败。
+_PROVIDER_WALL_CLOCK_SECONDS = 56.0
+
+# 面向中文用户的产品口径统一按北京时间计"日"：预算日切与 Retry-After 都以此为准，
+# 不再用 UTC（否则凌晨 0-8 点"今日额度"要等早上 8 点才重置）。
+_BEIJING = ZoneInfo("Asia/Shanghai")
 
 
 def _retry_provider_status(status_code: int) -> bool:
@@ -480,7 +489,7 @@ def _parse_answer(
 
 def _reserve_daily_budget(limit: int) -> None:
     global _budget_day, _budget_used
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = datetime.now(_BEIJING).date().isoformat()
     with _budget_lock:
         if _budget_day != today:
             _budget_day = today
@@ -491,6 +500,13 @@ def _reserve_daily_budget(limit: int) -> None:
 
 
 reserve_daily_budget = _reserve_daily_budget
+
+
+def seconds_until_budget_reset() -> int:
+    """距预算日切（北京时间零点）的秒数，下限 60；用于 429 的 Retry-After。"""
+    now = datetime.now(_BEIJING)
+    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return max(60, int((midnight - now).total_seconds()))
 
 
 async def _read_limited_json_response(response: Any) -> Any:
@@ -525,13 +541,22 @@ async def _complete_once(
 ) -> AiExplainResponse:
     payload = _provider_payload(question, facts, config, history, lore)
     body: Any = None
+    started = time.monotonic()
     for attempt in range(_PROVIDER_RETRY_ATTEMPTS):
+        # 墙钟预算：剩余时间不足以再安全跑一轮时收手，宁可让上层回 502，
+        # 也不让重试顶到 RequestGuard 的门上被砍成 504（预算已扣、白烧）。
+        remaining = _PROVIDER_WALL_CLOCK_SECONDS - (time.monotonic() - started)
+        if attempt > 0 and remaining < 5.0:
+            logger.warning("provider retry skipped: wall clock exhausted attempt=%s", attempt + 1)
+            break
+        per_attempt = max(1.0, min(config.timeout_seconds, remaining))
         try:
             async with client.stream(
                 "POST",
                 f"{config.base_url}/chat/completions",
                 headers=headers,
                 json=payload,
+                timeout=httpx.Timeout(per_attempt, connect=min(3.0, per_attempt)),
             ) as response:
                 response.raise_for_status()
                 body = await _read_limited_json_response(response)
@@ -549,6 +574,8 @@ async def _complete_once(
             raise
         except (httpx.HTTPError, ValueError) as error:
             raise AiProviderError("AI provider request failed") from error
+    if body is None:
+        raise AiProviderError("provider retry exhausted within wall clock")
     usage = body.get("usage") if isinstance(body, dict) else None
     finish_reason = None
     try:
