@@ -21,6 +21,8 @@ cd apps/observatory && npm install && npm run dev   # 5173
 .venv/Scripts/python.exe -m pytest tests/verified tests/differential
 ```
 
+E2E 与全流程测试（run-all 三门：静态审查 + API + UI）见 [AGENTS.md](AGENTS.md)「本地跑」；`tests/fullflow/` 提供生产/本地双清单，本地链用 mock LLM 零配额。
+
 AI 解读需要环境变量：`FORTUNE_AI_API_KEY` / `FORTUNE_AI_MODEL` / `FORTUNE_AI_CONTEXT_SECRET`（≥32 字节）/ `FORTUNE_AI_BASE_URL`，未配置时 AI 功能自动降级关闭。
 
 ## 部署（新加坡轻量服务器）

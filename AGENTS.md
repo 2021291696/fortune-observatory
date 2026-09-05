@@ -27,7 +27,7 @@
 - 流式解读引擎 = `apps/api/reading_agent.py`（skill 原典内联 + 流式 + `_ThinkFilter` 拆 think 链）；SSE 端点 `POST /v1/ai/reading` 与 `/v1/dreams/interpret/stream`。生成挂在服务端 StreamSession 注册表：断连不中止生成、同 stream_key 重连先回放再续播、预算只在全新生成时扣——改流式管道不得破坏这份续传契约
 - 前端流式消费统一走 `apps/observatory/src/streamReading.ts`：打字机节奏器分 displayText（渲染层）与 text（真值层），缓存/持久化只能用 text；思考折叠条 = `ThinkingTrace`；问事聊天跨页签存活靠 DomainAnalysisConsole 的 chatTurns 模块级注册表
 - AI 超时三层勿混用：provider 单次调用默认 40s、上限 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；非流式端点被 RequestGuard 的 ai 门 62s 硬顶，explain/解梦的 provider 重试自带 56s 墙钟收手（改任何一层都要对齐另外两层）；流式路径（reading_agent.py）上游读超时 280s，另 SSE 心跳 20s/续传 ping 10s。AI 日预算按北京时间零点日切，429 的 Retry-After 动态算到零点
-- 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 固定 50s 长超时（不受 config 40s 约束）
+- 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述（梦正文与追问回答都查）确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 非流式固定 ≥50s 长超时（在 RequestGuard 62s AI 门内）
 
 ## 生产部署
 
@@ -47,3 +47,4 @@ cd apps/observatory && npm run dev
 ```
 
 - E2E：`tests/e2e`（需本地 vite:5173 + api:8000 在跑；AI 端点用 page.route mock 保证确定性、不烧配额）。流式 UI 断言必须用 `expect(...).to_contain_text` 自动重试——打字机节奏器在 done 后还要排空尾部字符，立即读 inner_text 会间歇缺字（2026-09-03 实锤）
+- 全流程测试（run-all）：`tests/fullflow/`——manifest.yaml（生产）/manifest.local.yaml（本地 serve:8765）/manifest.ui.yaml·manifest.local.ui.yaml（门2 纯 UI 链）。本地链 = `.venv/Scripts/python.exe tests/fullflow/mock_llm.py --port 9999` + serve.py 带 `FORTUNE_AI_ALLOW_LOCAL_PROVIDER=true FORTUNE_AI_ALLOWED_HOSTS=127.0.0.1`，零真实配额；executor 打私网目标要加 `FULLFLOW_ALLOW_PRIVATE_TARGET=1`（2026-09-05 实锤）
