@@ -6,7 +6,7 @@
 
 - 三盘排盘：四柱八字 / 紫微斗数（十二宫）/ 七政四余（JPL 星历）
 - 运势：今日/明日/周/月，真太阳时口径
-- 问事：四板块（事业/感情/健康/财富）深度解读，AI 事实锚定 + 典籍语料（`apps/api/lore.py`）
+- 问事：四板块（事业/感情/健康/财富）深度解读，AI 事实锚定 + 典籍语料（`apps/api/lore.py`），SSE 流式输出（思考链可折叠）
 - 解梦：RAG 语料 + AI 散文输出
 - 三端 CLI 算命 skill：`skills/`（实体在本仓库，junction 挂载 Claude Code / Codex / ZCode）
 
@@ -35,6 +35,6 @@ AI 解读需要环境变量：`FORTUNE_AI_API_KEY` / `FORTUNE_AI_MODEL` / `FORTU
 | 路径 | 内容 |
 |---|---|
 | `apps/observatory` | React 前端（五套表情包主题） |
-| `apps/api` | FastAPI 后端（含 `lore.py` 解话语料、`dreams/` 解梦模块） |
+| `apps/api` | FastAPI 后端（含 `lore.py` 解话语料、`reading_agent.py` 流式解读引擎、`dreams/` 解梦模块） |
 | `src/fortune_core` | 排盘引擎（`docs/` 下有差分审计与口径 ADR，本地资产不入 git） |
 | `skills/` | 三端 CLI skill 实体（bazi、ziwei-doushu） |

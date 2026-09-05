@@ -24,13 +24,16 @@
 - `apps/api/lore.py` = 分体系解话语料（十四主星/四化论/十神旺衰/七政恩难仇用/运势断法），按 bundle_type 注入 system prompt；lore 只提供通识断语，禁止参与任何排盘计算
 - 断语权威 = `skills/*/references` 原文整包（`lore.py: skill_canon()` 注入，含 SKILL.md 第三阶段分析框架）；SKILL.md 无 LICENSE，原样收录
 - facts 上限 24 条 × 400 字符（2026-08-31 由 16×280 放宽，签名 token 上限同步 48K）；summary 上限 3600 字；`_parse_answer` 的安全正则（确定性断语/用药/投资指令）不许放松
-- AI 超时：默认 40s、硬顶 55s（env `FORTUNE_AI_TIMEOUT_SECONDS` 可覆盖）；解梦 prompt 含全量口径，`dreams/service.py` 固定 50s
-- 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422
+- 流式解读引擎 = `apps/api/reading_agent.py`（skill 原典内联 + 流式 + `_ThinkFilter` 拆 think 链）；SSE 端点 `POST /v1/ai/reading` 与 `/v1/dreams/interpret/stream`。生成挂在服务端 StreamSession 注册表：断连不中止生成、同 stream_key 重连先回放再续播、预算只在全新生成时扣——改流式管道不得破坏这份续传契约
+- 前端流式消费统一走 `apps/observatory/src/streamReading.ts`：打字机节奏器分 displayText（渲染层）与 text（真值层），缓存/持久化只能用 text；思考折叠条 = `ThinkingTrace`；问事聊天跨页签存活靠 DomainAnalysisConsole 的 chatTurns 模块级注册表
+- AI 超时两套语义勿混用：非流式 `/v1/ai/explain` 默认 40s、硬顶 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；流式路径（reading_agent.py）自带 280s 下限，另 SSE 心跳 20s/续传 ping 10s
+- 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 固定 50s 长超时（不受 config 40s 约束）
 
 ## 生产部署
 
 - 生产 = 新加坡轻量 43.160.211.207 的 `/opt/destiny`（systemd `destiny.service`，端口 8742；ssh 登录用户 `ubuntu`，root 未授权）；`scripts/deploy/deploy.sh` 每次部署会用仓库模板覆盖 nginx/systemd 配置、并由内置钩子重挂 certbot SSL——**改 nginx/服务配置一律改仓库模板再部署，禁止手改服务器文件了事**
 - `.env`（FORTUNE_* 密钥）只在服务器 `/opt/destiny/.env`，不入 git；`FORTUNE_ALLOWED_HOSTS` 必须含 `destiny.solplum.com`，漏了会被 TrustedHostMiddleware 拒 400；模板覆盖前必须先 `chown` 应用目录给 `destiny` 用户（deploy.sh 已内置顺序，勿倒置）
+- 打包白名单 = `apps/api src skills apps/observatory/dist scripts/deploy pyproject.toml uv.lock`（排除 `__pycache__`）；2026-09-03 起 dist 含 364 个霞鹜文楷 unicode-range woff2 分包（浏览器按需下载，首屏仅几百 KB），成品约 21MB；Windows 工作区 checkout 的 deploy.sh 带 CRLF，服务器端用 `tr -d "\r" < deploy.sh | sudo bash -s -- 包路径` 执行
 
 ## 本地跑
 
@@ -42,3 +45,5 @@ cd apps/observatory && npm run dev
 # 全量测试
 .venv/Scripts/python.exe -m pytest tests/verified tests/differential
 ```
+
+- E2E：`tests/e2e`（需本地 vite:5173 + api:8000 在跑；AI 端点用 page.route mock 保证确定性、不烧配额）。流式 UI 断言必须用 `expect(...).to_contain_text` 自动重试——打字机节奏器在 done 后还要排空尾部字符，立即读 inner_text 会间歇缺字（2026-09-03 实锤）
