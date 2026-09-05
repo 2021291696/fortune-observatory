@@ -8,14 +8,14 @@
 name: destiny-排盘运势问事解梦全流程
 target:
   platform: web
-  api_base: https://destiny.solplum.com/api
-  ui_base: https://destiny.solplum.com
+  api_base: http://127.0.0.1:8765/api
+  ui_base: http://127.0.0.1:8765
 
 environment:
   start: manual                      # 生产已在线，无需启动
   health:
     method: GET
-    url: "https://destiny.solplum.com/api/v1/ai/status"
+    url: "http://127.0.0.1:8765/api/v1/ai/status"
     expect: 200
     timeout_s: 60
 
