@@ -1,0 +1,50 @@
+# ═══════════════════════════════════════════════════════════════════
+# destiny（看运）门 2 清单：解梦常驻视图切换回归（纯 UI 路径）
+# 2026-09-04 从 manifest.yaml 拆出：run-all 门 2 只跑纯 UI 路径，
+# 混排 API 步骤的路径会被整条判 UI-UNCOVERED。
+# 本链不依赖任何 API 产物（解梦流程无 context token）。
+# ═══════════════════════════════════════════════════════════════════
+name: destiny-解梦常驻视图切换UI回归
+target:
+  platform: web
+  ui_base: http://127.0.0.1:8765
+
+environment:
+  start: manual                      # 生产已在线，无需启动
+  health:
+    method: GET
+    url: "http://127.0.0.1:8765/api/health"
+    expect: 200
+    timeout_s: 60
+
+variables:
+  dream_text: "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
+
+flow:
+  steps:
+    - id: ui_open_site
+      ui: { action: goto, url: "{ui_base}" }
+
+    - id: ui_open_dream
+      ui: { action: click, target: ".primary-nav a[href='#dream']" }
+
+    - id: ui_fill_dream
+      ui: { action: fill, target: "#dream textarea", value: "{dream_text}" }
+
+    - id: ui_submit_dream
+      ui: { action: click, target: "#dream .dream-composer > button" }
+
+    - id: ui_wait_dream_result
+      ui: { action: expect_visible, target: ".dream-result" }
+
+    - id: ui_switch_fortune
+      ui: { action: click, target: ".primary-nav a[href='#fortune']" }
+
+    - id: ui_switch_back_dream
+      ui: { action: click, target: ".primary-nav a[href='#dream']" }
+
+    - id: ui_dream_result_persists  # 切走再切回来，解梦结果必须还在
+      ui: { action: expect_visible, target: ".dream-result" }
+
+diagnosis:
+  logs: []
