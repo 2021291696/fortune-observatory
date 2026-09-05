@@ -132,6 +132,17 @@ class AiBudgetExceeded(RuntimeError):
     """The process-local daily safety budget has been exhausted."""
 
 
+# provider 侧瞬时过载（529=MiniMax 集群过载）与网关类 5xx 可安全重试；
+# 生成请求无状态、重试不产生重复副作用，只多计一次 provider 调用。
+_RETRYABLE_PROVIDER_STATUS = frozenset({502, 503, 504, 529})
+_PROVIDER_RETRY_ATTEMPTS = 3
+_PROVIDER_RETRY_BASE_SECONDS = 2.0
+
+
+def _retry_provider_status(status_code: int) -> bool:
+    return status_code in _RETRYABLE_PROVIDER_STATUS
+
+
 _budget_lock = Lock()
 _budget_day = ""
 _budget_used = 0
@@ -512,19 +523,32 @@ async def _complete_once(
     history: list[ChatTurn] | None = None,
     lore: str | None = None,
 ) -> AiExplainResponse:
-    try:
-        async with client.stream(
-            "POST",
-            f"{config.base_url}/chat/completions",
-            headers=headers,
-            json=_provider_payload(question, facts, config, history, lore),
-        ) as response:
-            response.raise_for_status()
-            body = await _read_limited_json_response(response)
-    except AiProviderError:
-        raise
-    except (httpx.HTTPError, ValueError) as error:
-        raise AiProviderError("AI provider request failed") from error
+    payload = _provider_payload(question, facts, config, history, lore)
+    body: Any = None
+    for attempt in range(_PROVIDER_RETRY_ATTEMPTS):
+        try:
+            async with client.stream(
+                "POST",
+                f"{config.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as response:
+                response.raise_for_status()
+                body = await _read_limited_json_response(response)
+            break
+        except httpx.HTTPStatusError as error:
+            status = error.response.status_code
+            if _retry_provider_status(status) and attempt < _PROVIDER_RETRY_ATTEMPTS - 1:
+                logger.warning(
+                    "provider retryable failure status=%s attempt=%s", status, attempt + 1
+                )
+                await asyncio.sleep(_PROVIDER_RETRY_BASE_SECONDS * (attempt + 1))
+                continue
+            raise AiProviderError(f"provider HTTP {status}") from error
+        except AiProviderError:
+            raise
+        except (httpx.HTTPError, ValueError) as error:
+            raise AiProviderError("AI provider request failed") from error
     usage = body.get("usage") if isinstance(body, dict) else None
     finish_reason = None
     try:

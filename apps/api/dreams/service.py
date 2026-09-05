@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -7,7 +8,15 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from ai_explainer import AiConfigurationError, AiProviderError, get_provider_config
+from ai_explainer import (
+    _PROVIDER_RETRY_ATTEMPTS,
+    _PROVIDER_RETRY_BASE_SECONDS,
+    _retry_provider_status,
+    AiConfigurationError,
+    AiProviderError,
+    get_provider_config,
+    reserve_daily_budget,
+)
 from dreams.lore import _WORK_TITLES, skill_profile
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse, SourceOut
 from dreams.prompts import INTERPRET_JSON, QUESTIONS, SYSTEM
@@ -19,6 +28,10 @@ logger = logging.getLogger("fortune.dreams")
 _REQUIRED_IDS = ("finished", "agency", "fear_of")
 # 触发转介的自伤信号：只依据梦的明确叙述，不做推断
 _REFERRAL_PATTERNS = ("自杀", "轻生", "不想活", "伤害自己", "伤自己", "自残")
+
+
+def is_referral(dream: str) -> bool:
+    return any(pattern in dream for pattern in _REFERRAL_PATTERNS)
 
 
 def compose_query(dream: str, answers: list) -> str:
@@ -71,21 +84,29 @@ async def _chat(system: str, user: str) -> str:
     timeout_seconds = max(config.timeout_seconds, 50.0)
     timeout = httpx.Timeout(timeout_seconds, connect=min(3.0, timeout_seconds))
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
-        response = await client.post(
-            f"{config.base_url}/chat/completions",
-            headers={
-                "authorization": f"Bearer {config.api_key}",
-                "content-type": "application/json",
-                "accept": "application/json",
-            },
-            json={
-                "model": config.model,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            },
-        )
+        response = None
+        for attempt in range(_PROVIDER_RETRY_ATTEMPTS):
+            response = await client.post(
+                f"{config.base_url}/chat/completions",
+                headers={
+                    "authorization": f"Bearer {config.api_key}",
+                    "content-type": "application/json",
+                    "accept": "application/json",
+                },
+                json={
+                    "model": config.model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+            )
+            if _retry_provider_status(response.status_code) and attempt < _PROVIDER_RETRY_ATTEMPTS - 1:
+                logger.warning("dream provider retryable failure status=%s attempt=%s",
+                               response.status_code, attempt + 1)
+                await asyncio.sleep(_PROVIDER_RETRY_BASE_SECONDS * (attempt + 1))
+                continue
+            break
         try:
             response.raise_for_status()
             text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
@@ -95,8 +116,11 @@ async def _chat(system: str, user: str) -> str:
 
 
 async def generate_questions(dream: str) -> QuestionsResponse:
-    if _provider() is None:
+    config = _provider()
+    if config is None:
         return QuestionsResponse(questions=heuristic_questions(dream))
+    # 预算扣在 try 外：AiBudgetExceeded 必须传播成 429，不得被兜底逻辑吞掉。
+    reserve_daily_budget(config.daily_limit)
     try:
         questions = _parse_questions(await _chat(QUESTIONS, dream[:800]))
         if len(questions) < 3:
@@ -182,9 +206,14 @@ def extract_sources(text: str) -> list[SourceOut]:
 
 
 async def interpret_dream_request(request: InterpretRequest) -> InterpretResponse:
-    if any(pattern in request.dream for pattern in _REFERRAL_PATTERNS):
+    if is_referral(request.dream):
         return _referral_result(request.dream)
 
+    config = _provider()
+    if config is None:
+        raise AiConfigurationError("AI provider is not configured")
+    # 转介路径不消耗 LLM，预算只对真实生成扣（try 外扣，超限抛 429）。
+    reserve_daily_budget(config.daily_limit)
     profile = skill_profile()
     system = f"{SYSTEM}\n\n{profile}" if profile else SYSTEM
     lines = [f"梦：{request.dream[:2000]}"]
@@ -193,8 +222,6 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
         lines.append("补充：\n" + "\n".join(extra))
     lines.append(INTERPRET_JSON)
 
-    if _provider() is None:
-        raise AiConfigurationError("AI provider is not configured")
     try:
         raw = await _chat(system, "\n".join(lines))
     except AiConfigurationError:
@@ -216,13 +243,14 @@ _INTERPRET_STREAM = (
 
 async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[dict]:
     """流式解梦：产出 {"type":"delta","text"} 与 {"type":"done","sources":[…]} 事件。"""
-    if any(pattern in request.dream for pattern in _REFERRAL_PATTERNS):
+    if is_referral(request.dream):
         yield {"type": "delta", "text": _referral_result(request.dream).referral}
         yield {"type": "done", "sources": []}
         return
     config = _provider()
     if config is None:
         raise AiConfigurationError("AI provider is not configured")
+    reserve_daily_budget(config.daily_limit)
     profile = skill_profile()
     system = f"{SYSTEM}\n\n{profile}" if profile else SYSTEM
     lines = [f"梦：{request.dream[:2000]}"]
@@ -233,9 +261,14 @@ async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[di
 
     chunks: list[str] = []
     try:
-        async for delta in stream_completion(system=system, user="\n".join(lines), config=config):
-            chunks.append(delta)
-            yield {"type": "delta", "text": delta}
+        # stream_completion 产出 (kind, segment) 二元组：思考链转播给前端折叠条，
+        # 只有正文 delta 进解梦文本与收尾全文。
+        async for kind, text in stream_completion(system=system, user="\n".join(lines), config=config):
+            if kind == "think":
+                yield {"type": "think", "text": text}
+                continue
+            chunks.append(text)
+            yield {"type": "delta", "text": text}
     except AiConfigurationError:
         raise
     except AiProviderError:

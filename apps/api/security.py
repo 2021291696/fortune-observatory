@@ -71,7 +71,7 @@ class RequestGuardMiddleware:
         path = str(scope.get("path", ""))
         is_streaming_ai = path in _STREAMING_AI_PATHS
         is_ai = method == "POST" and (
-            path in {"/v1/ai/explain", "/v1/dreams/interpret"} or is_streaming_ai
+            path in {"/v1/ai/explain", "/v1/dreams/interpret", "/v1/dreams/questions"} or is_streaming_ai
         )
         is_calculation = method == "POST" and path.startswith("/v1/")
         if is_calculation:

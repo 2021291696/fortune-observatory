@@ -829,6 +829,8 @@ async def dreams_interpret_stream(request: InterpretRequest) -> StreamingRespons
                     friendly = (
                         "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
                         if "content filter" in raw_detail
+                        else "今日解梦额度已用完，请明天再试。"
+                        if "budget" in raw_detail
                         else "这一篇没写成，请稍后重试。"
                     )
                     yield (

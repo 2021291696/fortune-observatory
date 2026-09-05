@@ -18,7 +18,14 @@ from pathlib import Path
 
 import httpx
 
-from ai_explainer import AiFact, AiProviderError, get_provider_config
+from ai_explainer import (
+    _PROVIDER_RETRY_ATTEMPTS,
+    _PROVIDER_RETRY_BASE_SECONDS,
+    _retry_provider_status,
+    AiFact,
+    AiProviderError,
+    get_provider_config,
+)
 
 logger = logging.getLogger("fortune.reading_agent")
 
@@ -233,49 +240,58 @@ async def stream_completion(
     finish_reason = None
     try:
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=False, trust_env=False) as client:
-            async with client.stream(
-                "POST",
-                f"{config.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            ) as response:
-                if response.status_code != 200:
-                    raw = await response.aread()
-                    head = raw[:300].decode("utf-8", "ignore")
-                    logger.warning("reading provider HTTP %s body=%s", response.status_code, head)
-                    if "new_sensitive" in head or "unprocessable_entity_error" in head:
-                        # 供应商内容安全过滤误杀：对用户表达为「换一种说法」。
-                        raise AiProviderError("provider content filter rejected the input (422)")
-                    raise AiProviderError(f"provider HTTP {response.status_code}")
-                think_filter = _ThinkFilter()
-                async for line in response.aiter_lines():
-                    if not line.startswith("data:"):
-                        continue
-                    data = line[5:].strip()
-                    if not data:
-                        continue
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                    except json.JSONDecodeError:
-                        continue
-                    try:
-                        delta = chunk["choices"][0].get("delta") or {}
-                        choice_finish = chunk["choices"][0].get("finish_reason")
-                    except (KeyError, IndexError, TypeError, AttributeError):
-                        delta = {}
-                        choice_finish = None
-                    if choice_finish:
-                        finish_reason = choice_finish
-                    text = delta.get("content") or ""
-                    if text:
-                        for kind, segment in think_filter.feed(text):
-                            if segment:
-                                yield (kind, segment)
-                for kind, segment in think_filter.flush():
-                    if segment:
-                        yield (kind, segment)
+            for attempt in range(_PROVIDER_RETRY_ATTEMPTS):
+                async with client.stream(
+                    "POST",
+                    f"{config.base_url}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                ) as response:
+                    if response.status_code != 200:
+                        raw = await response.aread()
+                        head = raw[:300].decode("utf-8", "ignore")
+                        logger.warning("reading provider HTTP %s body=%s", response.status_code, head)
+                        if "new_sensitive" in head or "unprocessable_entity_error" in head:
+                            # 供应商内容安全过滤误杀：对用户表达为「换一种说法」。
+                            raise AiProviderError("provider content filter rejected the input (422)")
+                        if _retry_provider_status(response.status_code) and attempt < _PROVIDER_RETRY_ATTEMPTS - 1:
+                            logger.warning(
+                                "reading provider retryable failure status=%s attempt=%s",
+                                response.status_code, attempt + 1,
+                            )
+                            await asyncio.sleep(_PROVIDER_RETRY_BASE_SECONDS * (attempt + 1))
+                            continue
+                        raise AiProviderError(f"provider HTTP {response.status_code}")
+                    think_filter = _ThinkFilter()
+                    async for line in response.aiter_lines():
+                        if not line.startswith("data:"):
+                            continue
+                        data = line[5:].strip()
+                        if not data:
+                            continue
+                        if data == "[DONE]":
+                            break
+                        try:
+                            chunk = json.loads(data)
+                        except json.JSONDecodeError:
+                            continue
+                        try:
+                            delta = chunk["choices"][0].get("delta") or {}
+                            choice_finish = chunk["choices"][0].get("finish_reason")
+                        except (KeyError, IndexError, TypeError, AttributeError):
+                            delta = {}
+                            choice_finish = None
+                        if choice_finish:
+                            finish_reason = choice_finish
+                        text = delta.get("content") or ""
+                        if text:
+                            for kind, segment in think_filter.feed(text):
+                                if segment:
+                                    yield (kind, segment)
+                    for kind, segment in think_filter.flush():
+                        if segment:
+                            yield (kind, segment)
+                    break
     except httpx.HTTPError as error:
         raise AiProviderError("AI provider stream failed") from error
     if finish_reason == "length":
