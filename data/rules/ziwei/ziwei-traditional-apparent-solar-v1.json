@@ -51,9 +51,9 @@
   ],
   "differential_oracle": {
     "name": "iztro",
-    "version": "2.5.8",
+    "version": "2.6.1",
     "role": "compatibility_oracle_only",
-    "execution_status": "pending_explicit_user_approval"
+    "execution_status": "approved_by_user_2026-09-15"
   },
   "verification": {
     "release_status": "palace_mapping_only",

@@ -22,20 +22,21 @@ FIVE_ELEMENTS_BUREAU = (3, 4, 2, 6, 5)
 ZIWEI_GROUP = ((0, "紫微"), (1, "天机"), (3, "太阳"), (4, "武曲"), (5, "天同"), (8, "廉贞"))
 TIANFU_GROUP = ((0, "天府"), (1, "太阴"), (2, "贪狼"), (3, "巨门"), (4, "天相"), (5, "天梁"), (6, "七杀"), (10, "破军"))
 BRIGHTNESS_LABELS = {"wang": "旺", "miao": "庙", "de": "得", "li": "利", "ping": "平", "xian": "陷", "bu": "不"}
+# 亮度口径对齐 iztro 2.6.1（该版修正了酉宫太阳/太阴/七杀的亮度值）
 MAJOR_BRIGHTNESS = {
     "紫微": ("wang", "wang", "de", "wang", "miao", "miao", "wang", "wang", "de", "wang", "ping", "miao"),
     "天机": ("de", "wang", "li", "ping", "miao", "xian", "de", "wang", "li", "ping", "miao", "xian"),
-    "太阳": ("wang", "miao", "wang", "wang", "wang", "de", "de", "xian", "bu", "xian", "xian", "bu"),
+    "太阳": ("wang", "miao", "wang", "wang", "wang", "de", "de", "ping", "bu", "xian", "xian", "bu"),
     "武曲": ("de", "li", "miao", "ping", "wang", "miao", "de", "li", "miao", "ping", "wang", "miao"),
     "天同": ("li", "ping", "ping", "miao", "xian", "bu", "wang", "ping", "ping", "miao", "wang", "bu"),
     "廉贞": ("miao", "ping", "li", "xian", "ping", "li", "miao", "ping", "li", "xian", "ping", "li"),
     "天府": ("miao", "de", "miao", "de", "wang", "miao", "de", "wang", "miao", "de", "miao", "miao"),
-    "太阴": ("wang", "xian", "xian", "xian", "bu", "bu", "li", "bu", "wang", "miao", "miao", "miao"),
+    "太阴": ("wang", "xian", "xian", "xian", "bu", "bu", "li", "wang", "wang", "miao", "miao", "miao"),
     "贪狼": ("ping", "li", "miao", "xian", "wang", "miao", "ping", "li", "miao", "xian", "wang", "miao"),
     "巨门": ("miao", "miao", "xian", "wang", "wang", "bu", "miao", "miao", "xian", "wang", "wang", "bu"),
     "天相": ("miao", "xian", "de", "de", "miao", "de", "miao", "xian", "de", "de", "miao", "miao"),
     "天梁": ("miao", "miao", "miao", "xian", "miao", "wang", "xian", "de", "miao", "xian", "miao", "wang"),
-    "七杀": ("miao", "wang", "miao", "ping", "wang", "miao", "miao", "miao", "miao", "ping", "wang", "miao"),
+    "七杀": ("miao", "wang", "miao", "ping", "wang", "miao", "miao", "wang", "miao", "ping", "wang", "miao"),
     "破军": ("de", "xian", "wang", "ping", "miao", "wang", "de", "xian", "wang", "ping", "miao", "wang"),
 }
 MUTAGEN_NAMES = ("禄", "权", "科", "忌")
@@ -185,7 +186,7 @@ def _lunar_month_days(lunar) -> int:
 
 
 def _major_star_positions(lunar, life_index: int, hour: int) -> tuple[int, dict[int, tuple[str, ...]]]:
-    """Calculate fourteen major stars using the frozen iztro 2.5.8 rule profile."""
+    """Calculate fourteen major stars using the frozen iztro 2.6.1 rule profile."""
     bureau = _five_elements_bureau(lunar, life_index)
     lunar_day = lunar.getDay()
     if _time_index(hour) == 12:
@@ -246,7 +247,7 @@ def _decadal_ranges(
     five_elements_bureau: int,
     sex_for_rule: str,
 ) -> dict[str, tuple[int, int]]:
-    """Apply the frozen iztro 2.5.8 decade-palace profile.
+    """Apply the frozen iztro 2.6.1 decade-palace profile.
 
     The direction is Yang-male/Yin-female forward, otherwise reverse; each
     palace carries a ten-year nominal-age range beginning at the five-elements
@@ -263,7 +264,7 @@ def _decadal_ranges(
 
 
 def _minor_limit_ages(lunar, sex_for_rule: str) -> dict[str, tuple[int, ...]]:
-    """Assign small-limit nominal ages with the frozen iztro 2.5.8 rule."""
+    """Assign small-limit nominal ages with the frozen iztro 2.6.1 rule."""
     birth_year_branch = lunar.getYearZhiExact()
     if birth_year_branch in {"寅", "午", "戌"}:
         start_index = 2  # 辰

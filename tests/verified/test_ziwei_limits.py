@@ -1,4 +1,4 @@
-"""Table-driven checks for the yearly Ziwei limit engine (frozen iztro 2.5.8 profile)."""
+"""Table-driven checks for the yearly Ziwei limit engine (frozen iztro 2.6.1 profile)."""
 
 from __future__ import annotations
 

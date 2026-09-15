@@ -52,7 +52,7 @@ def _python_snapshot(item: dict[str, str | int]):
     return calculate_palaces(birth)
 
 
-def test_iztro_2_5_8_palace_branch_parity_for_2080_charts() -> None:
+def test_iztro_2_6_1_palace_branch_parity_for_2080_charts() -> None:
     assert shutil.which("node") is not None, "Node.js is required for frozen iztro parity"
     cases = _cases()
     completed = subprocess.run(
@@ -114,7 +114,7 @@ def _run_oracle(cases: list[dict]) -> list[dict]:
     return json.loads(completed.stdout)
 
 
-def test_iztro_2_5_8_palace_stems_and_flying_mutagens_parity() -> None:
+def test_iztro_2_6_1_palace_stems_and_flying_mutagens_parity() -> None:
     cases = _cases()
     oracle = _run_oracle(cases)
     for item, expected in zip(cases, oracle, strict=True):
@@ -132,7 +132,7 @@ def test_iztro_2_5_8_palace_stems_and_flying_mutagens_parity() -> None:
             assert entry.is_self == (entry.to_branch == entry.from_branch)
 
 
-def test_iztro_2_5_8_yearly_limit_parity_for_300_charts() -> None:
+def test_iztro_2_6_1_yearly_limit_parity_for_300_charts() -> None:
     # Seeded PRNG on purpose (not secrets): differential fixtures must stay
     # reproducible byte-for-byte across runs; no security decision depends on it.
     generator = random.Random(20260816)

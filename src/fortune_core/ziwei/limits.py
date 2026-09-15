@@ -1,6 +1,6 @@
 """Yearly Ziwei limits: annual mutagens, decadal mutagens and flowing stars.
 
-Rule profile stays frozen against iztro 2.5.8 (`horoscopeDivide: 'exact'`,
+Rule profile stays frozen against iztro 2.6.1 (`horoscopeDivide: 'exact'`,
 `ageDivide: 'normal'`): the year pillar follows the exact 立春 divide at local
 noon, nominal age counts calendar years since birth plus one.
 """
