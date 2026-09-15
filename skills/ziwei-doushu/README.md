@@ -6,7 +6,7 @@
 
 - 上游：https://github.com/Renhuai123/ziwei-doushu （MIT License）
 - 上游 commit：`88194a404242bfe5c6d5cc512e4117e3e245cdd5`（2026-06-24）
-- 底层排盘：[iztro](https://github.com/SylarLong/iztro) 2.5.8（MIT）
+- 底层排盘：[iztro](https://github.com/SylarLong/iztro) 2.6.1（MIT）
 - 本目录 `vendor/` 与上游逐字一致（仅行尾符差异），上游功能未做任何修改
 
 ## 目录结构
