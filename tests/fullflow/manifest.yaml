@@ -5,7 +5,7 @@
 # 2026-09-04 校正：迁离 CloudBase → destiny.solplum.com（nginx /api 反代）；
 # 门2 UI 链拆分至 manifest.ui.yaml（run-all 门2 只跑纯 UI 路径，混排会整条 UI-UNCOVERED）
 # ═══════════════════════════════════════════════════════════════════
-name: destiny-排盘运势问事解梦全流程
+name: destiny-排盘运势问事解梦奇门全流程
 target:
   platform: web
   api_base: https://destiny.solplum.com/api
@@ -124,6 +124,43 @@ flow:
       assert:
         - { status: 200 }
         - { json: "$.referral", exists: true }
+
+    - id: qimen_chart               # 奇门：确定性排盘（引擎=fortune_core.qimen，差分锁定）
+      # 解读链（/v1/qimen/interpret/stream）需回传整张盘面 JSON，executor 的
+      # 变量替换只做字符串插值、无法整对象回传，故 fullflow 只锁确定性门；
+      # 解读 LLM 链由 tests/verified/test_qimen_api.py（mock provider）与
+      # tests/e2e/test_qimen_flow.py（route mock）覆盖。
+      api:
+        method: POST
+        path: /v1/qimen/chart
+        body:
+          question_type: 事业
+          question_goal: 能不能动，什么时候动更稳
+          time_mode: custom
+          time_input: "2026-03-24 10:30"
+          city: 上海
+        timeout_s: 30
+      assert:
+        - { status: 200 }
+        - { json: "$.chart.dun_type", eq: 阳遁 }
+        - { json: "$.chart.ju_number", eq: 1 }
+        - { json: "$.chart.xunshou", eq: 甲辰 }
+        - { json: "$.chart.zhifu.star", eq: 天芮 }
+        - { json: "$.used_now", eq: false }
+
+    - id: qimen_chart_now           # 奇门：默认「现在」起局
+      api:
+        method: POST
+        path: /v1/qimen/chart
+        body:
+          question_type: 出行
+          question_goal: 今天往哪边走顺
+          time_mode: now
+        timeout_s: 30
+      assert:
+        - { status: 200 }
+        - { json: "$.used_now", eq: true }
+        - { json: "$.chart.palaces.8.palace", eq: 9 }
 
 probes:
   invalid_input:

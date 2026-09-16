@@ -1,11 +1,12 @@
-import { ChartLine, ChatCircleDots, MoonStars, StarFour, UserCircle } from '@phosphor-icons/react'
+import { ChartLine, ChatCircleDots, Compass, MoonStars, StarFour, UserCircle } from '@phosphor-icons/react'
 
-export type AppView = 'fortune' | 'ask' | 'dream' | 'chart' | 'profile'
+export type AppView = 'fortune' | 'ask' | 'dream' | 'qimen' | 'chart' | 'profile'
 
 const views = [
   { id: 'fortune', label: '运势', icon: ChartLine },
   { id: 'ask', label: '问事', icon: ChatCircleDots },
   { id: 'dream', label: '解梦', icon: MoonStars },
+  { id: 'qimen', label: '奇门', icon: Compass },
   { id: 'chart', label: '命盘', icon: StarFour },
   { id: 'profile', label: '我的', icon: UserCircle },
 ] as const
@@ -25,6 +26,7 @@ export function viewFromHash(hash = window.location.hash): AppView {
   const value = hash.replace(/^#/, '')
   if (value === 'ask' || value === 'analysis') return 'ask'
   if (value === 'dream') return 'dream'
+  if (value === 'qimen') return 'qimen'
   if (value === 'chart') return 'chart'
   if (value === 'profile' || value === 'saved') return 'profile'
   if (value === 'fortune') return 'fortune'

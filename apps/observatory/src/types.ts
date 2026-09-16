@@ -224,11 +224,76 @@ export type DreamInterpretResponse = {
 }
 
 export type SaveDraft = {
-  kind: 'domain' | 'fortune' | 'dream'
+  kind: 'domain' | 'fortune' | 'dream' | 'qimen'
   title: string
   summary: string
   details: string[]
   userName?: string
+}
+
+// 与后端 apps/api/qimen/models.py 的响应契约一一对应
+export type QimenStemPosition = { stem: string; raw_palace: number | null; palace: number | null; note: string | null }
+export type QimenYima = { branch: string | null; palace: number | null }
+export type QimenPattern = { name: string; palace: number; detail: string; nature: string }
+export type QimenPalace = {
+  palace: number
+  name: string
+  direction: string
+  trigram: string
+  element: string
+  earth_stem: string | null
+  sky_stem: string | null
+  stem_relation: string | null
+  star: string | null
+  star_element: string | null
+  star_palace_relation: string | null
+  door: string | null
+  door_element: string | null
+  door_palace_relation: string | null
+  god: string | null
+  is_center: boolean
+  hosts_center: boolean
+  hosting_note: string | null
+}
+export type QimenChartData = {
+  dun_type: string
+  yuan: string
+  ju_number: number
+  xunshou: string
+  hidden_yi: string
+  kongwang: string[]
+  kongwang_palaces: number[]
+  day_kongwang: string[]
+  day_kongwang_palaces: number[]
+  time_stem_visible: string
+  day_stem: QimenStemPosition
+  year_stem: QimenStemPosition
+  month_stem: QimenStemPosition
+  yima: QimenYima
+  zhifu: { star: string; palace: number }
+  zhishi: { door: string; palace: number }
+  door_index: Record<string, number>
+  star_index: Record<string, number>
+  detected_patterns: QimenPattern[]
+  grid_order: number[]
+  palaces: QimenPalace[]
+}
+export type QimenChartResponse = {
+  question_type: string
+  question_goal: string
+  detail_level: 'brief' | 'detailed'
+  city: string | null
+  used_now: boolean
+  calendar_solar: string
+  calendar_lunar: { year: number; month: number; day: number; month_text: string; day_text: string; is_leap_month: boolean }
+  jieqi: { active_jie: string; active_jie_started_at: string; next_jie: string | null; next_jie_at: string | null }
+  ganzhi: {
+    year: string; month: string; day: string; time: string
+    day_xun_exact: string; day_xunkong_exact: string
+    time_xun: string; time_xunkong: string
+  }
+  chart: QimenChartData
+  warnings: string[]
 }
 
 export type SavedReading = SaveDraft & {

@@ -1,5 +1,5 @@
 /* Glass cards: layered translucency, top highlight, floating shadow. */
-.chart-result, .domain-console, .fortune-console, .dream-console, .saved-panel {
+.chart-result, .domain-console, .fortune-console, .dream-console, .qimen-console, .saved-panel {
   position: relative;
   border: 1px solid rgba(255,255,255,.75);
   border-radius: 18px;
@@ -14,7 +14,7 @@
   overflow: hidden;
   transition: transform 180ms ease, box-shadow 180ms ease;
 }
-.chart-result::before, .domain-console::before, .fortune-console::before, .dream-console::before {
+.chart-result::before, .domain-console::before, .fortune-console::before, .dream-console::before, .qimen-console::before {
   content: '';
   position: absolute;
   inset: 0 0 auto 0;
@@ -23,7 +23,7 @@
   border-radius: 18px 18px 0 0;
   pointer-events: none;
 }
-.chart-result:hover, .domain-console:hover, .fortune-console:hover, .dream-console:hover {
+.chart-result:hover, .domain-console:hover, .fortune-console:hover, .dream-console:hover, .qimen-console:hover {
   /* 大阅读卡不做位移 hover——正文阅读时鼠标划过就跳动很晃眼，只加深阴影 */
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.95),
@@ -318,9 +318,9 @@
 .saved-grid ul { margin: 0 0 12px; padding-left: 17px; color: var(--muted); font-size: 11px; line-height: 1.7; }
 .saved-grid article > footer { display: flex; align-items: center; gap: 5px; margin-top: 12px; color: var(--muted); font-size: 10px; }
 
-[data-theme='ggbond'] .chart-result, [data-theme='ggbond'] .domain-console, [data-theme='ggbond'] .fortune-console, [data-theme='ggbond'] .dream-console, [data-theme='ggbond'] .saved-panel { border: 3px solid #111820; border-radius: 5px; box-shadow: 9px 9px 0 #dd1825; }
+[data-theme='ggbond'] .chart-result, [data-theme='ggbond'] .domain-console, [data-theme='ggbond'] .fortune-console, [data-theme='ggbond'] .dream-console, [data-theme='ggbond'] .qimen-console, [data-theme='ggbond'] .saved-panel { border: 3px solid #111820; border-radius: 5px; box-shadow: 9px 9px 0 #dd1825; }
 [data-theme='nailong'] .board-head b { color: #fff; background: var(--accent); border-radius: 6px; }
-[data-theme='kawaii'] .chart-result, [data-theme='kawaii'] .domain-console, [data-theme='kawaii'] .fortune-console, [data-theme='kawaii'] .dream-console { transform: rotate(.12deg); }
+[data-theme='kawaii'] .chart-result, [data-theme='kawaii'] .domain-console, [data-theme='kawaii'] .fortune-console, [data-theme='kawaii'] .dream-console, [data-theme='kawaii'] .qimen-console { transform: rotate(.12deg); }
 [data-theme='phoebe'] .domain-choices button:first-child { border-radius: 50% 0 0; }
 
 /* Theme sticker companion: hidden on desktop, revealed in the 820px block below. */
@@ -523,6 +523,57 @@
   background: color-mix(in srgb, #e2a100 14%, transparent);
 }
 .saved-kind.is-dream { color: #4338ca; background: #eef2ff; }
+.saved-kind.is-qimen { color: #155e75; background: #ecfeff; }
+
+/* 奇门：表单栅格、盘面摘要卡 */
+.qimen-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 14px; }
+.qimen-form-grid select,
+.qimen-form-grid input[type='text'],
+.qimen-form-grid input[type='datetime-local'] {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,.55);
+  border-radius: 9px;
+  color: var(--ink);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 650;
+}
+.qimen-form-grid select:focus-visible,
+.qimen-form-grid input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.qimen-time-toggle { display: inline-flex; gap: 6px; }
+.qimen-time-toggle button {
+  flex: 1;
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px dashed var(--soft-line);
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 750;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+.qimen-time-toggle button.is-active { border-style: solid; border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, #fff); }
+.qimen-interpret-bar { border-top: 1px solid var(--soft-line); }
+.qimen-chart-card { padding: 18px 26px 20px; border-top: 1px solid var(--soft-line); font-family: var(--font-read); }
+.qimen-chart-card header span { color: var(--accent); font-size: 10px; font-weight: 900; letter-spacing: .12em; }
+.qimen-chart-card header h2 { margin: 6px 0 4px; font-size: clamp(20px, 2.6vw, 28px); line-height: 1.1; letter-spacing: -.02em; }
+.qimen-chart-card header p { margin: 0; color: var(--muted); font-size: 12px; }
+.qimen-chart-card dl { display: grid; grid-template-columns: 64px 1fr; gap: 7px 12px; margin: 14px 0 0; }
+.qimen-chart-card dt { color: var(--accent); font-size: 12px; font-weight: 850; }
+.qimen-chart-card dd { margin: 0; font-size: 13px; line-height: 1.55; }
+.qimen-pattern { display: inline-block; margin: 0 6px 4px 0; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 750; }
+.qimen-pattern.is-ji { color: #075527; background: #e0f6e7; }
+.qimen-pattern.is-xiong { color: #9c2d24; background: #ffe7e3; }
+.qimen-warnings { margin: 12px 0 0; padding-left: 17px; color: #8a5a00; font-size: 12px; line-height: 1.6; }
+.qimen-thinking { padding: 0 26px; }
+
+@media (max-width: 640px) {
+  .qimen-form-grid { grid-template-columns: 1fr; }
+  .qimen-chart-card dl { grid-template-columns: 52px 1fr; }
+}
 
 
 /* 交互一致性：可点元素统一过渡时长与按压反馈（覆盖各自零散的旧规则）。 */

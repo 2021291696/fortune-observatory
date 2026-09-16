@@ -3,9 +3,9 @@
 ## 结构
 
 - `apps/observatory`：React 前端（Vite，五套表情包主题，5173）
-- `apps/api`：FastAPI 后端（排盘/运势/问事/解梦/AI 解读，8000；app.py 平级导入 security/lore/fortune_core；dreams/ 为解梦模块）
-- `src/fortune_core`：排盘核心引擎（八字/紫微/七政四余/真太阳时）——网站排盘唯一计算源
-- `skills/`：三端 CLI 命理 skill 实体（bazi、ziwei-doushu、dream-interpretation）
+- `apps/api`：FastAPI 后端（排盘/运势/问事/解梦/奇门/AI 解读，8000；app.py 平级导入 security/lore/fortune_core；dreams/ 为解梦模块，qimen/ 为奇门模块）
+- `src/fortune_core`：排盘核心引擎（八字/紫微/七政四余/真太阳时/奇门遁甲）——网站排盘唯一计算源
+- `skills/`：三端 CLI 命理 skill 实体（bazi、ziwei-doushu、dream-interpretation）；另有 `qimen-dunjia` 为**仓库独立副本**（与 `~/.agents/skills/qimen-dunjia` 实体互不引用：本地实体供日常 CLI 使用，仓库副本仅供线上 lore 注入与差分对拍，用户拍板两份独立不 junction）
 - `docs/` 整目录是 gitignore 的本地资产（审计报告/计划/交接），不进 git
 
 ## skills/ = 三端 skill 实体（source of truth）
@@ -17,7 +17,8 @@
 ## 排盘口径
 
 - skills/*/scripts 的排盘脚本是**第二实现**，只用于差分校验（`tests/differential/`），禁止接入线上计算路径
-- 差分回归：`.venv/Scripts/python.exe -m pytest tests/differential`（八字 10 例 + iztro 2080 盘例，后者需 Node）
+- 差分回归：`.venv/Scripts/python.exe -m pytest tests/differential`（八字 10 例 + 奇门 13 例 + iztro 2080 盘例，后者需 Node）
+- 奇门排盘：`src/fortune_core/qimen/engine.py` 从 `skills/qimen-dunjia/scripts/qimen_cli.py` 逐函数移植（剥离 CLI IO），两侧输出必须逐字节一致（`tests/differential/test_qimen_skill_parity.py`）；改任一侧必须同步另一侧并跑差分。引擎警告文案与 skill 脚本逐字一致（含"脚本/访谈"CLI 口径），网页措辞只在 `apps/api/qimen/service.py` 的 `_presentable_warnings` 展示层转译
 
 ## AI 解读层
 
@@ -28,6 +29,7 @@
 - 前端流式消费统一走 `apps/observatory/src/streamReading.ts`：打字机节奏器分 displayText（渲染层）与 text（真值层），缓存/持久化只能用 text；思考折叠条 = `ThinkingTrace`；问事聊天跨页签存活靠 DomainAnalysisConsole 的 chatTurns 模块级注册表
 - AI 超时三层勿混用：provider 单次调用默认 40s、上限 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；非流式端点被 RequestGuard 的 ai 门 62s 硬顶，explain/解梦的 provider 重试自带 56s 墙钟收手（改任何一层都要对齐另外两层）；流式路径（reading_agent.py）上游读超时 280s，另 SSE 心跳 20s/续传 ping 10s。AI 日预算按北京时间零点日切，429 的 Retry-After 动态算到零点
 - 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述（梦正文与追问回答都查）确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 非流式固定 ≥50s 长超时（在 RequestGuard 62s AI 门内）
+- 奇门口径 = `qimen/lore.py` 读仓库内 `skills/qimen-dunjia/references`（ruleset/yongshen/geju/examples 全量注入，interview.md 不注入——网页表单替代访谈）；链路两步：`POST /v1/qimen/chart`（确定性排盘，零预算）→ 前端渲染盘面卡后把整张盘面原样回传 `POST /v1/qimen/interpret/stream`（流式解读，budget/安全校验同解梦）；流式 AI 路径注册在 `security.py` 的 `_STREAMING_AI_PATHS`；安全红线禁确定性断语（"注定/一定会"）——奇门输出易撞，prompt 已预防性约束涉财措辞
 
 ## 生产部署
 

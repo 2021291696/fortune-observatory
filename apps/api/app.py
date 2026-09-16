@@ -50,6 +50,8 @@ from reading_agent import friendly_reading_error, generate_into_session, get_or_
 _BEIJING = ZoneInfo("Asia/Shanghai")
 from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest, QuestionsResponse
 from dreams.service import generate_questions, interpret_dream_request, stream_interpret_events
+from qimen.models import QimenChartRequest, QimenChartResponse, QimenInterpretRequest
+from qimen.service import build_qimen_chart, stream_qimen_events
 
 from fortune_core.bazi import active_great_luck, calculate_bazi
 from fortune_core.models import (
@@ -1037,6 +1039,77 @@ async def interpret_dream(request: InterpretRequest) -> InterpretResponse:
             detail="这一梦没写成，请稍后重试。",
             headers={"X-Trace-Id": trace_id},
         ) from error
+
+
+@app.post("/v1/qimen/chart", response_model=QimenChartResponse)
+def qimen_chart(request: QimenChartRequest) -> QimenChartResponse:
+    """奇门排盘（确定性计算，不消耗 AI 预算）。"""
+    try:
+        return build_qimen_chart(request)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+
+@app.post("/v1/qimen/interpret/stream")
+async def qimen_interpret_stream(request: QimenInterpretRequest) -> StreamingResponse:
+    """奇门流式解读：SSE 事件 {"type":"delta","text"} / {"type":"done"}。
+
+    请求体携带 /v1/qimen/chart 的完整响应原样带回（无服务端盘面存储）；
+    解读只消费盘面事实，不重算。
+    """
+    async def event_stream() -> AsyncIterator[str]:
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def pump() -> None:
+            try:
+                async for event in stream_qimen_events(request):
+                    await queue.put(event)
+                await queue.put({"type": "closed"})
+            except Exception as error:
+                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
+
+        pump_task = asyncio.create_task(pump())
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if event.get("type") == "closed":
+                    yield "data: [DONE]\n\n"
+                    return
+                if event.get("type") == "error":
+                    logger.warning("qimen stream failed mid-stream")
+                    raw_detail = str(event.get("detail") or "")
+                    is_safety = event.get("code") == "safety"
+                    friendly = (
+                        "这篇解读的表述超出了输出规范（含确定的吉凶断语或用药、投资指引），已不展示，请换个问法再试。"
+                        if is_safety
+                        else "这段事项描述触发了内容安全过滤，请换一种说法再试。"
+                        if "content filter" in raw_detail
+                        else "今日解读额度已用完，请明天再试。"
+                        if "budget" in raw_detail
+                        else "这一篇没写成，请稍后重试。"
+                    )
+                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
+                    if is_safety:
+                        payload_event["code"] = "safety"
+                    yield (
+                        "data: "
+                        + json.dumps(payload_event, ensure_ascii=False)
+                        + "\n\n"
+                    )
+                    return
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            pump_task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/v1/charts", response_model=ChartApiResponse)

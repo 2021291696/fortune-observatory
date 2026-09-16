@@ -5,6 +5,7 @@ import { BirthForm, UserBar, type BirthInitial, type StoredUser } from './compon
 import { Chart } from './components/Chart'
 import { DomainAnalysisConsole } from './components/DomainAnalysisConsole'
 import { DreamConsole } from './components/DreamConsole'
+import { QimenConsole } from './components/QimenConsole'
 import { FortuneConsole } from './components/FortuneConsole'
 import { MemeStage } from './components/MemeStage'
 import { ProfileView } from './components/ProfileView'
@@ -121,7 +122,7 @@ function initialSavedReadings(): SavedReading[] {
     const sanitized = parsed.filter((item): item is SavedReading => Boolean(
       item && typeof item === 'object'
       && typeof item.id === 'string' && typeof item.savedAt === 'string'
-      && (item.kind === 'domain' || item.kind === 'fortune' || item.kind === 'dream')
+      && (item.kind === 'domain' || item.kind === 'fortune' || item.kind === 'dream' || item.kind === 'qimen')
       && typeof item.title === 'string' && typeof item.summary === 'string'
       && Array.isArray(item.details) && item.details.every((detail: unknown) => typeof detail === 'string'),
     )).slice(0, 24).map((item) => ({
@@ -689,6 +690,10 @@ export function App() {
 
       <div hidden={activeView !== 'dream'}>
         <DreamConsole onSave={saveReading} />
+      </div>
+
+      <div hidden={activeView !== 'qimen'}>
+        <QimenConsole onSave={saveReading} />
       </div>
 
       <section hidden={activeView !== 'chart'} className="task-view chart-view" id="chart" aria-labelledby="chart-title">
