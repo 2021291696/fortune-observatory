@@ -35,6 +35,27 @@ def fill_birth(page: Page) -> None:
     page.locator('select[aria-label="城市或辖区"]').select_option("110101")
 
 
+def ensure_ai_contexts(page: Page) -> None:
+    # api:8000 未带 FORTUNE_AI_CONTEXT_SECRET 启动时 /v1/charts 不发签名
+    # 上下文，问事 AI 卡走 unavailable 分支，.ai-answer 永不出现——环境问题
+    # 在这里给出可行动提示，而不是让断言超时假死。
+    response = page.request.post(
+        "http://127.0.0.1:8000/v1/charts",
+        data={
+            "civil_datetime": "2000-01-01T08:30:00+08:00",
+            "timezone_id": "Asia/Shanghai",
+            "longitude": 116.4,
+            "latitude": 39.9,
+            "sex_for_rule": "male",
+            "use_apparent_solar_time": True,
+        },
+        headers={"content-type": "application/json"},
+        timeout=10_000,
+    )
+    if response.ok and not (response.json() or {}).get("ai_contexts"):
+        pytest.skip("api:8000 未带 FORTUNE_AI_CONTEXT_SECRET 启动，/v1/charts 无签名上下文；重启命令见 AGENTS.md「本地跑」")
+
+
 def mock_ai(page: Page) -> None:
     page.route("**/v1/ai/status", lambda route: route.fulfill(
         status=200, content_type="application/json",
@@ -80,6 +101,7 @@ def test_observatory_main_path_desktop(require_servers: None) -> None:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 1440, "height": 1000}, locale="zh-CN")
         mock_ai(page)
+        ensure_ai_contexts(page)
         page.goto(FRONTEND, wait_until="networkidle")
         page.locator('.primary-nav a[href="#fortune"]').click()
         page.locator("#birth-form").wait_for(timeout=10_000)
@@ -107,6 +129,7 @@ def test_observatory_main_path_mobile_375(require_servers: None) -> None:
         browser = pw.chromium.launch()
         page = browser.new_page(viewport={"width": 375, "height": 812}, locale="zh-CN")
         mock_ai(page)
+        ensure_ai_contexts(page)
         page.goto(FRONTEND, wait_until="networkidle")
         page.locator('.primary-nav a[href="#fortune"]').click()
         page.locator("#birth-form").wait_for(timeout=10_000)
@@ -120,5 +143,5 @@ def test_observatory_main_path_mobile_375(require_servers: None) -> None:
             })"""
         )
         assert metrics["body"] <= metrics["viewport"] + 1, metrics
-        assert page.locator(".primary-nav a").count() == 5
+        assert page.locator(".primary-nav a").count() == 6
         browser.close()

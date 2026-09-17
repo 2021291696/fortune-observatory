@@ -48,5 +48,5 @@ cd apps/observatory && npm run dev
 .venv/Scripts/python.exe -m pytest tests/verified tests/differential
 ```
 
-- E2E：`tests/e2e`（需本地 vite:5173 + api:8000 在跑；AI 端点用 page.route mock 保证确定性、不烧配额）。流式 UI 断言必须用 `expect(...).to_contain_text` 自动重试——打字机节奏器在 done 后还要排空尾部字符，立即读 inner_text 会间歇缺字（2026-09-03 实锤）
+- E2E：`tests/e2e`（需本地 vite:5173 + api:8000 在跑；AI 端点用 page.route mock 保证确定性、不烧配额）。流式 UI 断言必须用 `expect(...).to_contain_text` 自动重试——打字机节奏器在 done 后还要排空尾部字符，立即读 inner_text 会间歇缺字（2026-09-03 实锤）。api:8000 必须带 `FORTUNE_AI_CONTEXT_SECRET`（本地假值即可，≥32 字节，如 `local-e2e-secret-0123456789abcdef`）启动——否则 /v1/charts 不发签名上下文，问事 AI 卡走 unavailable，主路径 e2e 会 skip（探针已内置该检查）
 - 全流程测试（run-all）：`tests/fullflow/`——manifest.yaml（生产）/manifest.local.yaml（本地 serve:8765）/manifest.ui.yaml·manifest.local.ui.yaml（门2 纯 UI 链）。本地链 = `.venv/Scripts/python.exe tests/fullflow/mock_llm.py --port 9999` + serve.py 带 `FORTUNE_AI_ALLOW_LOCAL_PROVIDER=true FORTUNE_AI_ALLOWED_HOSTS=127.0.0.1`，零真实配额；executor 打私网目标要加 `FULLFLOW_ALLOW_PRIVATE_TARGET=1`（2026-09-05 实锤）
