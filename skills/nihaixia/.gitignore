@@ -1,0 +1,22 @@
+# Old/temp files
+SKILL.old.md
+SKILL_compressed.md
+analyze.py
+compress.py
+compress_v2.py
+distill_cases.py
+distill_cases_v2.py
+distillation_analysis.txt
+long_lines_analysis.txt
+undistilled_lines.txt
+split_skill.py
+scripts/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
