@@ -224,7 +224,7 @@ export type DreamInterpretResponse = {
 }
 
 export type SaveDraft = {
-  kind: 'domain' | 'fortune' | 'dream' | 'qimen'
+  kind: 'domain' | 'fortune' | 'dream' | 'qimen' | 'tcm'
   title: string
   summary: string
   details: string[]

@@ -143,5 +143,5 @@ def test_observatory_main_path_mobile_375(require_servers: None) -> None:
             })"""
         )
         assert metrics["body"] <= metrics["viewport"] + 1, metrics
-        assert page.locator(".primary-nav a").count() == 6
+        assert page.locator(".primary-nav a").count() == 7  # 运势/问事/解梦/奇门/中医/命盘/我的
         browser.close()

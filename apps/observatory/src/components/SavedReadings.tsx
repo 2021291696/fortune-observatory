@@ -1,4 +1,4 @@
-import { Archive, Briefcase, CalendarDots, Compass, Heart, MoonStars, Trash } from '@phosphor-icons/react'
+import { Archive, Briefcase, CalendarDots, Compass, Heart, Leaf, MoonStars, Trash } from '@phosphor-icons/react'
 import type { SavedReading } from '../types'
 import { savedSystemLabel } from '../readingSystem'
 
@@ -30,7 +30,7 @@ export function SavedReadings({ items, onRemove, onClear }: {
       </div> : <div className="saved-grid">
         {items.map((item) => <article key={item.id}>
           <header>
-            <span className={`saved-kind is-${item.kind}`}>{item.kind === 'dream' ? <MoonStars size={14} /> : item.kind === 'qimen' ? <Compass size={14} /> : item.kind === 'domain' ? <Briefcase size={14} /> : <CalendarDots size={14} />}{item.userName ? `${item.userName} · ` : ''}{item.kind === 'dream' ? '解梦' : item.kind === 'qimen' ? '奇门' : item.kind === 'domain' ? '问事' : '运势'}</span>
+            <span className={`saved-kind is-${item.kind}`}>{item.kind === 'dream' ? <MoonStars size={14} /> : item.kind === 'qimen' ? <Compass size={14} /> : item.kind === 'tcm' ? <Leaf size={14} /> : item.kind === 'domain' ? <Briefcase size={14} /> : <CalendarDots size={14} />}{item.userName ? `${item.userName} · ` : ''}{item.kind === 'dream' ? '解梦' : item.kind === 'qimen' ? '奇门' : item.kind === 'tcm' ? '中医' : item.kind === 'domain' ? '问事' : '运势'}</span>
             {(item.kind === 'domain' || item.kind === 'fortune') && <span className="saved-system">{savedSystemLabel(item.system)}</span>}
             <button type="button" aria-label={`删除${item.title}`} onClick={() => onRemove(item.id)}><Trash size={17} /></button>
           </header>

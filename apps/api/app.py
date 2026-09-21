@@ -52,6 +52,8 @@ from dreams.models import InterpretRequest, InterpretResponse, QuestionsRequest,
 from dreams.service import generate_questions, interpret_dream_request, stream_interpret_events
 from qimen.models import QimenChartRequest, QimenChartResponse, QimenInterpretRequest
 from qimen.service import build_qimen_chart, stream_qimen_events
+from tcm.models import ConsultRequest, ConsultResponse
+from tcm.service import consult_request, stream_consult_events
 
 from fortune_core.bazi import active_great_luck, calculate_bazi
 from fortune_core.models import (
@@ -1089,6 +1091,93 @@ async def qimen_interpret_stream(request: QimenInterpretRequest) -> StreamingRes
                         else "这段事项描述触发了内容安全过滤，请换一种说法再试。"
                         if "content filter" in raw_detail
                         else "今日解读额度已用完，请明天再试。"
+                        if "budget" in raw_detail
+                        else "这一篇没写成，请稍后重试。"
+                    )
+                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
+                    if is_safety:
+                        payload_event["code"] = "safety"
+                    yield (
+                        "data: "
+                        + json.dumps(payload_event, ensure_ascii=False)
+                        + "\n\n"
+                    )
+                    return
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        finally:
+            pump_task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/v1/tcm/consult", response_model=ConsultResponse)
+async def tcm_consult(request: ConsultRequest) -> ConsultResponse:
+    try:
+        return await consult_request(request)
+    except AiConfigurationError as error:
+        logger.warning("tcm consult unavailable error_type=%s", type(error).__name__)
+        raise HTTPException(status_code=503, detail="中医问诊暂未配置，排盘不受影响。") from error
+    except AiBudgetExceeded as error:
+        raise HTTPException(
+            status_code=429,
+            detail="今日中医问诊额度已用完，排盘仍可正常使用。",
+            headers={"Retry-After": str(seconds_until_budget_reset())},
+        ) from error
+    except AiProviderError as error:
+        trace_id = str(uuid4())
+        logger.warning(
+            "tcm consult failed trace_id=%s error_type=%s detail=%s",
+            trace_id,
+            type(error).__name__,
+            error,
+        )
+        detail = "这篇问诊的表述超出了输出规范（含西药或投资指引），已不展示，请换个问法再试。" if "safety violation" in str(error) else "这一篇没写成，请稍后重试。"
+        raise HTTPException(
+            status_code=502,
+            detail=detail,
+            headers={"X-Trace-Id": trace_id},
+        ) from error
+
+
+@app.post("/v1/tcm/consult/stream")
+async def tcm_consult_stream(request: ConsultRequest) -> StreamingResponse:
+    """中医问诊流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。"""
+    async def event_stream() -> AsyncIterator[str]:
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def pump() -> None:
+            try:
+                async for event in stream_consult_events(request):
+                    await queue.put(event)
+                await queue.put({"type": "closed"})
+            except Exception as error:
+                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
+
+        pump_task = asyncio.create_task(pump())
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if event.get("type") == "closed":
+                    yield "data: [DONE]\n\n"
+                    return
+                if event.get("type") == "error":
+                    logger.warning("tcm stream failed mid-stream")
+                    raw_detail = str(event.get("detail") or "")
+                    is_safety = event.get("code") == "safety"
+                    friendly = (
+                        "这篇问诊的表述超出了输出规范（含西药或投资指引），已不展示，请换个问法再试。"
+                        if is_safety
+                        else "这段问诊内容触发了内容安全过滤，请换一种说法再试。"
+                        if "content filter" in raw_detail
+                        else "今日中医问诊额度已用完，请明天再试。"
                         if "budget" in raw_detail
                         else "这一篇没写成，请稍后重试。"
                     )
