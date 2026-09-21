@@ -43,7 +43,7 @@ from ai_explainer import (
     seconds_until_budget_reset,
     verified_reading_context,
 )
-from reading_agent import friendly_reading_error, generate_into_session, get_or_create_stream_session, stream_session_key
+from reading_agent import drop_stream_session, friendly_reading_error, generate_into_session, get_or_create_stream_session, stream_session_key
 
 # 产品口径的「今天 / 当前年份」统一按北京时间计（界面默认北京时间，用户都在国内）；
 # UTC 口径会让凌晨 0-8 点的虚岁、当前大限、运势缓存整体偏移一天/一岁。
@@ -948,6 +948,10 @@ async def reading_stream(request: AiExplainRequest) -> StreamingResponse:
         try:
             reserve_daily_budget(config.daily_limit)
         except AiBudgetExceeded as error:
+            # 回滚刚插入的会话：否则注册表残留 status=streaming/task=None 的
+            # 僵尸，同 stream_key 重连只收 ping 且继续占用 AI 并发槽。
+            if not resumed:
+                await drop_stream_session(session_key, session)
             raise HTTPException(
                 status_code=429,
                 detail="今日 AI 讲解额度已用完，规则结果仍可正常使用。",

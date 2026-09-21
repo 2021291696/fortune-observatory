@@ -33,6 +33,8 @@ class RequestGuardMiddleware:
         app: Callable[..., Awaitable[None]],
         *,
         max_body_bytes: int = 16_384,
+        ai_max_body_bytes: int = 65_536,
+        streaming_ai_per_ip: int = 2,
         requests_per_minute: int = 90,
         global_requests_per_minute: int = 900,
         ai_requests_per_minute: int = 6,
@@ -48,6 +50,9 @@ class RequestGuardMiddleware:
     ) -> None:
         self.app = app
         self.max_body_bytes = max_body_bytes
+        self.ai_max_body_bytes = ai_max_body_bytes
+        self.streaming_ai_per_ip = streaming_ai_per_ip
+        self._streaming_ai_inflight: defaultdict[str, int] = defaultdict(int)
         self.requests_per_minute = requests_per_minute
         self.global_requests_per_minute = global_requests_per_minute
         self.ai_requests_per_minute = ai_requests_per_minute
@@ -88,7 +93,8 @@ class RequestGuardMiddleware:
             if declared_length is None:
                 await self._send_json(guarded_send, 400, '{"detail":"请求头不完整，请刷新后重试。"}')
                 return
-            if declared_length > self.max_body_bytes:
+            body_cap = self.ai_max_body_bytes if is_ai else self.max_body_bytes
+            if declared_length > body_cap:
                 await self._send_json(guarded_send, 413, '{"detail":"请求内容超出大小限制。"}')
                 return
             try:
@@ -98,7 +104,7 @@ class RequestGuardMiddleware:
                 return
             try:
                 body = await asyncio.wait_for(
-                    self._read_limited_body(receive),
+                    self._read_limited_body(receive, cap=body_cap),
                     timeout=self.request_body_timeout_seconds,
                 )
             except TimeoutError:
@@ -155,10 +161,24 @@ class RequestGuardMiddleware:
         task.add_done_callback(self._finish_background_task)
         if is_streaming_ai:
             # 长连接不设总时长门：await 到生成器自然结束（客户端断开即取消）。
+            # 公平性帽：单 IP 在途流式连接上限——否则匿名客户端用少量连接
+            # 即可长期钉死全局 3 个 AI 槽（6/min 限流管不住占坑）。
+            inflight = self._streaming_ai_inflight[client]
+            if inflight >= self.streaming_ai_per_ip:
+                task.cancel()
+                await self._send_json(guarded_send, 429, '{"detail":"同一地址的解读连接太多了，请先关闭旧的。"}', [(b"retry-after", b"5")])
+                return
+            self._streaming_ai_inflight[client] = inflight + 1
             try:
                 await task
             except asyncio.CancelledError:
                 raise
+            finally:
+                remaining = self._streaming_ai_inflight[client] - 1
+                if remaining > 0:
+                    self._streaming_ai_inflight[client] = remaining
+                else:
+                    self._streaming_ai_inflight.pop(client, None)
             return
         try:
             timeout_seconds = self.ai_timeout_seconds if is_ai else self.calculation_timeout_seconds
@@ -180,7 +200,8 @@ class RequestGuardMiddleware:
         if not task.cancelled():
             task.exception()
 
-    async def _read_limited_body(self, receive: Receive) -> bytes | None:
+    async def _read_limited_body(self, receive: Receive, *, cap: int | None = None) -> bytes | None:
+        limit = cap if cap is not None else self.max_body_bytes
         chunks: list[bytes] = []
         total = 0
         while True:
@@ -189,7 +210,7 @@ class RequestGuardMiddleware:
                 return b""
             chunk = message.get("body", b"")
             total += len(chunk)
-            if total > self.max_body_bytes:
+            if total > limit:
                 return None
             chunks.append(chunk)
             if not message.get("more_body", False):
@@ -233,7 +254,7 @@ class RequestGuardMiddleware:
     def _ai_request_units(body: bytes) -> int:
         try:
             payload = json.loads(body)
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        except (json.JSONDecodeError, UnicodeDecodeError, RecursionError):
             return 1
         if not isinstance(payload, dict):
             return 1

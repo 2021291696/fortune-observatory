@@ -113,9 +113,11 @@ async def stream_qimen_events(request: QimenInterpretRequest) -> AsyncIterator[d
     user = _interpret_user(request.chart)
 
     chunks: list[str] = []
+    think_chunks: list[str] = []
     try:
         async for kind, text in stream_completion(system=system, user=user, config=config):
             if kind == "think":
+                think_chunks.append(text)
                 yield {"type": "think", "text": text}
                 continue
             chunks.append(text)
@@ -131,7 +133,8 @@ async def stream_qimen_events(request: QimenInterpretRequest) -> AsyncIterator[d
         raise AiProviderError("empty essay")
     # 内容红线收尾校验（与解梦/解读同一套口径）：正文已流出无法撤回，
     # 命中以 error+code=safety 收尾，前端清空展示层并提示换问法。
-    violation = safety_violation(essay)
+    # 思考链同过闸——它也在向用户传输。
+    violation = safety_violation(essay + "".join(think_chunks))
     if violation is not None:
         logger.warning("qimen essay safety violation kind=%s", violation)
         yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}

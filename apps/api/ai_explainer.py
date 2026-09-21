@@ -302,7 +302,7 @@ def _verify_context(token: str, secret: bytes) -> _SignedContext:
         if not hmac.compare_digest(supplied_signature, expected_signature):
             raise AiProviderError("AI context signature is invalid")
         payload = _SignedContext.model_validate_json(_urlsafe_decode(encoded))
-    except (ValueError, UnicodeError) as error:
+    except (ValueError, UnicodeError, TypeError) as error:
         raise AiProviderError("AI context token is invalid") from error
     if payload.expires_at < int(datetime.now(timezone.utc).timestamp()):
         raise AiProviderError("AI context token has expired")

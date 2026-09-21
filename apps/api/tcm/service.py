@@ -11,6 +11,7 @@ import httpx
 from ai_explainer import (
     _PROVIDER_RETRY_ATTEMPTS,
     _PROVIDER_RETRY_BASE_SECONDS,
+    _read_limited_json_response,
     _retry_provider_status,
     AiConfigurationError,
     AiProviderError,
@@ -141,6 +142,7 @@ async def _chat(system: str, user: str) -> str:
                 },
                 json={
                     "model": config.model,
+                    "max_tokens": 4096,
                     "messages": [
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
@@ -158,7 +160,9 @@ async def _chat(system: str, user: str) -> str:
             break
         try:
             response.raise_for_status()
-            text = str(response.json()["choices"][0]["message"]["content"] or "").strip()
+            # provider 响应体与 explain 通道同上限（64KB）后再解析。
+            payload = await _read_limited_json_response(response)
+            text = str(payload["choices"][0]["message"]["content"] or "").strip()
         except Exception as error:
             raise AiProviderError("tcm consult failed") from error
         return text
@@ -201,11 +205,13 @@ async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:
     reserve_daily_budget(config.daily_limit)
 
     chunks: list[str] = []
+    think_chunks: list[str] = []
     try:
         # stream_completion 产出 (kind, segment) 二元组：思考链转播给前端折叠条，
         # 只有正文 delta 进问诊文本与收尾全文。
         async for kind, text in stream_completion(system=system_prompt(), user=_compose_user(request.question), config=config):
             if kind == "think":
+                think_chunks.append(text)
                 yield {"type": "think", "text": text}
                 continue
             chunks.append(text)
@@ -221,7 +227,8 @@ async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:
         raise AiProviderError("empty essay")
     # 域红线收尾校验：正文已流出无法撤回，命中以 error+code=safety 收尾，
     # 前端清空展示层并提示换问法（与非流式的拒绝同口径，只是时机不同）。
-    violation = safety_violation_tcm(essay)
+    # 思考链同过闸——它也在向用户传输。
+    violation = safety_violation_tcm(essay + "".join(think_chunks))
     if violation is not None:
         logger.warning("tcm consult safety violation kind=%s", violation)
         yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}

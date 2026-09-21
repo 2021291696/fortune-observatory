@@ -249,7 +249,11 @@ async def stream_completion(
                     json=payload,
                 ) as response:
                     if response.status_code != 200:
-                        raw = await response.aread()
+                        raw = b""
+                        async for chunk in response.aiter_bytes():
+                            raw += chunk
+                            if len(raw) >= 4096:
+                                break
                         head = raw[:300].decode("utf-8", "ignore")
                         logger.warning("reading provider HTTP %s body=%s", response.status_code, head)
                         if "new_sensitive" in head or "unprocessable_entity_error" in head:
@@ -264,7 +268,13 @@ async def stream_completion(
                             continue
                         raise AiProviderError(f"provider HTTP {response.status_code}")
                     think_filter = _ThinkFilter()
+                    streamed_bytes = 0
                     async for line in response.aiter_lines():
+                        # 单行与累计上限：provider 输出受 max_tokens 约束是
+                        # 供应商侧约定，这里补客户端侧读取上限防无界缓冲。
+                        streamed_bytes += len(line) + 1
+                        if len(line) > 1_000_000 or streamed_bytes > 4_000_000:
+                            raise AiProviderError("provider response is too large")
                         if not line.startswith("data:"):
                             continue
                         data = line[5:].strip()
@@ -357,6 +367,8 @@ class StreamSession:
         此前 status 先行赋值、publish 再拿锁，新订阅者可能恰好落在两步之间：
         判定非 live、回放里又没有 done 事件 → 静默挂到 ping 超时。"""
         async with self.lock:
+            if self.status != "streaming":
+                return
             self.status = "done" if kind == "done" else "error"
             if detail is not None:
                 self.error_detail = detail
@@ -369,6 +381,14 @@ class StreamSession:
         """回放全部既有事件后续播实时增量；终止于 done/error。"""
         queue: asyncio.Queue = asyncio.Queue()
         async with self.lock:
+            # 僵尸看门：status=streaming 但 task 为空（预算 429 后未回滚的历史
+            # 缺口、或任何未来路径漏掉 finish）→ 永远等不到终态事件。就地
+            # 修复为 error 终态，本订阅者与后续回放都立即终止。
+            if self.status == "streaming" and self.task is None:
+                self.status = "error"
+                self.error_detail = "generation task is missing"
+                self.events.append(("error", self.error_detail))
+                self.updated = time.monotonic()
             for event in self.events:
                 queue.put_nowait(event)
             live = self.status == "streaming"
@@ -411,6 +431,13 @@ def stream_session_key(
     return f"{token_digest}:{client_key}"
 
 
+async def drop_stream_session(key: str, session: StreamSession) -> None:
+    """回滚式删除：仅当 key 仍指向该会话时移除（预算失败等创建后即败的路径）。"""
+    async with _sessions_lock:
+        if _sessions.get(key) is session:
+            _sessions.pop(key, None)
+
+
 async def get_or_create_stream_session(key: str) -> tuple[StreamSession, bool]:
     """返回 (会话, 是否复用)。复用 = attach 在途流或回放已完结流——不再计费。
     error 会话直接丢弃：重试语义 = 重新生成（真实生成成本已发生，重新计费）。"""
@@ -422,6 +449,9 @@ async def get_or_create_stream_session(key: str) -> tuple[StreamSession, bool]:
             session = _sessions.pop(stuck)
             if session.task is not None and not session.task.done():
                 session.task.cancel()
+                # 取消不会走 finish（CancelledError 直接重抛），这里补终态，
+                # 否则在途挂连继续 ping 直到断开。
+                await session.finish("error", "generation exceeded hard cap")
         existing = _sessions.get(key)
         if existing is not None and existing.status in ("streaming", "done"):
             return existing, True
@@ -458,14 +488,18 @@ async def generate_into_session(
 ) -> None:
     """后台生成任务：事件写进会话并扇出给订阅者；生命周期独立于任何连接。"""
     body_parts: list[str] = []
+    think_parts: list[str] = []
     try:
         async for kind, text in stream_reading(question=question, facts=facts, bundle_types=bundle_types, history=history):
             if kind == "delta":
                 body_parts.append(text)
+            elif kind == "think":
+                think_parts.append(text)
             await session.publish(kind, text)
         # 内容红线收尾校验：正文已实时流出、无法撤回，命中时以 error+code 收尾，
         # 前端按 code=safety 清空展示层，不落 done 语义（也就不会写缓存）。
-        violation = safety_violation("".join(body_parts))
+        # 思考链同过闸——它也在向订阅者传输，此前从不在校验语料里。
+        violation = safety_violation("".join(body_parts) + "".join(think_parts))
         if violation is not None:
             logger.warning("reading safety violation key=%s kind=%s", session.key, violation)
             await session.finish("error", f"safety violation: {violation}")

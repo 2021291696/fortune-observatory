@@ -6,28 +6,45 @@ set -euo pipefail
 
 APP_DIR="/opt/destiny"
 APP_USER="destiny"
-TARBALL="${1:-/tmp/destiny.tar.gz}"
+TARBALL="${1:-}"
 
-if [[ ! -f "$TARBALL" ]]; then
-  echo "找不到上传包 $TARBALL" >&2
+# 来源校验：不再默认吃 /tmp 里的包（世界可写目录＝任何本地主体都能预置
+# root 将要解压安装的内容）；必须显式传包路径，且包本身不得世界可写。
+if [[ -z "$TARBALL" || ! -f "$TARBALL" ]]; then
+  echo "用法：deploy.sh <包路径>（不要放 /tmp 这类世界可写目录）" >&2
+  exit 1
+fi
+if [[ $(find "$TARBALL" -perm -0002 | wc -l) -gt 0 ]]; then
+  echo "!! $TARBALL 世界可写，来源不可信，拒绝部署" >&2
   exit 1
 fi
 
 echo "==> 1/5 解压新版本"
 STAGE="$(mktemp -d)"
+chmod 700 "$STAGE"
 sudo tar -xzf "$TARBALL" -C "$STAGE"
+if [[ -e "$STAGE/.env" ]]; then
+  echo "!! 包里带了 .env，违反「密钥只在服务器」铁律，拒绝部署" >&2
+  sudo rm -rf "$STAGE"
+  exit 1
+fi
+# systemd/nginx 模板在 chown 之前先拷进 root-only 目录：否则模板落在
+# 服务账号可写的 /opt 里，API 被攻破即可改模板、下次部署提权到 root。
+sudo mkdir -p /etc/destiny-templates
+sudo install -m 0644 "$STAGE/scripts/deploy/destiny.service" /etc/destiny-templates/destiny.service
+sudo install -m 0644 "$STAGE/scripts/deploy/destiny.nginx" /etc/destiny-templates/destiny.nginx
 sudo mkdir -p "$APP_DIR"
 sudo cp -r "$STAGE"/. "$APP_DIR"/
 sudo rm -rf "$STAGE"
 sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
 
-echo "==> 2/5 uv sync（对齐 Python 依赖）"
+echo "==> 2/5 uv sync（对齐 Python 依赖，frozen 失败即失败——不做网络重解析回退）"
 cd "$APP_DIR"
-sudo -u "$APP_USER" -H uv sync --frozen || sudo -u "$APP_USER" -H uv sync
+sudo -u "$APP_USER" -H uv sync --frozen
 
-echo "==> 3/5 安装 systemd 与 nginx 配置"
-sudo install -m 0644 "$APP_DIR/scripts/deploy/destiny.service" /etc/systemd/system/destiny.service
-sudo install -m 0644 "$APP_DIR/scripts/deploy/destiny.nginx" /etc/nginx/sites-available/destiny
+echo "==> 3/5 安装 systemd 与 nginx 配置（从 root-only 模板目录装，与 /opt 解耦）"
+sudo install -m 0644 /etc/destiny-templates/destiny.service /etc/systemd/system/destiny.service
+sudo install -m 0644 /etc/destiny-templates/destiny.nginx /etc/nginx/sites-available/destiny
 sudo ln -sf /etc/nginx/sites-available/destiny /etc/nginx/sites-enabled/destiny
 sudo systemctl daemon-reload
 sudo nginx -t

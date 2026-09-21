@@ -35,6 +35,14 @@ class QimenChartRequest(StrictModel):
             raise ValueError(f"未知的事项类型：{self.question_type}")
         if self.time_mode == "custom" and not self.time_input:
             raise ValueError("自定义起局时间不能为空")
+        if self.time_mode == "custom" and self.time_input:
+            # 年份域守卫：与八字/行运的 1849-2150 对齐，拒绝明显越界的
+            # 日期（此前引擎按 1-9999 年静默出盘，边界只靠偶然报错）。
+            head = self.time_input.strip()[:4]
+            if head.isdigit():
+                year = int(head)
+                if not 1849 <= year <= 2150:
+                    raise ValueError(f"起局年份 {year} 超出支持范围（1849-2150）")
         return self
 
 
