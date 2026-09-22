@@ -146,6 +146,11 @@ def calculate_yearly_limit(
     birth: BirthInput,
     target_date: date,
 ) -> ZiweiYearlySnapshot:
+    if target_date < birth.civil_datetime.date():
+        # 目标日早于生日＝人尚未出生：虚岁公式按年粒度会把这种输入算成
+        # 虚岁 <= 1 里的负值侧，童年限运查表得到负索引（IndexError）或
+        # 错宫。引擎层兜底拒绝；请求边界（DailyTransitRequest）已先行 422。
+        raise ValueError("target_date must not precede the birth date")
     year_pillar = _year_pillar_at_noon(target_date)
     year_stem, year_branch = year_pillar[0], year_pillar[1]
     nominal_age = target_date.year - birth.civil_datetime.year + 1

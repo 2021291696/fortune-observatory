@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
 
-from fortune_core.models import BirthInput
+import pytest
+
+from fortune_core.models import BirthInput, DailyTransitRequest
 from fortune_core.ziwei.limits import CHANG_QU_BY_STEM, calculate_yearly_limit
 from fortune_core.ziwei.palaces import BRANCHES_FROM_YIN, calculate_palaces
 
@@ -60,3 +62,22 @@ def test_childhood_limit_before_bureau_age() -> None:
     actual = calculate_yearly_limit(snapshot, birth, date(2025, 3, 3))
     assert actual.nominal_age == 2
     assert actual.decadal.is_childhood
+
+
+def test_yearly_limit_rejects_target_date_before_birth() -> None:
+    # 审计回归：早于生日的行运日期曾把虚岁算成 <= 0，童年限运查表取负
+    # 索引——轻则错宫 200，重则 IndexError 逃出 except ValueError 成 500。
+    birth = _birth(2024, 5, 5, 10)
+    snapshot = calculate_palaces(birth)
+    with pytest.raises(ValueError):
+        calculate_yearly_limit(snapshot, birth, date(2024, 3, 3))
+    with pytest.raises(ValueError):
+        # 出生 7 年前：旧路径下 nominal_age = -6，IndexError 窗口。
+        calculate_yearly_limit(snapshot, birth, date(2017, 6, 15))
+
+
+def test_daily_transit_request_rejects_date_before_birth() -> None:
+    # 请求边界 422 守卫：与引擎层兜底等价，提前在 pydantic 层拒绝。
+    birth = _birth(2024, 5, 5, 10)
+    with pytest.raises(ValueError):
+        DailyTransitRequest(birth=birth, transit_date=date(2024, 3, 3))

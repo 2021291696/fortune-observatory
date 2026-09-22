@@ -287,3 +287,23 @@ def test_api_calculation_endpoint_still_caps_at_16k():
     }
     res = client.post("/v1/charts", json=birth)
     assert res.status_code == 413
+
+
+# ---------- 紫微行运：早于生日的 transit_date（独立审计 confirmed 回归） ----------
+
+def test_api_daily_transit_pre_birth_date_is_422_not_500():
+    # 修复前：2017-06-15 对 2024-05-05 出生给 nominal_age = -6，IndexError
+    # 逃出 except ValueError → 500；修复后在请求边界被 422 拒绝。
+    client = TestClient(api_module.app)
+    payload = {
+        "birth": {
+            "civil_datetime": "2024-05-05T10:00:00+08:00",
+            "timezone_id": "Asia/Shanghai",
+            "longitude": 104.0,
+            "latitude": 30.0,
+            "sex_for_rule": "male",
+        },
+        "transit_date": "2017-06-15",
+    }
+    res = client.post("/v1/transits/daily", json=payload)
+    assert res.status_code == 422

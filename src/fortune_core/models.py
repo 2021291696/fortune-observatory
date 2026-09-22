@@ -342,6 +342,14 @@ class DailyTransitRequest(StrictRequestModel):
             raise ValueError("transit date year must be between 1849 and 2150")
         return value
 
+    @model_validator(mode="after")
+    def require_transit_not_before_birth(self) -> "DailyTransitRequest":
+        # 出生当天更早的时刻也算"尚未出生"：行运不得早于生日，否则虚岁
+        # 公式给出 1，童年限运查表取到负索引/错宫，静默返回错误数据。
+        if self.transit_date < self.birth.civil_datetime.date():
+            raise ValueError("transit_date must not precede the birth date")
+        return self
+
 
 class DailyTransitResponse(BaseModel):
     transit: DailyTransitSnapshot
