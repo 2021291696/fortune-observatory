@@ -29,7 +29,7 @@
 - 前端流式消费统一走 `apps/observatory/src/streamReading.ts`：打字机节奏器分 displayText（渲染层）与 text（真值层），缓存/持久化只能用 text；思考折叠条 = `ThinkingTrace`；问事聊天跨页签存活靠 DomainAnalysisConsole 的 chatTurns 模块级注册表
 - AI 超时三层勿混用：provider 单次调用默认 40s、上限 55s（env `FORTUNE_AI_TIMEOUT_SECONDS`）；非流式端点被 RequestGuard 的 ai 门 62s 硬顶，explain/解梦的 provider 重试自带 56s 墙钟收手（改任何一层都要对齐另外两层）；流式路径（reading_agent.py）上游读超时 280s，另 SSE 心跳 20s/续传 ping 10s。AI 日预算按北京时间零点日切，429 的 Retry-After 动态算到零点
 - 解梦口径 = `dreams/lore.py` 读 `skills/dream-interpretation/references`（方法论全文+心灵结构核心+象征词典）；自伤叙述（梦正文与追问回答都查）确定性转介不走 LLM；对照命盘（overlay）已下线，请求带 overlay/context_tokens 一律 422；`dreams/service.py` 非流式固定 ≥50s 长超时（在 RequestGuard 62s AI 门内）
-- 奇门口径 = `qimen/lore.py` 读仓库内 `skills/qimen-dunjia/references`（ruleset/yongshen/geju/examples 全量注入，interview.md 不注入——网页表单替代访谈）；链路两步：`POST /v1/qimen/chart`（确定性排盘，零预算）→ 前端渲染盘面卡后把整张盘面原样回传 `POST /v1/qimen/interpret/stream`（流式解读，budget/安全校验同解梦）；流式 AI 路径注册在 `security.py` 的 `_STREAMING_AI_PATHS`；安全红线禁确定性断语（"注定/一定会"）——奇门输出易撞，prompt 已预防性约束涉财措辞
+- 奇门口径 = `qimen/lore.py` 读仓库内 `skills/qimen-dunjia/references`（ruleset/yongshen/geju/examples 全量注入，interview.md 不注入——网页表单替代访谈）；链路两步：`POST /v1/qimen/chart`（确定性排盘，零预算）→ 前端渲染盘面卡后把整张盘面原样回传 `POST /v1/qimen/interpret/stream`（流式解读，budget 校验同解梦；端点已接 StreamSession 注册表）；流式 AI 路径注册在 `security.py` 的 `_STREAMING_AI_PATHS`；输出红线已于 2026-09-23 移除（见上条），涉财措辞的 prompt 预防性约束仍在
 
 ## 生产部署
 

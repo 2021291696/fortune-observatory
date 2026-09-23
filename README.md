@@ -9,7 +9,8 @@
 - 问事：四板块（事业/感情/健康/财富）深度解读，AI 事实锚定 + 典籍语料（`apps/api/lore.py`），SSE 流式输出（思考链可折叠）
 - 解梦：RAG 语料 + AI 散文输出
 - 奇门遁甲：时家转盘（mainline-cn-v1）确定性排盘（`src/fortune_core/qimen`）+ 流式解读（`apps/api/qimen/`，口径来自 `skills/qimen-dunjia`）
-- 中医问诊：倪海厦经方口径自由问诊 + SSE 流式输出（`apps/api/tcm/`，口径来自 `skills/nihaixia` 节选注入；域专用安全闸——方剂语言放行、西药/断语红线、急症确定性转介、免责框强校验）
+- 中医问诊：倪海厦经方口径自由问诊 + SSE 流式输出（`apps/api/tcm/`，口径来自 `skills/nihaixia` 节选注入；急症信号确定性转介（不打 LLM）、免责框收尾强校验；2026-09-23 拍板平台自用，输出红线词族拦截已移除）
+- 全部 AI 流式端点（问事/解梦/奇门/中医）挂在服务端会话注册表：断连不中止生成、重试/重连先回放再续播、预算只在全新生成时扣
 - CLI 算命 skill：`skills/`（bazi、ziwei-doushu、dream-interpretation 实体在本仓库，junction 挂载 Claude Code / Codex / ZCode；qimen-dunjia、nihaixia 为仓库独立副本，与本地 `~/.agents/skills` 实体互不引用）
 
 ## 本地开发
