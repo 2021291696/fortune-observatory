@@ -191,23 +191,19 @@ def test_every_ai_claim_cites_only_known_fact_ids() -> None:
         _parse_answer(unknown, {"fact-1"})
 
 
-def test_high_risk_model_instructions_fail_closed() -> None:
+def test_high_risk_model_instructions_pass_through() -> None:
+    """2026-09-23 拍板（平台自用）：输出红线移除——含医疗/投资/断语的模型
+    回复不再拒答，schema 校验与 fact 引用校验仍然生效。"""
     def answer(text: str) -> str:
         return json.dumps({
             "summary": {"text": text, "fact_ids": ["fact-1"]},
             "actions": [], "caveats": [],
         }, ensure_ascii=False)
 
-    with pytest.raises(AiProviderError, match="medical"):
-        _parse_answer(answer("建议停药三天"), {"fact-1"}, {"domain.health"})
-    with pytest.raises(AiProviderError, match="medical"):
-        _parse_answer(answer("建议你服用阿司匹林"), {"fact-1"}, {"fortune.daily"})
-    with pytest.raises(AiProviderError, match="investment"):
-        _parse_answer(answer("现在适合买入股票"), {"fact-1"}, {"domain.wealth"})
-    with pytest.raises(AiProviderError, match="investment"):
-        _parse_answer(answer("现在适合购买股票"), {"fact-1"}, {"fortune.period"})
-    with pytest.raises(AiProviderError, match="deterministic"):
-        _parse_answer(answer("你一定会成功"), {"fact-1"}, {"domain.career"})
+    assert _parse_answer(answer("建议停药三天"), {"fact-1"}, {"domain.health"}).summary.text == "建议停药三天"
+    assert _parse_answer(answer("建议你服用阿司匹林"), {"fact-1"}, {"fortune.daily"}).summary.text == "建议你服用阿司匹林"
+    assert _parse_answer(answer("现在适合买入股票"), {"fact-1"}, {"domain.wealth"}).summary.text == "现在适合买入股票"
+    assert _parse_answer(answer("你一定会成功"), {"fact-1"}, {"domain.career"}).summary.text == "你一定会成功"
 
 
 def test_life_stage_line_follows_age_not_gender_stereotypes() -> None:

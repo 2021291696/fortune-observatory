@@ -18,7 +18,6 @@ from ai_explainer import (
     AiProviderError,
     get_provider_config,
     reserve_daily_budget,
-    safety_violation,
 )
 from dreams.lore import _WORK_TITLES, skill_profile
 from dreams.models import InterpretRequest, InterpretResponse, QuestionOut, QuestionsResponse, SourceOut
@@ -140,11 +139,6 @@ async def generate_questions(dream: str) -> QuestionsResponse:
         questions = _parse_questions(await _chat(QUESTIONS, dream[:800]))
         if len(questions) < 3:
             raise ValueError("incomplete")
-        # 追问标签与解梦正文同过红线：命中即抛错走启发式兜底，
-        # 不把未闸模型文本当成问题递给用户。
-        joined = " ".join(item.label for item in questions)
-        if safety_violation(joined) is not None:
-            raise ValueError("question label safety violation")
         return QuestionsResponse(questions=questions)
     except Exception as error:
         logger.warning("dream questions fallback error_type=%s", type(error).__name__)
@@ -251,11 +245,6 @@ async def interpret_dream_request(request: InterpretRequest) -> InterpretRespons
     except Exception as error:
         raise AiProviderError("dream essay failed") from error
     parsed = _parse_interpret(raw)
-    # 非流式与流式同闸（2026-09-05 契约补齐非流式缺口）：红线命中直接拒答。
-    violation = safety_violation(parsed.essay)
-    if violation is not None:
-        logger.warning("dream essay safety violation kind=%s", violation)
-        raise AiProviderError(f"dream essay safety violation: {violation}")
     return parsed
 
 
@@ -306,13 +295,4 @@ async def stream_interpret_events(request: InterpretRequest) -> AsyncIterator[di
     essay = "".join(chunks).strip()
     if not essay:
         raise AiProviderError("empty essay")
-    # 内容红线收尾校验（与非流式/解读同一套口径）：正文已流出无法撤回，
-    # 命中以 error+code=safety 收尾，前端清空展示层并提示换问法。
-    # 思考链同样过闸——它也在向用户传输，此前从不在校验语料里。
-    corpus = essay + "".join(think_chunks)
-    violation = safety_violation(corpus)
-    if violation is not None:
-        logger.warning("dream essay safety violation kind=%s", violation)
-        yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}
-        return
     yield {"type": "done", "sources": [item.model_dump(mode="json") for item in extract_sources(essay)]}

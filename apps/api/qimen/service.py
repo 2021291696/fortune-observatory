@@ -15,7 +15,6 @@ from ai_explainer import (
     AiProviderError,
     get_provider_config,
     reserve_daily_budget,
-    safety_violation,
 )
 from fortune_core.qimen import build_output
 from qimen.lore import skill_profile
@@ -131,12 +130,4 @@ async def stream_qimen_events(request: QimenInterpretRequest) -> AsyncIterator[d
     essay = "".join(chunks).strip()
     if not essay:
         raise AiProviderError("empty essay")
-    # 内容红线收尾校验（与解梦/解读同一套口径）：正文已流出无法撤回，
-    # 命中以 error+code=safety 收尾，前端清空展示层并提示换问法。
-    # 思考链同过闸——它也在向用户传输。
-    violation = safety_violation(essay + "".join(think_chunks))
-    if violation is not None:
-        logger.warning("qimen essay safety violation kind=%s", violation)
-        yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}
-        return
     yield {"type": "done"}

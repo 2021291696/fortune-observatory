@@ -26,36 +26,6 @@ from tcm.prompts import STREAM, system_prompt
 logger = logging.getLogger("fortune.tcm")
 
 
-# 域专用内容红线：解梦/奇门共用 ai_explainer.safety_violation，其 medical 正则
-# （服用/剂量类）会拦掉倪师口径的核心产出（方剂剂量煎服法）。中医域改用本表：
-# 保留确定性断语与投资红线，另设西药指令红线——经方库不会推荐现代药物，命中
-# 说明答案跑偏；中药剂量语言（两/钱/枚）不匹配数字+片/粒/毫克单位，正常放行。
-# 词表按「词族/口语同义族」收，不点名单词——点名单词每漏一个口语面就漏一道闸
-# （run-3 实测：阿莫西林/头孢/两粒/根治/定投 当时全部零触发）。
-_TCM_SAFETY_PATTERNS: tuple[tuple[str, str], ...] = (
-    (
-        "deterministic",
-        r"(?:注定|必然|百分之百|保证你|一定会|一定能|绝对能|根治|断根|包你|药到病除)",
-    ),
-    (
-        "western_med",
-        # 药名按类收（*西林/*头孢/*霉素 覆盖整类译名药）；数量词含中文数字
-        # （两粒/半片）。单位只列片/粒/mg/毫克/ml/毫升——中药剂量的两/钱/枚/升
-        # 不入列；片/粒 计数按既有产品立场一律按西药剂量语言处理
-        # （test_western_med_blocked 钉死「每天3片」）。
-        r"(?:阿司匹林|布洛芬|对乙酰氨基酚|扑热息痛|止疼药|止痛药|退烧药|退热药"
-        r"|抗生素|处方药|注射|输液|手术治疗"
-        r"|(?:[0-9]+|[一两二三四五六七八九十百千几半]+)\s*"
-        r"(?:mg|毫克|片|粒|ml|毫升)"
-        r"|西林|头孢|霉素)",
-    ),
-    (
-        "investment",
-        r"(?:购买|买入|卖出|加仓|减仓|满仓|抄底|做多|做空|上杠杆|借贷投资|"
-        r"股票|基金|债券|期货|期权|虚拟币|加密货币|买点|建仓|定投|炒币)",
-    ),
-)
-
 # 急性危重信号：命中即确定性转介（不打 LLM、不出方），对齐解梦自伤转介的产品口径。
 # 同义词族收全口语面（run-3 实测：心肌梗塞/脑梗/脑卒中/吐血/抽搐/喘不上气 全漏）；
 # 匹配前先规范化（is_emergency），防拆字/零宽/全角绕闸。
@@ -82,14 +52,6 @@ _REFERRAL_TEXT = (
 )
 
 _ESSAY_CAP = 3600
-
-
-def safety_violation_tcm(text: str) -> str | None:
-    """返回命中的域红线类别名（deterministic/western_med/investment），无命中为 None。"""
-    for name, pattern in _TCM_SAFETY_PATTERNS:
-        if re.search(pattern, text, re.IGNORECASE if name == "western_med" else 0):
-            return name
-    return None
 
 
 # 零宽字符（ZWSP/ZWNJ/ZWJ/WJ/BOM）显式按码点构造：源码保持纯 ASCII，
@@ -230,11 +192,6 @@ async def consult_request(request: ConsultRequest) -> ConsultResponse:
         raise AiProviderError("tcm consult failed") from error
     if not raw.strip():
         raise AiProviderError("empty essay")
-    # 红线过全文（与修复前同口径），截断只影响交付形态、不影响放行判定。
-    violation = safety_violation_tcm(raw.strip())
-    if violation is not None:
-        logger.warning("tcm consult safety violation kind=%s", violation)
-        raise AiProviderError(f"tcm consult safety violation: {violation}")
     essay = _fit_essay(raw)
     return ConsultResponse(essay=essay, sources=extract_sources(essay))
 
@@ -277,14 +234,6 @@ async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:
     essay = "".join(chunks).strip()
     if not essay:
         raise AiProviderError("empty essay")
-    # 域红线收尾校验：正文已流出无法撤回，命中以 error+code=safety 收尾，
-    # 前端清空展示层并提示换问法（与非流式的拒绝同口径，只是时机不同）。
-    # 思考链同过闸——它也在向用户传输。
-    violation = safety_violation_tcm(essay + "".join(think_chunks))
-    if violation is not None:
-        logger.warning("tcm consult safety violation kind=%s", violation)
-        yield {"type": "error", "detail": f"safety violation: {violation}", "code": "safety"}
-        return
     # 免责框缺失补齐：补的这段跟随收尾一起流出，保证用户永远看到免责。
     if DISCLAIMER not in essay:
         tail = f"\n\n{DISCLAIMER}"

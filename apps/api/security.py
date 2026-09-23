@@ -115,6 +115,11 @@ class RequestGuardMiddleware:
             if body is None:
                 await self._send_json(guarded_send, 413, '{"detail":"请求内容超出大小限制。"}')
                 return
+            # 流式连接先查单 IP 在途帽再扣限流额度（W4）：被帽拒的请求
+            # 不应白烧 6/min 配额——先查帽、后扣额度，被拒者零消耗。
+            if is_ai and is_streaming_ai and self._streaming_ai_inflight.get(client, 0) >= self.streaming_ai_per_ip:
+                await self._send_json(guarded_send, 429, '{"detail":"同一地址的解读连接太多了，请先关闭旧的。"}', [(b"retry-after", b"5")])
+                return
             if is_ai and not self._allow_ai_request(client, self._ai_request_units(body)):
                 await self._send_json(guarded_send, 429, '{"detail":"AI 请求太频繁了，请稍后再试。"}', [(b"retry-after", b"60")])
                 return

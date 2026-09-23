@@ -1,8 +1,8 @@
-"""流式内容安全对齐的回归：reading/解梦收尾全文校验与非流式共用 safety_violation。
+"""流式内容直通回归：reading/解梦不做输出红线拦截（2026-09-23 拍板）。
 
-背景（2026-09-05 审查）：非流式 _parse_answer 有确定性断语/用药/投资三道红线，
-流式路径此前原样转发模型输出，双标。本文件钉住：流式收尾必须校验、
-命中必须以 error（detail 带 safety violation）收尾且不落 done。
+背景：平台自用，确定性断语/用药/投资三族红线于 2026-09-23 整体移除
+（此前命中即整篇丢弃，已计费内容白扔）。本文件钉住新契约：
+红线词原样通过、正常落 done；自伤/急症转介（另一条人身安全路由）不受影响。
 """
 
 from __future__ import annotations
@@ -18,20 +18,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 import dreams.service as dream_service
 import reading_agent
-from ai_explainer import safety_violation
 from dreams.models import InterpretRequest
 from reading_agent import StreamSession
 
 
-def test_safety_violation_categories():
-    assert safety_violation("你注定会大富大贵") == "deterministic"
-    assert safety_violation("建议服用阿司匹林缓解") == "medical"
-    assert safety_violation("DEMENTIA 阿司匹林") == "medical"  # medical 大小写不敏感
-    assert safety_violation("可以考虑买入股票") == "investment"
-    assert safety_violation("适合主动沟通、修复关系，把话说开。") is None
-
-
-def test_reading_stream_safety_violation_ends_with_error(monkeypatch):
+def test_reading_stream_redline_words_pass_through(monkeypatch):
+    """红线词（注定/一定会）不再拦截：正文照常落 done。"""
     async def fake_stream(**_kwargs):
         yield ("think", "组织口径")
         yield ("delta", "你注定")
@@ -45,11 +37,10 @@ def test_reading_stream_safety_violation_ends_with_error(monkeypatch):
         return session
 
     session = asyncio.run(run())
-    assert session.status == "error"
-    assert session.error_detail is not None and "safety violation" in session.error_detail
-    kinds = [kind for kind, _ in session.events]
-    assert "done" not in kinds
-    assert kinds[-1] == "error"
+    assert session.status == "done"
+    body = "".join(text for kind, text in session.events if kind == "delta")
+    assert "注定" in body and "大富大贵" in body
+    assert session.events[-1][0] == "done"
 
 
 def test_reading_stream_clean_text_ends_with_done(monkeypatch):
@@ -122,7 +113,7 @@ def _install_sse_client(monkeypatch, body: bytes) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
 
 
-def test_dream_stream_safety_violation(monkeypatch):
+def test_dream_stream_redline_words_pass_through(monkeypatch):
     body = _sse(["这段说明白，先", "去买股票加仓，稳赚。"])
     _install_sse_client(monkeypatch, body)
     monkeypatch.setattr(dream_service, "_provider", lambda: _FakeConfig())
@@ -134,7 +125,6 @@ def test_dream_stream_safety_violation(monkeypatch):
 
     events = asyncio.run(run())
     kinds = [event["type"] for event in events]
-    assert "done" not in kinds, "红线命中不得落 done（否则前端会当正常结果保存）"
-    assert kinds[-1] == "error"
-    assert events[-1]["code"] == "safety"
-    assert "safety violation" in events[-1]["detail"]
+    assert kinds[-1] == "done"
+    body_text = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert "股票加仓" in body_text

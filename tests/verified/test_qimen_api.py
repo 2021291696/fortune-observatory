@@ -14,6 +14,16 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "apps" / "api"))
 
 import app as api_module
+
+
+@pytest.fixture(autouse=True)
+def _clear_stream_sessions():
+    """流式会话注册表跨测试隔离：同 key 的 done 会话在 TTL 内会被复用回放，
+    不清会让后续同载荷测试拿到回放而非新执行（2026-09-23 W3 引入）。"""
+    import reading_agent
+    reading_agent._sessions.clear()
+    yield
+    reading_agent._sessions.clear()
 from ai_explainer import AiBudgetExceeded, AiConfigurationError
 from qimen.models import QimenInterpretRequest
 from qimen.service import _presentable_warnings, stream_qimen_events
@@ -114,31 +124,20 @@ def test_qimen_stream_happy_path(monkeypatch) -> None:
     assert events[-1] == {"type": "done"}
 
 
-def test_qimen_stream_safety_and_budget(monkeypatch) -> None:
-    async def fake_safety(request: QimenInterpretRequest) -> AsyncIterator[dict]:
-        yield {"type": "delta", "text": "…"}
-        yield {"type": "error", "detail": "safety violation: deterministic", "code": "safety"}
-
-    monkeypatch.setattr(api_module, "stream_qimen_events", fake_safety)
-    chart = _client().post("/v1/qimen/chart", json=CHART_BODY).json()
-    res = _client().post("/v1/qimen/interpret/stream", json={"chart": chart})
-    events = _parse_sse(res.text)
-    assert events[-1]["type"] == "error"
-    assert events[-1]["code"] == "safety"
-    assert "输出规范" in events[-1]["detail"]
-
+def test_qimen_stream_budget(monkeypatch) -> None:
     async def fake_budget(request: QimenInterpretRequest) -> AsyncIterator[dict]:
         raise AiBudgetExceeded("daily budget exhausted")
         yield  # pragma: no cover
 
     monkeypatch.setattr(api_module, "stream_qimen_events", fake_budget)
+    chart = _client().post("/v1/qimen/chart", json=CHART_BODY).json()
     res = _client().post("/v1/qimen/interpret/stream", json={"chart": chart})
     events = _parse_sse(res.text)
     assert events[-1]["type"] == "error"
     assert "额度" in events[-1]["detail"]
 
 
-def test_stream_qimen_events_aggregates_and_safety(monkeypatch) -> None:
+def test_stream_qimen_events_aggregates_and_passes_redline_words(monkeypatch) -> None:
     from qimen import service as qimen_service
 
     class _Config:
@@ -158,13 +157,14 @@ def test_stream_qimen_events_aggregates_and_safety(monkeypatch) -> None:
     assert events[0] == {"type": "think", "text": "盘面已读"}
     assert events[-1] == {"type": "done"}
 
+    # 2026-09-23 拍板：红线移除——确定性断语原样通过、正常落 done。
     async def fake_deterministic(**_kwargs) -> AsyncIterator[tuple[str, str]]:
         yield ("delta", "这事一定会成，闭眼冲。")
 
     monkeypatch.setattr(qimen_service, "stream_completion", fake_deterministic)
     events = _collect_events(request)
-    assert events[-1]["type"] == "error"
-    assert events[-1]["code"] == "safety"
+    assert events[-1] == {"type": "done"}
+    assert any("一定会成" in e.get("text", "") for e in events if e["type"] == "delta")
 
 
 def test_stream_qimen_events_without_provider(monkeypatch) -> None:

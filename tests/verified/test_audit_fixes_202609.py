@@ -31,7 +31,6 @@ from ai_explainer import AiProviderError, _verify_context
 from dreams.models import InterpretRequest
 from qimen.models import QimenChartRequest
 from tcm.models import ConsultRequest
-from tcm.service import safety_violation_tcm
 
 
 # ---------- 解梦非流式红线闸 ----------
@@ -60,8 +59,8 @@ def _install_json_client(monkeypatch, body: bytes, status: int = 200) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
 
 
-def test_dream_nonstream_safety_gate(monkeypatch):
-    """非流式解梦命中红线必须拒答（与流式 code=safety 对齐）。"""
+def test_dream_nonstream_redline_words_pass_through(monkeypatch):
+    """2026-09-23 拍板：红线移除，含红线词的解梦正文照常交付。"""
     body = json.dumps({"choices": [{"message": {"content": "{\"essay\":\"你注定会大富大贵，建议买入股票。\",\"sources\":[]}"}}]}).encode()
     _install_json_client(monkeypatch, body)
     monkeypatch.setattr(dream_service, "_provider", lambda: _FakeConfig())
@@ -69,12 +68,12 @@ def test_dream_nonstream_safety_gate(monkeypatch):
     async def run():
         return await dream_service.interpret_dream_request(InterpretRequest(dream="梦见数楼梯台阶"))
 
-    with pytest.raises(AiProviderError, match="safety violation"):
-        asyncio.run(run())
+    result = asyncio.run(run())
+    assert "注定会大富大贵" in result.essay
 
 
-def test_dream_questions_redline_label_falls_back_to_heuristic(monkeypatch):
-    """追问标签带红线词 → 弃用模型结果，回落启发式三问。"""
+def test_dream_questions_redline_labels_pass_through(monkeypatch):
+    """红线移除后：追问标签含红线词也原样交付，不再回落启发式。"""
     labels = [
         {"id": "finished", "label": "注定结局如此，停用阿司匹林500mg"},
         {"id": "agency", "label": "可以考虑买入股票"},
@@ -89,7 +88,7 @@ def test_dream_questions_redline_label_falls_back_to_heuristic(monkeypatch):
 
     result = asyncio.run(run())
     assert [q.id for q in result.questions] == ["finished", "agency", "fear_of"]
-    assert all("阿司匹林" not in q.label and "买入" not in q.label for q in result.questions)
+    assert "阿司匹林" in result.questions[0].label and "买入" in result.questions[1].label
 
 
 # ---------- 流式通道 think 纳入红线扫描 ----------
@@ -119,8 +118,8 @@ def _install_sse_client(monkeypatch, body: bytes) -> None:
     monkeypatch.setattr(httpx, "AsyncClient", fake_client)
 
 
-def test_dream_stream_think_channel_is_scanned(monkeypatch):
-    """think 通道带红线词也必须触发 code=safety 收尾。"""
+def test_dream_stream_think_channel_passes_through(monkeypatch):
+    """2026-09-23 拍板：红线移除，think 链带红线词也照常直通。"""
     _install_sse_client(monkeypatch, _sse(["<think>", "你注定会大富大贵", "</think>", "今天适合出门。"]))
     monkeypatch.setattr(dream_service, "_provider", lambda: _FakeConfig())
 
@@ -128,10 +127,10 @@ def test_dream_stream_think_channel_is_scanned(monkeypatch):
         return [event async for event in dream_service.stream_interpret_events(InterpretRequest(dream="梦见散步"))]
 
     events = asyncio.run(run())
-    assert events[-1]["type"] == "error" and events[-1].get("code") == "safety"
+    assert events[-1]["type"] == "done"
 
 
-def test_tcm_stream_think_channel_is_scanned(monkeypatch):
+def test_tcm_stream_think_channel_passes_through(monkeypatch):
     _install_sse_client(monkeypatch, _sse(["<think>", "建议停用阿司匹林100mg", "</think>", "跟你说，注意休息。"]))
     monkeypatch.setattr(tcm_service, "_provider", lambda: _FakeConfig())
 
@@ -139,7 +138,7 @@ def test_tcm_stream_think_channel_is_scanned(monkeypatch):
         return [event async for event in tcm_service.stream_consult_events(ConsultRequest(question="头疼怎么调理"))]
 
     events = asyncio.run(run())
-    assert events[-1]["type"] == "error" and events[-1].get("code") == "safety"
+    assert events[-1]["type"] == "done"
 
 
 # ---------- provider 响应体 64KB 上限（dreams 非流式） ----------
@@ -367,22 +366,6 @@ def test_tcm_disclaimer_survives_long_essay(monkeypatch):
         assert res.essay.endswith(tcm_service.DISCLAIMER), "截断后免责框必须仍落在结尾"
         assert res.essay.count(tcm_service.DISCLAIMER) == 1
         assert len(res.essay) <= tcm_service._ESSAY_CAP
-
-
-def test_tcm_redline_synonym_families_blocked():
-    """run-3 词族补全：此前阿莫西林/头孢/两粒/根治/定投 全部零触发。"""
-    for text in ("可以吃阿莫西林", "吃头孢克肟就行", "一次两粒", "一天两片", "喝点对乙酰氨基酚", "来点退烧药"):
-        assert safety_violation_tcm(text) == "western_med", text
-    for text in ("这个方子能根治", "绝对能好得断根", "包你好", "药到病除"):
-        assert safety_violation_tcm(text) == "deterministic", text
-    for text in ("建议逢低定投，长期持有", "可以建仓", "教你炒币赚钱"):
-        assert safety_violation_tcm(text) == "investment", text
-
-
-def test_tcm_redline_dose_language_still_passes():
-    """词族扩充不得误伤经方剂量（两/钱/枚/升）与方义表述。"""
-    for text in ("大枣十二枚", "生附子3钱", "桂枝四两 芍药三两", "以水七升煮取三升", "川贝两钱", "石膏鸡子大"):
-        assert safety_violation_tcm(text) is None, text
 
 
 def test_qimen_year_guard_governs_all_canonical_forms():

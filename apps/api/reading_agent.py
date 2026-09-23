@@ -25,7 +25,6 @@ from ai_explainer import (
     AiFact,
     AiProviderError,
     get_provider_config,
-    safety_violation,
 )
 
 logger = logging.getLogger("fortune.reading_agent")
@@ -487,26 +486,29 @@ async def generate_into_session(
     history: list[dict[str, str]] | None = None,
 ) -> None:
     """后台生成任务：事件写进会话并扇出给订阅者；生命周期独立于任何连接。"""
-    body_parts: list[str] = []
-    think_parts: list[str] = []
     try:
         async for kind, text in stream_reading(question=question, facts=facts, bundle_types=bundle_types, history=history):
-            if kind == "delta":
-                body_parts.append(text)
-            elif kind == "think":
-                think_parts.append(text)
             await session.publish(kind, text)
-        # 内容红线收尾校验：正文已实时流出、无法撤回，命中时以 error+code 收尾，
-        # 前端按 code=safety 清空展示层，不落 done 语义（也就不会写缓存）。
-        # 思考链同过闸——它也在向订阅者传输，此前从不在校验语料里。
-        violation = safety_violation("".join(body_parts) + "".join(think_parts))
-        if violation is not None:
-            logger.warning("reading safety violation key=%s kind=%s", session.key, violation)
-            await session.finish("error", f"safety violation: {violation}")
-            return
         await session.finish("done")
     except asyncio.CancelledError:
         raise
     except Exception as error:
         logger.warning("reading generation failed key=%s: %s: %s", session.key, type(error).__name__, error)
+        await session.finish("error", f"{type(error).__name__}: {error}")
+
+
+async def generate_events_into_session(
+    session: StreamSession,
+    events: AsyncIterator[dict],
+) -> None:
+    """后台生成任务（通用事件版，供解梦/奇门/中医流式端点复用注册表）：
+    服务事件 dict 原样 JSON 化进会话并扇出；断连不中止生成、重连先回放。"""
+    try:
+        async for event in events:
+            await session.publish("event", json.dumps(event, ensure_ascii=False))
+        await session.finish("done")
+    except asyncio.CancelledError:
+        raise
+    except Exception as error:
+        logger.warning("generation failed key=%s: %s: %s", session.key, type(error).__name__, error)
         await session.finish("error", f"{type(error).__name__}: {error}")

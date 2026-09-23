@@ -21,32 +21,20 @@ import app as api_module
 import tcm.service as tcm_service
 from ai_explainer import AiBudgetExceeded
 from tcm.models import ConsultRequest
-from tcm.service import DISCLAIMER, safety_violation_tcm
+from tcm.service import DISCLAIMER
 
 
-# ---------- 域专用安全闸 ----------
-
-def test_formula_language_passes() -> None:
-    assert safety_violation_tcm("桂枝(四两) 芍药(三两)，以水七升煮取三升，温服一升，啜热稀粥一升") is None
-    assert safety_violation_tcm("**辨证：太阴病（脾虚寒湿·理中汤证）**，人参三钱") is None
-
-
-def test_western_med_blocked() -> None:
-    assert safety_violation_tcm("口服阿司匹林100mg") == "western_med"
-    assert safety_violation_tcm("建议输液治疗") == "western_med"
-    assert safety_violation_tcm("每天3片") == "western_med"
+@pytest.fixture(autouse=True)
+def _clear_stream_sessions():
+    """流式会话注册表跨测试隔离：同 key 的 done 会话在 TTL 内会被复用回放，
+    不清会让后续同载荷测试拿到回放而非新执行（2026-09-23 W3 引入）。"""
+    import reading_agent
+    reading_agent._sessions.clear()
+    yield
+    reading_agent._sessions.clear()
 
 
-def test_deterministic_and_investment_blocked() -> None:
-    assert safety_violation_tcm("这个病一定会断根") == "deterministic"
-    assert safety_violation_tcm("可以买入医药股") == "investment"
-
-
-def test_herb_doses_in_chinese_units_not_blocked() -> None:
-    """中药剂量语言（两/钱/枚/升）不得被阿拉伯数字单位正则误伤。"""
-    assert safety_violation_tcm("大枣十二枚，石膏鸡蛋大") is None
-    assert safety_violation_tcm("生附子3钱棉布包先煎") is None
-
+# ---------- 域专用安全闸（2026-09-23 拍板：红线屏蔽整体移除，闸函数已删） ----------
 
 # ---------- 免责框强校验 ----------
 
@@ -150,7 +138,8 @@ def test_tcm_stream_protocol_and_disclaimer_tail(monkeypatch) -> None:
     assert charged == [FakeConfig.daily_limit]
 
 
-def test_tcm_stream_safety_close_out(monkeypatch) -> None:
+def test_tcm_stream_redline_words_pass_through(monkeypatch) -> None:
+    """2026-09-23 拍板：红线移除，含西药词的正文照常交付并补免责框。"""
     _install_sse_client(monkeypatch, _sse(["先吃阿司匹林100mg看看。"]))
     monkeypatch.setattr(tcm_service, "_provider", lambda: FakeConfig())
 
@@ -159,8 +148,9 @@ def test_tcm_stream_safety_close_out(monkeypatch) -> None:
             ConsultRequest(question="头疼吃什么药好"))]
 
     events = asyncio.run(run())
-    assert events[-1]["type"] == "error"
-    assert events[-1]["code"] == "safety"
+    assert events[-1]["type"] == "done"
+    text = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert "阿司匹林" in text
 
 
 def test_tcm_stream_budget_exceeded_propagates(monkeypatch) -> None:

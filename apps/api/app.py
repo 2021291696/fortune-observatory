@@ -8,6 +8,7 @@ Run with PowerShell:
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -43,7 +44,7 @@ from ai_explainer import (
     seconds_until_budget_reset,
     verified_reading_context,
 )
-from reading_agent import drop_stream_session, friendly_reading_error, generate_into_session, get_or_create_stream_session, stream_session_key
+from reading_agent import drop_stream_session, friendly_reading_error, generate_events_into_session, generate_into_session, get_or_create_stream_session, stream_session_key
 
 # 产品口径的「今天 / 当前年份」统一按北京时间计（界面默认北京时间，用户都在国内）；
 # UTC 口径会让凌晨 0-8 点的虚岁、当前大限、运势缓存整体偏移一天/一岁。
@@ -130,18 +131,6 @@ app = FastAPI(
     openapi_url=None,
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
-# When the hosting gateway already injects CORS headers (CloudBase does for
-# HTTP functions), a second copy here duplicates Access-Control-Allow-Origin
-# and browsers reject the response. Leave CORS to the gateway unless the
-# deployment explicitly lists browser origins (local dev does).
-if cors_origins:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=cors_origins,
-        allow_credentials=False,
-        allow_methods=["GET", "POST", "OPTIONS"],
-        allow_headers=["accept", "content-type"],
-    )
 app.add_middleware(
     RequestGuardMiddleware,
     max_body_bytes=16_384,
@@ -156,6 +145,20 @@ app.add_middleware(
     client_ip_header=os.getenv("FORTUNE_CLIENT_IP_HEADER", "x-forwarded-for").strip().lower()
     or "x-forwarded-for",
 )
+# When the hosting gateway already injects CORS headers (CloudBase does for
+# HTTP functions), a second copy here duplicates Access-Control-Allow-Origin
+# and browsers reject the response. Leave CORS to the gateway unless the
+# deployment explicitly lists browser origins (local dev does).
+# CORS 必须后 add（= 最外层）：否则守卫的 4xx 响应不带 CORS 头，
+# dev 跨域下浏览器只报 CORS 错误，掩盖真实限流/校验原因（S5）。
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=False,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["accept", "content-type"],
+    )
 
 
 class ChartApiResponse(ChartResponse):
@@ -811,54 +814,43 @@ QIZHENG_STAR_NAMES = {
 
 @app.post("/v1/dreams/interpret/stream")
 async def dreams_interpret_stream(request: InterpretRequest) -> StreamingResponse:
-    """解梦流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。"""
+    """解梦流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。
+
+    生成挂在 StreamSession 注册表（stream_key = 解梦文本摘要，W3 对齐 reading
+    续传契约）：断连不中止生成、同 key 重连/重试先回放再续播，预算只在全新
+    生成时扣。
+    """
+    key = "dream:" + hashlib.sha256(request.dream.strip().encode()).hexdigest()[:16]
+    session, reused = await get_or_create_stream_session(key)
+    if not reused:
+        session.task = asyncio.create_task(
+            generate_events_into_session(session, stream_interpret_events(request))
+        )
+
+    def friendly(detail: str) -> str:
+        if "content filter" in detail:
+            return "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
+        if "budget" in detail:
+            return "今日解梦额度已用完，请明天再试。"
+        return "这一篇没写成，请稍后重试。"
+
     async def event_stream() -> AsyncIterator[str]:
-        queue: asyncio.Queue = asyncio.Queue()
-
-        async def pump() -> None:
-            try:
-                async for event in stream_interpret_events(request):
-                    await queue.put(event)
-                await queue.put({"type": "closed"})
-            except Exception as error:
-                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
-
-        pump_task = asyncio.create_task(pump())
-        try:
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-                    continue
-                if event.get("type") == "closed":
-                    yield "data: [DONE]\n\n"
-                    return
+        async for kind, payload in session.attach():
+            if kind == ":ping":
+                yield ": ping\n\n"
+            elif kind == "event":
+                event = json.loads(payload)
                 if event.get("type") == "error":
                     logger.warning("dream stream failed mid-stream")
-                    raw_detail = str(event.get("detail") or "")
-                    is_safety = event.get("code") == "safety"
-                    friendly = (
-                        "这篇解梦的表述超出了输出规范（含确定的吉凶断语或用药、投资指引），已不展示，请换个问法再试。"
-                        if is_safety
-                        else "这段梦境描述触发了内容安全过滤，请换一种说法描述这个梦再试。"
-                        if "content filter" in raw_detail
-                        else "今日解梦额度已用完，请明天再试。"
-                        if "budget" in raw_detail
-                        else "这一篇没写成，请稍后重试。"
-                    )
-                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
-                    if is_safety:
-                        payload_event["code"] = "safety"
-                    yield (
-                        "data: "
-                        + json.dumps(payload_event, ensure_ascii=False)
-                        + "\n\n"
-                    )
-                    return
+                    event = {"type": "error", "detail": friendly(str(event.get("detail") or ""))}
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        finally:
-            pump_task.cancel()
+            elif kind == "done":
+                yield "data: [DONE]\n\n"
+                return
+            elif kind == "error":
+                logger.warning("dream stream failed mid-stream")
+                yield f"data: {json.dumps({'type': 'error', 'detail': friendly(payload or '')}, ensure_ascii=False)}\n\n"
+                return
 
     return StreamingResponse(
         event_stream(),
@@ -1062,54 +1054,41 @@ async def qimen_interpret_stream(request: QimenInterpretRequest) -> StreamingRes
 
     请求体携带 /v1/qimen/chart 的完整响应原样带回（无服务端盘面存储）；
     解读只消费盘面事实，不重算。
+    生成挂在 StreamSession 注册表（stream_key = 盘面请求摘要，W3 对齐 reading
+    续传契约）：断连不中止生成、同 key 重连/重试先回放再续播，预算只在全新
+    生成时扣。
     """
+    key = "qimen:" + hashlib.sha256(request.model_dump_json().encode()).hexdigest()[:16]
+    session, reused = await get_or_create_stream_session(key)
+    if not reused:
+        session.task = asyncio.create_task(
+            generate_events_into_session(session, stream_qimen_events(request))
+        )
+
+    def friendly(detail: str) -> str:
+        if "content filter" in detail:
+            return "这段事项描述触发了内容安全过滤，请换一种说法再试。"
+        if "budget" in detail:
+            return "今日解读额度已用完，请明天再试。"
+        return "这一篇没写成，请稍后重试。"
+
     async def event_stream() -> AsyncIterator[str]:
-        queue: asyncio.Queue = asyncio.Queue()
-
-        async def pump() -> None:
-            try:
-                async for event in stream_qimen_events(request):
-                    await queue.put(event)
-                await queue.put({"type": "closed"})
-            except Exception as error:
-                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
-
-        pump_task = asyncio.create_task(pump())
-        try:
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-                    continue
-                if event.get("type") == "closed":
-                    yield "data: [DONE]\n\n"
-                    return
+        async for kind, payload in session.attach():
+            if kind == ":ping":
+                yield ": ping\n\n"
+            elif kind == "event":
+                event = json.loads(payload)
                 if event.get("type") == "error":
                     logger.warning("qimen stream failed mid-stream")
-                    raw_detail = str(event.get("detail") or "")
-                    is_safety = event.get("code") == "safety"
-                    friendly = (
-                        "这篇解读的表述超出了输出规范（含确定的吉凶断语或用药、投资指引），已不展示，请换个问法再试。"
-                        if is_safety
-                        else "这段事项描述触发了内容安全过滤，请换一种说法再试。"
-                        if "content filter" in raw_detail
-                        else "今日解读额度已用完，请明天再试。"
-                        if "budget" in raw_detail
-                        else "这一篇没写成，请稍后重试。"
-                    )
-                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
-                    if is_safety:
-                        payload_event["code"] = "safety"
-                    yield (
-                        "data: "
-                        + json.dumps(payload_event, ensure_ascii=False)
-                        + "\n\n"
-                    )
-                    return
+                    event = {"type": "error", "detail": friendly(str(event.get("detail") or ""))}
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        finally:
-            pump_task.cancel()
+            elif kind == "done":
+                yield "data: [DONE]\n\n"
+                return
+            elif kind == "error":
+                logger.warning("qimen stream failed mid-stream")
+                yield f"data: {json.dumps({'type': 'error', 'detail': friendly(payload or '')}, ensure_ascii=False)}\n\n"
+                return
 
     return StreamingResponse(
         event_stream(),
@@ -1149,54 +1128,43 @@ async def tcm_consult(request: ConsultRequest) -> ConsultResponse:
 
 @app.post("/v1/tcm/consult/stream")
 async def tcm_consult_stream(request: ConsultRequest) -> StreamingResponse:
-    """中医问诊流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。"""
+    """中医问诊流式版：SSE 事件 {"type":"delta","text"} / {"type":"done","sources":[…]}。
+
+    生成挂在 StreamSession 注册表（stream_key = 问诊文本摘要，W3 对齐 reading
+    续传契约）：断连不中止生成、同 key 重连/重试先回放再续播，预算只在全新
+    生成时扣。
+    """
+    key = "tcm:" + hashlib.sha256(request.question.strip().encode()).hexdigest()[:16]
+    session, reused = await get_or_create_stream_session(key)
+    if not reused:
+        session.task = asyncio.create_task(
+            generate_events_into_session(session, stream_consult_events(request))
+        )
+
+    def friendly(detail: str) -> str:
+        if "content filter" in detail:
+            return "这段问诊内容触发了内容安全过滤，请换一种说法再试。"
+        if "budget" in detail:
+            return "今日中医问诊额度已用完，请明天再试。"
+        return "这一篇没写成，请稍后重试。"
+
     async def event_stream() -> AsyncIterator[str]:
-        queue: asyncio.Queue = asyncio.Queue()
-
-        async def pump() -> None:
-            try:
-                async for event in stream_consult_events(request):
-                    await queue.put(event)
-                await queue.put({"type": "closed"})
-            except Exception as error:
-                await queue.put({"type": "error", "detail": f"{type(error).__name__}: {error}"})
-
-        pump_task = asyncio.create_task(pump())
-        try:
-            while True:
-                try:
-                    event = await asyncio.wait_for(queue.get(), timeout=20.0)
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-                    continue
-                if event.get("type") == "closed":
-                    yield "data: [DONE]\n\n"
-                    return
+        async for kind, payload in session.attach():
+            if kind == ":ping":
+                yield ": ping\n\n"
+            elif kind == "event":
+                event = json.loads(payload)
                 if event.get("type") == "error":
                     logger.warning("tcm stream failed mid-stream")
-                    raw_detail = str(event.get("detail") or "")
-                    is_safety = event.get("code") == "safety"
-                    friendly = (
-                        "这篇问诊的表述超出了输出规范（含西药或投资指引），已不展示，请换个问法再试。"
-                        if is_safety
-                        else "这段问诊内容触发了内容安全过滤，请换一种说法再试。"
-                        if "content filter" in raw_detail
-                        else "今日中医问诊额度已用完，请明天再试。"
-                        if "budget" in raw_detail
-                        else "这一篇没写成，请稍后重试。"
-                    )
-                    payload_event: dict[str, str] = {"type": "error", "detail": friendly}
-                    if is_safety:
-                        payload_event["code"] = "safety"
-                    yield (
-                        "data: "
-                        + json.dumps(payload_event, ensure_ascii=False)
-                        + "\n\n"
-                    )
-                    return
+                    event = {"type": "error", "detail": friendly(str(event.get("detail") or ""))}
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-        finally:
-            pump_task.cancel()
+            elif kind == "done":
+                yield "data: [DONE]\n\n"
+                return
+            elif kind == "error":
+                logger.warning("tcm stream failed mid-stream")
+                yield f"data: {json.dumps({'type': 'error', 'detail': friendly(payload or '')}, ensure_ascii=False)}\n\n"
+                return
 
     return StreamingResponse(
         event_stream(),

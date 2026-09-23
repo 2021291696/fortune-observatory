@@ -95,19 +95,32 @@ def _placements(stem: str, snapshot: ZiweiPalaceSnapshot, star_to_branch: dict[s
 def _locate_decadal(
     snapshot: ZiweiPalaceSnapshot, nominal_age: int, star_to_branch: dict[str, str]
 ) -> ZiweiDecadalLimit:
+    def _build(palace, start: int, end: int) -> ZiweiDecadalLimit:
+        branch_index = BRANCHES_FROM_YIN.index(palace.branch)
+        stem = palace_stem(snapshot.year_stem, branch_index)
+        return ZiweiDecadalLimit(
+            branch=palace.branch,
+            stem=stem,
+            start_age=start,
+            end_age=end,
+            is_childhood=False,
+            mutagens=_placements(stem, snapshot, star_to_branch),
+        )
+
     for palace in snapshot.palaces:
         start, end = palace.decadal_range
         if start <= nominal_age <= end:
-            branch_index = BRANCHES_FROM_YIN.index(palace.branch)
-            stem = palace_stem(snapshot.year_stem, branch_index)
-            return ZiweiDecadalLimit(
-                branch=palace.branch,
-                stem=stem,
-                start_age=start,
-                end_age=end,
-                is_childhood=False,
-                mutagens=_placements(stem, snapshot, star_to_branch),
-            )
+            return _build(palace, start, end)
+    # 超远期流年（虚岁超出十二宫大限覆盖上限）此前会静默落进童限查表错宫；
+    # 现钳制到 start <= 虚岁 中起点最晚的大限宫，区间保持真实起讫（W7）。
+    covered = [
+        (palace.decadal_range[0], palace)
+        for palace in snapshot.palaces
+        if palace.decadal_range[0] <= nominal_age
+    ]
+    if covered:
+        start, palace = max(covered, key=lambda item: item[0])
+        return _build(palace, start, palace.decadal_range[1])
     name = CHILDHOOD_LIMIT_PALACES[min(nominal_age, len(CHILDHOOD_LIMIT_PALACES)) - 1]
     palace = next(item for item in snapshot.palaces if item.name == name)
     branch_index = BRANCHES_FROM_YIN.index(palace.branch)
