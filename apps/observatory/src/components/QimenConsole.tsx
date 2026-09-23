@@ -219,7 +219,7 @@ export function QimenConsole({ onSave }: {
             <button key={example} type="button" disabled={busy || chartBusy} onClick={() => setGoal(example)}>{example}</button>
           ))}
         </div>
-        {(phase === 'thinking' || progressVisible) && <div className="ai-progress" role="status" aria-live="polite">
+        {progressVisible && phase !== 'thinking' && <div className="ai-progress" role="status" aria-live="polite">
           <span>{progress >= 100 ? '开始输出' : `AI 正在对照盘面思考… ${progress}%`}</span>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
         </div>}
@@ -258,7 +258,7 @@ export function QimenConsole({ onSave }: {
           {busy ? '正在读盘…' : essay ? '再解一次' : <><Compass size={16} /> 读盘</>}
         </button>
       </div>}
-      {thinkText && <div className="qimen-thinking"><ThinkingTrace text={thinkText} active={phase === 'thinking' || phase === 'streaming'} startedAt={snapshot?.startedAt ?? 0} /></div>}
+      {(phase === 'thinking' || thinkText) && <div className="qimen-thinking"><ThinkingTrace text={thinkText} active={phase === 'thinking'} startedAt={snapshot?.startedAt ?? 0} /></div>}
       {snapshot?.phase === 'error' && <p className="dream-error" role="alert">{snapshot.error} <button type="button" onClick={() => void interpret()}>重试</button></p>}
       {essayDisplay && <article className="dream-result" aria-live="polite">
         <div className="dream-essay"><ReadingBody text={essayDisplay} /></div>

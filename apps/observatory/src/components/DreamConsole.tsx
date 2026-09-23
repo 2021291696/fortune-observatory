@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { MoonStars } from '@phosphor-icons/react'
-import { estimatedProgress, ReadingBody } from './AiExplainPanel'
+import { estimatedProgress, ReadingBody, ThinkingTrace } from './AiExplainPanel'
 import { joinStream, type StreamHandle, type StreamSnapshot } from '../streamReading'
 import type { SaveDraft } from '../types'
 
@@ -30,6 +30,8 @@ export function DreamConsole({ onSave }: {
   const essay = snapshot?.text ?? ''
   const essayDisplay = snapshot?.displayText ?? ''
   const sources = snapshot?.sources ?? []
+  const thinkText = snapshot?.thinkText ?? ''
+  const showTrace = Boolean(stream) && (phase === 'thinking' || Boolean(thinkText))
 
   function startProgress(fromTimestamp?: number) {
     const startedAt = fromTimestamp ?? Date.now()
@@ -110,10 +112,11 @@ export function DreamConsole({ onSave }: {
             <button key={example} type="button" disabled={busy} onClick={() => setDream(example)}>{example}</button>
           ))}
         </div>
-        {(phase === 'thinking' || progressVisible) && <div className="ai-progress" role="status" aria-live="polite">
+        {progressVisible && phase !== 'thinking' && <div className="ai-progress" role="status" aria-live="polite">
           <span>{progress >= 100 ? '开始输出' : `AI 正在结合梦书思考… ${progress}%`}</span>
           <div className="ai-progress-line"><i style={{ width: `${progress}%` }} /></div>
         </div>}
+        {showTrace && <ThinkingTrace text={thinkText} active={phase === 'thinking'} startedAt={snapshot?.startedAt ?? 0} />}
         <button type="button" onClick={() => void interpret()} disabled={busy}>
           {busy ? '正在解读…' : essay ? '再解一次' : '解读'}
         </button>
