@@ -184,6 +184,9 @@ async function run(entry: StreamEntry, endpoint: string, body: unknown) {
           : 'AI 解读这次没有生成，请稍后重试。'
         entry.snapshot = { ...entry.snapshot, phase: 'error', error: detail }
         flushEmit(entry)
+        // 错误终态必须出注册表：稳定 cacheKey 的面板重试要能挂新流，
+        // 死条目残留会让重试永远命中旧错误（唯一恢复手段变整页刷新）。
+        inflight.delete(snapshotCacheKeyOf(entry))
         return
       }
       if (!response.body) throw new Error('当前浏览器不支持流式读取。')
@@ -221,6 +224,8 @@ async function run(entry: StreamEntry, endpoint: string, body: unknown) {
       if (entry.snapshot.phase !== 'done' && entry.snapshot.phase !== 'error') {
         entry.snapshot = { ...entry.snapshot, phase: 'error', error: '连接中断，自动重连仍未恢复，请重试。' }
         flushEmit(entry)
+        // 同 !response.ok 分支：错误终态出注册表，重试才能开新流。
+        inflight.delete(snapshotCacheKeyOf(entry))
       }
       return
     }

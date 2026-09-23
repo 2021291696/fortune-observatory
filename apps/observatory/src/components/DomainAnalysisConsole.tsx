@@ -215,12 +215,16 @@ export function DomainAnalysisConsole({ chart, aiOwner, readingSystem, theme, on
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string; actions?: string[]; ts: number }
 const CHAT_KEY = 'fortune-ai-chat-v1'
+// 整包写入预算：loadChat 对超大整包是整体拒绝（历史全灭），写入侧必须把
+// 总字节压在安全线内——一轮长回答几千字，40 条不限字节就能把整包推过门槛。
+const CHAT_STORE_BUDGET = 90_000
 const quickQuestions = ['我最近事业上该注意什么？', '我的姻缘模式是什么样的？', '帮我看看适合我的攒钱习惯']
 
 function loadChat(owner: string): ChatMessage[] {
   try {
     const raw = window.localStorage.getItem(CHAT_KEY)
-    if (!raw || raw.length > 120_000) return []
+    // 只防极端垃圾数据；正常体量由 persistChat 的写入预算兜住，不再整包拒绝。
+    if (!raw || raw.length > 600_000) return []
     const parsed = JSON.parse(raw) as Record<string, unknown>
     const list = parsed[owner]
     if (!Array.isArray(list)) return []
@@ -239,9 +243,33 @@ function persistChat(owner: string, messages: ChatMessage[]) {
     const raw = window.localStorage.getItem(CHAT_KEY)
     const parsed = raw ? JSON.parse(raw) as Record<string, ChatMessage[]> : {}
     parsed[owner] = messages.slice(-40)
+    trimChatStore(parsed)
     window.localStorage.setItem(CHAT_KEY, JSON.stringify(parsed))
   } catch {
     // Chat history is best-effort; the conversation continues in memory.
+  }
+}
+
+// 超预算从最旧消息开始跨 owner 公平裁剪（有 ts 按 ts，无 ts 兜底最大槽），
+// 保证写入后整包必然能被 loadChat 读回——宁可裁最旧的，不能静默全灭。
+function trimChatStore(parsed: Record<string, ChatMessage[]>) {
+  for (let round = 0; round < 500; round += 1) {
+    if (JSON.stringify(parsed).length <= CHAT_STORE_BUDGET) return
+    let oldestOwner: string | null = null
+    let oldestTs = Infinity
+    let fallbackOwner: string | null = null
+    for (const [key, list] of Object.entries(parsed)) {
+      if (!Array.isArray(list) || list.length === 0) continue
+      if (fallbackOwner === null || list.length > (parsed[fallbackOwner]?.length ?? 0)) fallbackOwner = key
+      const first = list[0]
+      if (typeof first?.ts === 'number' && first.ts < oldestTs) {
+        oldestTs = first.ts
+        oldestOwner = key
+      }
+    }
+    const target = oldestOwner ?? fallbackOwner
+    if (target === null) return
+    parsed[target] = parsed[target].slice(1)
   }
 }
 
