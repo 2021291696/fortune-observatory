@@ -1,0 +1,117 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-全视图AI链路UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-23T18:40:46+08:00",
+ "finished_at": "2026-09-23T18:40:46+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "fortune_ai",
+   "kind": "normal",
+   "branch_trace": [
+    "fortune_ai"
+   ],
+   "status": "PASS",
+   "ms": 183297,
+   "error": null,
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 16659,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → fortune_ai（关键词）: fortune"
+    },
+    {
+     "id": "fortune_nav_fortune",
+     "status": "PASS",
+     "ms": 49,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "fortune_fill_name",
+     "status": "PASS",
+     "ms": 8,
+     "detail": "fill input[name='displayName']"
+    },
+    {
+     "id": "fortune_submit_chart",
+     "status": "PASS",
+     "ms": 53,
+     "detail": "click .submit-button"
+    },
+    {
+     "id": "fortune_chart_ready",
+     "status": "PASS",
+     "ms": 12,
+     "detail": "visible .today-results"
+    },
+    {
+     "id": "fortune_chart_landed",
+     "status": "PASS",
+     "ms": 831,
+     "detail": "visible #chart-title"
+    },
+    {
+     "id": "fortune_back_fortune",
+     "status": "PASS",
+     "ms": 70,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "fortune_settle_daily",
+     "status": "PASS",
+     "ms": 15017,
+     "detail": "wait 15000ms"
+    },
+    {
+     "id": "fortune_trace_visible",
+     "status": "PASS",
+     "ms": 5,
+     "detail": "visible .today-view .think-trace"
+    },
+    {
+     "id": "fortune_wait_generation",
+     "status": "PASS",
+     "ms": 150014,
+     "detail": "wait 150000ms"
+    },
+    {
+     "id": "fortune_done_marker",
+     "status": "PASS",
+     "ms": 7,
+     "detail": "visible text=本机缓存"
+    },
+    {
+     "id": "fortune_essay_present",
+     "status": "PASS",
+     "ms": 5,
+     "detail": "visible .today-view .ai-answer"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "4bdb",
+    "chat_name": "测试4bdb",
+    "chat_question": "请在回答的第一行原样写出代码 4bdb，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "fortune"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:40:46+08:00"
+  }
+ ]
+}

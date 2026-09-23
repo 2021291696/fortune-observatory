@@ -186,6 +186,8 @@ export function AiExplainPanel({
   const [progressVisible, setProgressVisible] = useState(false)
   const request = useRef<AbortController | null>(null)
   const progressTimer = useRef<number | null>(null)
+  // 进度条「开始输出」只闪一次/每次生成：断线重连回放不再复闪（S7）。
+  const progressFlashedRef = useRef(false)
   const generationId = useRef(0)
   const answerRef = useRef<HTMLElement | null>(null)
 
@@ -199,6 +201,7 @@ export function AiExplainPanel({
   const phase = snapshot?.phase ?? null
 
   function startProgress(fromTimestamp?: number) {
+    progressFlashedRef.current = false
     const startedAt = fromTimestamp ?? Date.now()
     setProgress(estimatedProgress(Date.now() - startedAt))
     setThinkingMs(Date.now() - startedAt)
@@ -241,6 +244,8 @@ export function AiExplainPanel({
   // 进度条生命周期：思考期缓升；首个正文块到达即冲 100%，短暂停留后让位给流式正文；收尾归零。
   useEffect(() => {
     if (phase === 'streaming') {
+      if (progressFlashedRef.current) return // 重连回放：正文已闪现过，不再复闪
+      progressFlashedRef.current = true
       finishProgress()
       setProgressVisible(true)
       const hide = window.setTimeout(() => setProgressVisible(false), 600)

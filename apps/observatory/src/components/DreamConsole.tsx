@@ -19,6 +19,8 @@ export function DreamConsole({ onSave }: {
   const [progress, setProgress] = useState(0)
   const [progressVisible, setProgressVisible] = useState(false)
   const progressTimer = useRef<number | null>(null)
+  // 进度条「开始输出」只闪一次/每次生成：断线重连回放不再复闪（S7）。
+  const progressFlashedRef = useRef(false)
 
   const snapshot: StreamSnapshot | null = useSyncExternalStore(
     stream ? stream.subscribe : noopSubscribe,
@@ -34,6 +36,7 @@ export function DreamConsole({ onSave }: {
   const showTrace = Boolean(stream) && (phase === 'thinking' || Boolean(thinkText))
 
   function startProgress(fromTimestamp?: number) {
+    progressFlashedRef.current = false
     const startedAt = fromTimestamp ?? Date.now()
     setProgress(estimatedProgress(Date.now() - startedAt))
     setProgressVisible(true)
@@ -51,6 +54,8 @@ export function DreamConsole({ onSave }: {
 
   useEffect(() => {
     if (phase === 'streaming') {
+      if (progressFlashedRef.current) return // 重连回放：正文已闪现过，不再复闪
+      progressFlashedRef.current = true
       finishProgress()
       setProgressVisible(true)
       const hide = window.setTimeout(() => setProgressVisible(false), 600)

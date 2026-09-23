@@ -1,0 +1,304 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-全视图AI链路UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-23T18:03:44+08:00",
+ "finished_at": "2026-09-23T18:08:49+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "dream_view",
+   "kind": "normal",
+   "branch_trace": [
+    "dream_view"
+   ],
+   "status": "PASS",
+   "ms": 182855,
+   "error": null,
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 32127,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → dream_view（关键词）: dream"
+    },
+    {
+     "id": "dream_nav",
+     "status": "PASS",
+     "ms": 39,
+     "detail": "click .primary-nav a[href='#dream']"
+    },
+    {
+     "id": "dream_fill",
+     "status": "PASS",
+     "ms": 10,
+     "detail": "fill #dream textarea"
+    },
+    {
+     "id": "dream_submit",
+     "status": "PASS",
+     "ms": 79,
+     "detail": "click #dream .dream-composer > button"
+    },
+    {
+     "id": "dream_trace_visible",
+     "status": "PASS",
+     "ms": 11,
+     "detail": "visible .dream-view .think-trace"
+    },
+    {
+     "id": "dream_wait_generation",
+     "status": "PASS",
+     "ms": 150010,
+     "detail": "wait 150000ms"
+    },
+    {
+     "id": "dream_done_marker",
+     "status": "PASS",
+     "ms": 9,
+     "detail": "visible text=保存到本机"
+    },
+    {
+     "id": "dream_switch_away",
+     "status": "PASS",
+     "ms": 39,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "dream_switch_back",
+     "status": "PASS",
+     "ms": 38,
+     "detail": "click .primary-nav a[href='#dream']"
+    },
+    {
+     "id": "dream_result_persists",
+     "status": "PASS",
+     "ms": 3,
+     "detail": "visible .dream-result"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 2af4，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "dream"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:03:44+08:00"
+  },
+  {
+   "id": "qimen_view",
+   "kind": "normal",
+   "branch_trace": [
+    "qimen_view"
+   ],
+   "status": "RED",
+   "ms": 60038,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 60003,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 60000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 a4c7，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-23T18:04:44+08:00"
+  },
+  {
+   "id": "tcm_view",
+   "kind": "normal",
+   "branch_trace": [
+    "tcm_view"
+   ],
+   "status": "PASS",
+   "ms": 173334,
+   "error": null,
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 23068,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 1,
+     "detail": "分叉 scenario_dispatch → tcm_view（关键词）: tcm"
+    },
+    {
+     "id": "tcm_nav",
+     "status": "PASS",
+     "ms": 39,
+     "detail": "click .primary-nav a[href='#tcm']"
+    },
+    {
+     "id": "tcm_fill",
+     "status": "PASS",
+     "ms": 7,
+     "detail": "fill #tcm textarea"
+    },
+    {
+     "id": "tcm_submit",
+     "status": "PASS",
+     "ms": 61,
+     "detail": "click #tcm .dream-composer > button"
+    },
+    {
+     "id": "tcm_trace_visible",
+     "status": "PASS",
+     "ms": 10,
+     "detail": "visible .tcm-view .think-trace"
+    },
+    {
+     "id": "tcm_wait_generation",
+     "status": "PASS",
+     "ms": 150016,
+     "detail": "wait 150000ms"
+    },
+    {
+     "id": "tcm_done_marker",
+     "status": "PASS",
+     "ms": 5,
+     "detail": "visible text=保存到本机"
+    },
+    {
+     "id": "tcm_switch_away",
+     "status": "PASS",
+     "ms": 30,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "tcm_switch_back",
+     "status": "PASS",
+     "ms": 41,
+     "detail": "click .primary-nav a[href='#tcm']"
+    },
+    {
+     "id": "tcm_result_persists",
+     "status": "PASS",
+     "ms": 3,
+     "detail": "visible .dream-result"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 9e57，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "tcm"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:07:38+08:00"
+  },
+  {
+   "id": "fortune_ai",
+   "kind": "normal",
+   "branch_trace": [
+    "fortune_ai"
+   ],
+   "status": "RED",
+   "ms": 63384,
+   "error": "步骤 fortune_fill_name: 引用未声明变量 {rand4}",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 63349,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → fortune_ai（关键词）: fortune"
+    },
+    {
+     "id": "fortune_fill_name",
+     "status": "RED",
+     "ms": 0,
+     "detail": "引用未声明变量 {rand4}"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 b1bf，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "fortune"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:08:41+08:00"
+  },
+  {
+   "id": "ask_chat",
+   "kind": "normal",
+   "branch_trace": [
+    "ask_chat"
+   ],
+   "status": "RED",
+   "ms": 7638,
+   "error": "步骤 chat_fill_name: 引用未声明变量 {rand4}",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 7600,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → ask_chat（关键词）: ask"
+    },
+    {
+     "id": "chat_fill_name",
+     "status": "RED",
+     "ms": 0,
+     "detail": "引用未声明变量 {rand4}"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 01bf，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "ask"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:08:49+08:00"
+  }
+ ]
+}

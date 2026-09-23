@@ -1,0 +1,157 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-全视图AI链路UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-23T18:26:13+08:00",
+ "finished_at": "2026-09-23T18:26:49+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "fortune_ai",
+   "kind": "normal",
+   "branch_trace": [
+    "fortune_ai"
+   ],
+   "status": "RED",
+   "ms": 21317,
+   "error": "步骤 fortune_trace_visible: 元素不可见: .today-view .think-trace",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 10651,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 1,
+     "detail": "分叉 scenario_dispatch → fortune_ai（关键词）: fortune"
+    },
+    {
+     "id": "fortune_nav_fortune",
+     "status": "PASS",
+     "ms": 54,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "fortune_fill_name",
+     "status": "PASS",
+     "ms": 10,
+     "detail": "fill input[name='displayName']"
+    },
+    {
+     "id": "fortune_submit_chart",
+     "status": "PASS",
+     "ms": 53,
+     "detail": "click .submit-button"
+    },
+    {
+     "id": "fortune_chart_ready",
+     "status": "PASS",
+     "ms": 11,
+     "detail": "visible .today-results"
+    },
+    {
+     "id": "fortune_trace_visible",
+     "status": "RED",
+     "ms": 10013,
+     "detail": "元素不可见: .today-view .think-trace"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "5545",
+    "chat_name": "测试5545",
+    "chat_question": "请在回答的第一行原样写出代码 5545，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "fortune"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt",
+    "fortune_trace_visible.page_url.txt",
+    "fortune_trace_visible.page.txt"
+   ],
+   "finished_at": "2026-09-23T18:26:13+08:00"
+  },
+  {
+   "id": "ask_chat",
+   "kind": "normal",
+   "branch_trace": [
+    "ask_chat"
+   ],
+   "status": "RED",
+   "ms": 35895,
+   "error": "步骤 chat_open_console: UI 动作 click 异常: TimeoutError: Page.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\".domain-choices .is-chat\")\n    - locator resolved to <button type=\"button\" class=\"is-chat\" aria-pressed=\"false\">…</button>\n  - ",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 25706,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → ask_chat（关键词）: ask"
+    },
+    {
+     "id": "chat_nav_fortune",
+     "status": "PASS",
+     "ms": 43,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "chat_fill_name",
+     "status": "PASS",
+     "ms": 8,
+     "detail": "fill input[name='displayName']"
+    },
+    {
+     "id": "chat_submit_chart",
+     "status": "PASS",
+     "ms": 52,
+     "detail": "click .submit-button"
+    },
+    {
+     "id": "chat_chart_ready",
+     "status": "PASS",
+     "ms": 10,
+     "detail": "visible .today-results"
+    },
+    {
+     "id": "chat_nav_ask",
+     "status": "PASS",
+     "ms": 32,
+     "detail": "click .primary-nav a[href='#ask']"
+    },
+    {
+     "id": "chat_open_console",
+     "status": "RED",
+     "ms": 10000,
+     "detail": "UI 动作 click 异常: TimeoutError: Page.click: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\".domain-choices .is-chat\")\n    - locator resolved to <button type=\"button\" class=\"is-chat\" aria-pressed=\"false\">…</button>\n  - "
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "c831",
+    "chat_name": "测试c831",
+    "chat_question": "请在回答的第一行原样写出代码 c831，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "ask"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:26:49+08:00"
+  }
+ ]
+}

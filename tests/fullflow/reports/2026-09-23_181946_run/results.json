@@ -1,0 +1,205 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-全视图AI链路UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-23T18:22:35+08:00",
+ "finished_at": "2026-09-23T18:23:09+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "qimen_view",
+   "kind": "normal",
+   "branch_trace": [
+    "qimen_view"
+   ],
+   "status": "PASS",
+   "ms": 168666,
+   "error": null,
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 16632,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → qimen_view（关键词）: qimen"
+    },
+    {
+     "id": "qimen_nav",
+     "status": "PASS",
+     "ms": 33,
+     "detail": "click .primary-nav a[href='#qimen']"
+    },
+    {
+     "id": "qimen_fill_goal",
+     "status": "PASS",
+     "ms": 8,
+     "detail": "fill #qimen textarea"
+    },
+    {
+     "id": "qimen_cast",
+     "status": "PASS",
+     "ms": 34,
+     "detail": "click .qimen-cast"
+    },
+    {
+     "id": "qimen_chart_card",
+     "status": "PASS",
+     "ms": 1347,
+     "detail": "visible .qimen-chart-card"
+    },
+    {
+     "id": "qimen_interpret",
+     "status": "PASS",
+     "ms": 44,
+     "detail": "click .qimen-interpret-bar button"
+    },
+    {
+     "id": "qimen_trace_visible",
+     "status": "PASS",
+     "ms": 4,
+     "detail": "visible .qimen-thinking .think-trace"
+    },
+    {
+     "id": "qimen_wait_generation",
+     "status": "PASS",
+     "ms": 150004,
+     "detail": "wait 150000ms"
+    },
+    {
+     "id": "qimen_done_marker",
+     "status": "PASS",
+     "ms": 5,
+     "detail": "visible text=保存到本机"
+    },
+    {
+     "id": "qimen_switch_away",
+     "status": "PASS",
+     "ms": 26,
+     "detail": "click .primary-nav a[href='#fortune']"
+    },
+    {
+     "id": "qimen_switch_back",
+     "status": "PASS",
+     "ms": 41,
+     "detail": "click .primary-nav a[href='#qimen']"
+    },
+    {
+     "id": "qimen_result_persists",
+     "status": "PASS",
+     "ms": 5,
+     "detail": "visible .dream-result"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "f76a",
+    "chat_name": "测试f76a",
+    "chat_question": "请在回答的第一行原样写出代码 f76a，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "qimen"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:22:35+08:00"
+  },
+  {
+   "id": "fortune_ai",
+   "kind": "normal",
+   "branch_trace": [
+    "fortune_ai"
+   ],
+   "status": "RED",
+   "ms": 11912,
+   "error": "步骤 fortune_fill_name: UI 动作 fill 异常: TimeoutError: Page.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"input[name='displayName']\")\n    - locator resolved to <input required=\"\" type=\"text\" maxlength=\"12\" placeholder=\"我\" name=\"displa",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 1873,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → fortune_ai（关键词）: fortune"
+    },
+    {
+     "id": "fortune_fill_name",
+     "status": "RED",
+     "ms": 10002,
+     "detail": "UI 动作 fill 异常: TimeoutError: Page.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"input[name='displayName']\")\n    - locator resolved to <input required=\"\" type=\"text\" maxlength=\"12\" placeholder=\"我\" name=\"displa"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "881d",
+    "chat_name": "测试881d",
+    "chat_question": "请在回答的第一行原样写出代码 881d，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "fortune"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:22:47+08:00"
+  },
+  {
+   "id": "ask_chat",
+   "kind": "normal",
+   "branch_trace": [
+    "ask_chat"
+   ],
+   "status": "RED",
+   "ms": 22272,
+   "error": "步骤 chat_fill_name: UI 动作 fill 异常: TimeoutError: Page.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"input[name='displayName']\")\n    - locator resolved to <input required=\"\" type=\"text\" maxlength=\"12\" placeholder=\"我\" name=\"displa",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 12221,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "PASS",
+     "ms": 0,
+     "detail": "分叉 scenario_dispatch → ask_chat（关键词）: ask"
+    },
+    {
+     "id": "chat_fill_name",
+     "status": "RED",
+     "ms": 10011,
+     "detail": "UI 动作 fill 异常: TimeoutError: Page.fill: Timeout 10000ms exceeded.\nCall log:\n  - waiting for locator(\"input[name='displayName']\")\n    - locator resolved to <input required=\"\" type=\"text\" maxlength=\"12\" placeholder=\"我\" name=\"displa"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "token_probe": "34b8",
+    "chat_name": "测试34b8",
+    "chat_question": "请在回答的第一行原样写出代码 34b8，然后用两三句话说说我事业上最近该注意什么。",
+    "scenario_dispatch_choice": "ask"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.choice.txt"
+   ],
+   "finished_at": "2026-09-23T18:23:09+08:00"
+  }
+ ]
+}

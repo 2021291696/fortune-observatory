@@ -41,7 +41,14 @@ function brightnessPlain(mark: string): string {
 
 function currentAge(chart: ChartResponse): number | null {
   const birthYear = Number(String(chart.bazi.calculation_datetime).slice(0, 4))
-  return Number.isFinite(birthYear) ? new Date().getFullYear() - birthYear + 1 : null
+  // 虚岁按北京年（Asia/Shanghai）算：与后端口径一致，浏览器本地时区
+  // 在跨年时刻会差一岁（S6）。
+  const year = Number(
+    new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Shanghai', year: 'numeric' })
+      .formatToParts(new Date())
+      .find((part) => part.type === 'year')?.value,
+  )
+  return Number.isFinite(birthYear) && Number.isFinite(year) ? year - birthYear + 1 : null
 }
 
 export function buildDomainNarrative(chart: ChartResponse, palaceName: string): NarrativeBlock[] {

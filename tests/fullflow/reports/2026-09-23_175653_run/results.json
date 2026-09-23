@@ -1,0 +1,156 @@
+{
+ "manifest": "D:\\MyAIWorkspace\\project\\destiny\\tests\\fullflow\\manifest.ui.yaml",
+ "name": "destiny-全视图AI链路UI回归",
+ "gate": "ui",
+ "started_at": "2026-09-23T17:57:14+08:00",
+ "finished_at": "2026-09-23T17:58:44+08:00",
+ "target": {
+  "platform": "web",
+  "ui_base": "https://destiny.solplum.com"
+ },
+ "runs": [
+  {
+   "id": "dream_view",
+   "kind": "normal",
+   "branch_trace": [
+    "dream_view"
+   ],
+   "status": "RED",
+   "ms": 21842,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 20006,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 f010，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-23T17:57:14+08:00"
+  },
+  {
+   "id": "qimen_view",
+   "kind": "normal",
+   "branch_trace": [
+    "qimen_view"
+   ],
+   "status": "RED",
+   "ms": 20055,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 20016,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 8ff7，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-23T17:57:35+08:00"
+  },
+  {
+   "id": "tcm_view",
+   "kind": "normal",
+   "branch_trace": [
+    "tcm_view"
+   ],
+   "status": "RED",
+   "ms": 20047,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 20014,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 ccb3，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-23T17:57:55+08:00"
+  },
+  {
+   "id": "fortune_ai",
+   "kind": "normal",
+   "branch_trace": [
+    "fortune_ai"
+   ],
+   "status": "RED",
+   "ms": 20037,
+   "error": "步骤 ui_open_site: UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "RED",
+     "ms": 20002,
+     "detail": "UI 动作 goto 异常: TimeoutError: Page.goto: Timeout 20000ms exceeded.\nCall log:\n  - navigating to \"https://destiny.solplum.com/\", waiting until \"load\"\n"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 9916，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [],
+   "finished_at": "2026-09-23T17:58:15+08:00"
+  },
+  {
+   "id": "ask_chat",
+   "kind": "normal",
+   "branch_trace": [
+    "ask_chat"
+   ],
+   "status": "RED",
+   "ms": 29703,
+   "error": "步骤 scenario_dispatch: 读题失配：题面未含「ask」（exact 模式不做模糊兜底）",
+   "steps": [
+    {
+     "id": "ui_open_site",
+     "status": "PASS",
+     "ms": 29664,
+     "detail": "goto https://destiny.solplum.com"
+    },
+    {
+     "id": "scenario_dispatch",
+     "status": "RED",
+     "ms": 0,
+     "detail": "读题失配：题面未含「ask」（exact 模式不做模糊兜底）"
+    }
+   ],
+   "vars": {
+    "dream_text": "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪",
+    "tcm_question": "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻",
+    "qimen_goal": "下个月跳槽顺不顺",
+    "chat_question": "请在回答的第一行原样写出代码 5564，然后用两三句话说说我事业上最近该注意什么。"
+   },
+   "snips": {},
+   "artifacts": [
+    "scenario_dispatch.question.txt"
+   ],
+   "finished_at": "2026-09-23T17:58:44+08:00"
+  }
+ ]
+}
