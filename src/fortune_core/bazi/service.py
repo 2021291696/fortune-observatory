@@ -32,6 +32,15 @@ def _direction(year_pillar: str, sex: str) -> str:
     return "forward" if (sex == "male") == is_yang_year else "reverse"
 
 
+def _start_at(template: datetime, year: int) -> datetime:
+    """起运/换运时刻按年平移。起运日恰为 2/29 且目标年是平年时
+    replace(year=...) 抛 ValueError（该出生数据会永久 422），顺延为 3/1。"""
+    try:
+        return template.replace(year=year)
+    except ValueError:
+        return template.replace(year=year, month=3, day=1)
+
+
 def _great_luck_periods(yun, timezone, birth_year: int) -> tuple[GreatLuckPeriod, ...]:
     start_solar = yun.getStartSolar()
     start_template = datetime(
@@ -45,8 +54,8 @@ def _great_luck_periods(yun, timezone, birth_year: int) -> tuple[GreatLuckPeriod
     )
     periods: list[GreatLuckPeriod] = []
     for decade in yun.getDaYun(10)[1:]:
-        start = start_template.replace(year=decade.getStartYear())
-        next_start = start_template.replace(year=decade.getStartYear() + 10)
+        start = _start_at(start_template, decade.getStartYear())
+        next_start = _start_at(start_template, decade.getStartYear() + 10)
         start_age = decade.getStartYear() - birth_year + 1
         periods.append(
             GreatLuckPeriod(

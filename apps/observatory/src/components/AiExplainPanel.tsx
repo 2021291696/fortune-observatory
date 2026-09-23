@@ -32,7 +32,10 @@ export function writeCache(key: string, text: string) {
     parsed[key] = { text, createdAt: Date.now() }
     const entries = Object.entries(parsed)
     entries.sort((a, b) => b[1].createdAt - a[1].createdAt)
-    const trimmed = Object.fromEntries(entries.slice(0, 48))
+    // 写入预算：readCache 对超大整包是整体拒绝（缓存功能自残），写侧压在门槛内
+    let kept = entries.slice(0, 48)
+    while (kept.length > 1 && JSON.stringify(kept).length > 300_000) kept = kept.slice(0, -1)
+    const trimmed = Object.fromEntries(kept)
     window.localStorage.setItem(AI_CACHE_KEY, JSON.stringify(trimmed))
   } catch {
     // Cache is best-effort; generation still works without it.
@@ -400,6 +403,7 @@ export function AiExplainPanel({
         {!followUp && !hasText && !isStreaming && !error && availability === 'available' && !auto && <button className="ai-generate" type="button" onClick={generateManual}>生成讲解</button>}
         {!followUp && !isStreaming && phase === 'done' && <button type="button" className="ai-followup-toggle" onClick={() => { setFollowUp(true); setFollowUpText(''); setQuestion(defaultQuestion) }}>换个问题追问 AI</button>}
         {!followUp && !isStreaming && phase === 'error' && <button type="button" className="ai-followup-toggle" onClick={() => { setStream(null); generateManual() }}>重新生成讲解</button>}
+        {phase === 'error' && snapshot?.error && !isStreaming && <p className="ai-answer-error" role="alert"><WarningCircle size={18} weight="bold" />{snapshot.error}</p>}
 
         {/* 思考期只显示思考折叠条（已用时反馈在其中）；进度条仅在正文开始的瞬间闪一下「开始输出」。 */}
         {progressVisible && !isThinking && <div className="ai-progress" role="status" aria-label={aiThinkingLabel(progress, thinkingMs)}>

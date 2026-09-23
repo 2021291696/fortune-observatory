@@ -180,7 +180,7 @@ export function DomainAnalysisConsole({ chart, aiOwner, readingSystem, theme, on
       </div>
 
       <div className="domain-output" aria-live="polite">
-        {active === 'chat' && <AiChat chart={chart} aiOwner={aiOwner} readingSystem={readingSystem} />}
+        {active === 'chat' && <AiChat key={aiOwner} chart={chart} aiOwner={aiOwner} readingSystem={readingSystem} />}
         {!result && active !== 'chat' && <div className="feature-empty"><span>选择一个领域看 AI 解读，或直接和 AI 聊你的盘。</span></div>}
         {result && activeConfig && domainActive && <article className="domain-reading">
           <MemeCompanion theme={theme} />

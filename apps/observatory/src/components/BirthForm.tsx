@@ -96,6 +96,11 @@ export function BirthForm({ isSubmitting, error, onSubmit, onClear, initial }: {
     setDistrictCode('')
     setLongitude('')
     setLatitude('')
+    setBirthYear(DEFAULT_BIRTH_DATE.slice(0, 4))
+    setBirthMonth(String(Number(DEFAULT_BIRTH_DATE.slice(5, 7))))
+    setBirthDay(String(Number(DEFAULT_BIRTH_DATE.slice(8, 10))))
+    setBirthHour(String(Number(DEFAULT_BIRTH_TIME.slice(0, 2))))
+    setBirthMinute(String(Number(DEFAULT_BIRTH_TIME.slice(3, 5))))
     form?.reset()
   }
 

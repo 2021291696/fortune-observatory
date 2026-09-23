@@ -252,6 +252,9 @@ async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:
 
     chunks: list[str] = []
     think_chunks: list[str] = []
+    # 与非流式「先裁后补」同口径：正文裁进预算位，免责框强制结尾。
+    relayed = 0
+    essay_budget = _ESSAY_CAP - len(DISCLAIMER) - 2
     try:
         # stream_completion 产出 (kind, segment) 二元组：思考链转播给前端折叠条，
         # 只有正文 delta 进问诊文本与收尾全文。
@@ -260,6 +263,9 @@ async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:
                 think_chunks.append(text)
                 yield {"type": "think", "text": text}
                 continue
+            if relayed + len(text) > essay_budget:
+                continue
+            relayed += len(text)
             chunks.append(text)
             yield {"type": "delta", "text": text}
     except AiConfigurationError:

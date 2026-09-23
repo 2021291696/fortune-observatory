@@ -96,6 +96,20 @@ function scheduleThinkEmit(entry: StreamEntry) {
   })
 }
 
+// FastAPI 校验错误的 detail 是数组（[{msg,...}]），直接 String() 会渲染成 [object Object]。
+function detailText(payload: unknown): string | null {
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) return null
+  const detail = (payload as { detail?: unknown }).detail
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return detail.map((item) => (item && typeof item === 'object' && 'msg' in item
+      ? String((item as { msg?: unknown }).msg)
+      : String(item))).join('；')
+  }
+  if (detail && typeof detail === 'object' && 'msg' in detail) return String((detail as { msg?: unknown }).msg)
+  return null
+}
+
 function handleEvent(entry: StreamEntry, event: { type?: unknown; text?: unknown; detail?: unknown; code?: unknown; sources?: unknown }) {
   if (event.type === 'think' && typeof event.text === 'string') {
     entry.snapshot = { ...entry.snapshot, thinkText: entry.snapshot.thinkText + event.text }
@@ -179,9 +193,7 @@ async function run(entry: StreamEntry, endpoint: string, body: unknown) {
       })
       if (!response.ok) {
         const payload: unknown = await response.json().catch(() => null)
-        const detail = payload && typeof payload === 'object' && 'detail' in payload
-          ? String((payload as { detail?: unknown }).detail).slice(0, 180)
-          : 'AI 解读这次没有生成，请稍后重试。'
+        const detail = detailText(payload)?.slice(0, 180) ?? 'AI 解读这次没有生成，请稍后重试。'
         entry.snapshot = { ...entry.snapshot, phase: 'error', error: detail }
         flushEmit(entry)
         // 错误终态必须出注册表：稳定 cacheKey 的面板重试要能挂新流，
