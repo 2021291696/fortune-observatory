@@ -25,16 +25,21 @@ variables:
   dream_text: "梦见深夜回到小学教室，桌椅都变得特别小，黑板上写满了我看不懂的公式，我想擦掉它们，越擦黑板越黑，最后一盏日光灯开始一闪一闪"
   tcm_question: "长期失眠多梦，凌晨一点醒就再睡不着，白天疲乏，手脚偏凉，一吃凉的就腹泻"
   qimen_goal: "下个月跳槽顺不顺"
+  # rand4 每 run 一值：token_probe 供探测断言引用，与 chat_question 里嵌的码同源
+  token_probe: "{rand4}"
+  chat_name: "测试{rand4}"
   chat_question: "请在回答的第一行原样写出代码 {rand4}，然后用两三句话说说我事业上最近该注意什么。"
 
 flow:
   steps:
     - id: ui_open_site
-      ui: { action: goto, url: "{ui_base}" }
+      # 晚高峰跨海直连实测 ~20KB/s，首屏资源全量 load 需 1-3 分钟，给足 300s
+      ui: { action: goto, url: "{ui_base}", timeout_s: 300 }
 
     - id: scenario_dispatch
       fork:
-        read: "scenario-dispatch"    # 纯场景分发，无读题语义
+        # exact 模式会校验各分支 pick 关键词须在题面文本中，故分发词必须含全部场景名
+        read: "dream qimen tcm fortune ask"
         mode: exact
         branches:
 
@@ -115,12 +120,20 @@ flow:
           - id: fortune_ai
             pick: { contains: "fortune" }
             then:
+              - id: fortune_nav_fortune   # 首访无 profile 默认落 chart 门，先进运势视图露出出生表单
+                ui: { action: click, target: ".primary-nav a[href='#fortune']" }
               - id: fortune_fill_name
-                ui: { action: fill, target: "input[name='displayName']", value: "测试{rand4}" }
+                ui: { action: fill, target: "input[name='displayName']", value: "{chat_name}" }
               - id: fortune_submit_chart
                 ui: { action: click, target: ".submit-button" }
               - id: fortune_chart_ready
                 ui: { action: expect_visible, target: ".today-results" }
+              - id: fortune_chart_landed     # 排盘成功 App 自动跳命盘（内置动线），等它落定
+                ui: { action: expect_visible, target: "#chart-title" }
+              - id: fortune_back_fortune
+                ui: { action: click, target: ".primary-nav a[href='#fortune']" }
+              - id: fortune_settle_daily     # 流日抓取跨海慢，先垫 15s 再等思考条
+                ui: { action: wait, ms: 15000 }
               - id: fortune_trace_visible    # auto 解读挂载即进入思考
                 ui: { action: expect_visible, target: ".today-view .think-trace" }
               - id: fortune_wait_generation
@@ -134,12 +147,16 @@ flow:
           - id: ask_chat
             pick: { contains: "ask" }
             then:
+              - id: chat_nav_fortune      # 同上：首访先露出生表单
+                ui: { action: click, target: ".primary-nav a[href='#fortune']" }
               - id: chat_fill_name
-                ui: { action: fill, target: "input[name='displayName']", value: "测试{rand4}" }
+                ui: { action: fill, target: "input[name='displayName']", value: "{chat_name}" }
               - id: chat_submit_chart
                 ui: { action: click, target: ".submit-button" }
               - id: chat_chart_ready
                 ui: { action: expect_visible, target: ".today-results" }
+              - id: chat_chart_landed        # 等自动跳命盘落定，避免后续导航被顶掉
+                ui: { action: expect_visible, target: "#chart-title" }
               - id: chat_nav_ask
                 ui: { action: click, target: ".primary-nav a[href='#ask']" }
               - id: chat_open_console
@@ -159,7 +176,7 @@ flow:
               - id: chat_done_marker         # 落定后输入框重新可用
                 ui: { action: expect_visible, target: ".chat-input textarea:not([disabled])" }
               - id: chat_answer_has_token    # 内容级断言：回答正文必须含随机码
-                ui: { action: text_contains, value: "{rand4}" }
+                ui: { action: text_contains, value: "{token_probe}" }
               - id: chat_switch_away
                 ui: { action: click, target: ".primary-nav a[href='#dream']" }
               - id: chat_switch_back
@@ -169,7 +186,7 @@ flow:
               - id: chat_doc_persists
                 ui: { action: expect_visible, target: ".ask-view .chat-msg.is-doc" }
               - id: chat_token_still_there   # 消失探针：切走再回来，回答不得丢
-                ui: { action: text_contains, value: "{rand4}" }
+                ui: { action: text_contains, value: "{token_probe}" }
 
 diagnosis:
   logs: []                           # 生产环境无本地日志；失败时用 results.json 响应快照定位
