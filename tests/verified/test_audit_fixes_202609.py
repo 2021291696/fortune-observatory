@@ -1,9 +1,11 @@
-"""2026-09 审计修复轮回归测试（run-2 findings 对应）。
+"""2026-09 审计修复轮回归测试（run-2/run-3 findings 对应）。
 
 覆盖：解梦非流式红线闸、questions 标签闸、四条流式通道的 think 纳入扫描、
 provider 响应体 64KB 上限（dreams/tcm）、阅读会话僵尸修复（attach 看门/
 预算回滚/sweep 补终态）、护栏 AI 体限分档、流式每 IP 并发帽、qimen 年域、
-verify_context TypeError、_ai_request_units 深嵌套 JSON。
+verify_context TypeError、_ai_request_units 深嵌套 JSON；
+run-3：急症同义词+匹配规范化、qimen 年域全输入形态、免责截断顺序、
+红线词族补全、流式每 IP 帽拒绝路径 AI 槽泄漏。
 """
 
 from __future__ import annotations
@@ -307,3 +309,170 @@ def test_api_daily_transit_pre_birth_date_is_422_not_500():
     }
     res = client.post("/v1/transits/daily", json=payload)
     assert res.status_code == 422
+
+
+# ---------- run-3 修复轮（2026-09-23）：急症同义词 / 年域全形态 / 免责截断顺序 / 红线词族 / AI 槽拒绝路径 ----------
+
+
+def test_tcm_emergency_synonyms_and_evasion_forms():
+    """口语同义词必须触发 120 转介（此前心肌梗塞/脑梗/脑卒中/吐血/抽搐/喘不上气全漏）。"""
+    for phrase in (
+        "我爸心肌梗塞犯了", "老人脑梗了怎么办", "怀疑脑卒中", "吐血了",
+        "孩子一直抽搐", "喘不上气", "心绞痛发作了",
+    ):
+        assert tcm_service.is_emergency(phrase), phrase
+    # 拆字/零宽写法同样命中（匹配前 NFKC + 剥空白零宽）
+    assert tcm_service.is_emergency("心肌 梗 塞")
+    assert tcm_service.is_emergency("脑" + chr(0x200B) + "梗")
+    assert not tcm_service.is_emergency("最近总是乏力想调理一下")
+
+
+def test_tcm_emergency_referral_short_circuits_provider(monkeypatch):
+    """急症命中即转介，不打 LLM。"""
+    called: list[int] = []
+
+    async def fake_chat(*args, **kwargs):
+        called.append(1)
+        return "不该被调用"
+
+    monkeypatch.setattr(tcm_service, "_chat", fake_chat)
+    monkeypatch.setattr(tcm_service, "_provider", lambda: _FakeConfig())
+
+    async def run():
+        return await tcm_service.consult_request(ConsultRequest(question="我爷爷心肌梗塞，胸口疼得厉害"))
+
+    res = asyncio.run(run())
+    assert res.referral == tcm_service._REFERRAL_TEXT
+    assert res.essay == ""
+    assert called == []
+
+
+def test_tcm_disclaimer_survives_long_essay(monkeypatch):
+    """run-3：先补免责再截断会把结尾免责切掉；先裁后补后免责恒在结尾且不超帽。"""
+    long_body = "辨证论治，此为太阴病脾虚寒湿之证，理中汤主之，随证加减。" * 140  # >3600 字
+    outputs = [long_body + "\n\n" + tcm_service.DISCLAIMER, long_body]
+
+    async def fake_chat(*args, **kwargs):
+        return outputs.pop(0)
+
+    monkeypatch.setattr(tcm_service, "_chat", fake_chat)
+    monkeypatch.setattr(tcm_service, "_provider", lambda: _FakeConfig())
+    monkeypatch.setattr(tcm_service, "reserve_daily_budget", lambda limit: None)
+
+    async def run(question: str):
+        return await tcm_service.consult_request(ConsultRequest(question=question))
+
+    for question in ("长期便秘怎么办", "手脚冰凉怎么调理"):
+        res = asyncio.run(run(question))
+        assert res.essay.endswith(tcm_service.DISCLAIMER), "截断后免责框必须仍落在结尾"
+        assert res.essay.count(tcm_service.DISCLAIMER) == 1
+        assert len(res.essay) <= tcm_service._ESSAY_CAP
+
+
+def test_tcm_redline_synonym_families_blocked():
+    """run-3 词族补全：此前阿莫西林/头孢/两粒/根治/定投 全部零触发。"""
+    for text in ("可以吃阿莫西林", "吃头孢克肟就行", "一次两粒", "一天两片", "喝点对乙酰氨基酚", "来点退烧药"):
+        assert safety_violation_tcm(text) == "western_med", text
+    for text in ("这个方子能根治", "绝对能好得断根", "包你好", "药到病除"):
+        assert safety_violation_tcm(text) == "deterministic", text
+    for text in ("建议逢低定投，长期持有", "可以建仓", "教你炒币赚钱"):
+        assert safety_violation_tcm(text) == "investment", text
+
+
+def test_tcm_redline_dose_language_still_passes():
+    """词族扩充不得误伤经方剂量（两/钱/枚/升）与方义表述。"""
+    for text in ("大枣十二枚", "生附子3钱", "桂枝四两 芍药三两", "以水七升煮取三升", "川贝两钱", "石膏鸡子大"):
+        assert safety_violation_tcm(text) is None, text
+
+
+def test_qimen_year_guard_governs_all_canonical_forms():
+    """run-3：前缀启发式废除——带符号/短年/下划线/全角/本地化分隔符不再绕守卫。"""
+    from pydantic import ValidationError
+
+    for value in (
+        "+9999-01-01", "-9999-01-01", "24-1-1", "999-1-1", "9_999-01-01",
+        "２４-１-１", "24/1/1", "24年1月1日",
+    ):
+        with pytest.raises(ValidationError):
+            QimenChartRequest(question_type="事业", question_goal="能否成行", time_mode="custom", time_input=value)
+    QimenChartRequest(question_type="事业", question_goal="能否成行", time_mode="custom", time_input="2024-01-01 10:00")
+
+
+def test_qimen_engine_year_domain_on_parsed_year():
+    """引擎侧兜底：string 与 dict 直入路径都在解析后的年份上做年域校验。"""
+    from fortune_core.qimen import engine as qimen_engine
+
+    with pytest.raises(ValueError, match="1849-2150"):
+        qimen_engine.parse_datetime_string("-9999-01-01")
+    with pytest.raises(ValueError, match="1849-2150"):
+        qimen_engine.normalize_input({
+            "question_type": "事业", "question_goal": "x", "calendar_type": "solar",
+            "time_input": {"year": 9999, "month": 1, "day": 1, "hour": 10},
+        })
+    assert qimen_engine.parse_datetime_string("2024-01-01 10:00")["year"] == 2024
+
+
+def test_guard_stream_cap_reject_releases_ai_slot():
+    """run-3：流式每 IP 帽的拒绝路径不得漏 AI 槽。拒绝打在内嵌协程首步之前的
+    cancel 上，其 finally 从未开跑——归还必须由请求线的租约兜底。修复前几轮
+    拒绝即可把 3 个 AI 槽永久抽干，重启前 AI 请求一路 503。"""
+    hold = asyncio.Event()
+    holder_entered = asyncio.Event()
+
+    async def stub_app(scope, receive, send):
+        if scope["_test_body"] == b"hold":
+            holder_entered.set()
+            await hold.wait()
+        await send({"type": "http.response.start", "status": 200, "headers": [(b"content-length", b"2")]})
+        await send({"type": "http.response.body", "body": b"ok"})
+
+    async def scenario():
+        guard = security_module.RequestGuardMiddleware(
+            stub_app,
+            trust_proxy=False,
+            streaming_ai_per_ip=1,
+            max_concurrent_ai_requests=3,
+            ai_requests_per_minute=60,
+            ai_global_requests_per_minute=600,
+        )
+
+        async def call(body: bytes, client: str) -> list:
+            messages: list = []
+            scope = {
+                "type": "http", "method": "POST", "path": "/v1/ai/reading",
+                "headers": [(b"content-length", str(len(body)).encode())],
+                "client": (client, 12345), "_test_body": body,
+            }
+            inbox = [{"type": "http.request", "body": body, "more_body": False}]
+            parked = asyncio.Event()
+
+            async def receive():
+                return inbox.pop(0) if inbox else await parked.wait()
+
+            async def send(message):
+                messages.append(message)
+
+            await guard(scope, receive, send)
+            return messages
+
+        # 持有者：进 stub 后挂在 hold 上，占住唯一 in-flight 流式名额与 1 个 AI 槽
+        holder = asyncio.create_task(call(b"hold", "10.0.0.1"))
+        await holder_entered.wait()
+        assert guard._ai_slots._value == 2
+
+        # 同 IP 第二条流式连接：帽拒绝（429）——拒绝路径的槽归还由请求线兜底
+        rejected = await call(b"probe", "10.0.0.1")
+        assert any(m.get("status") == 429 for m in rejected if m.get("type") == "http.response.start")
+        assert guard._ai_slots._value == 2, "帽拒绝路径漏 AI 槽（首步前 cancel，协程 finally 未跑）"
+
+        # 放行持有者 → 三槽回满
+        hold.set()
+        await holder
+        assert guard._ai_slots._value == 3
+
+        # 服务恢复：新连接能拿到槽正常返回
+        messages = await call(b"probe", "10.0.0.2")
+        assert any(m.get("status") == 200 for m in messages if m.get("type") == "http.response.start")
+        assert guard._ai_slots._value == 3
+
+    asyncio.run(scenario())

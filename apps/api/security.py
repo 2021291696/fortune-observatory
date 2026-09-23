@@ -151,49 +151,53 @@ class RequestGuardMiddleware:
                 await guarded_send(message)
 
         async def run_calculation() -> None:
-            try:
-                await self.app(scope, receive, deadline_send)
-            finally:
-                work_slots.release()
+            await self.app(scope, receive, deadline_send)
 
-        task = asyncio.create_task(run_calculation())
-        self._background_tasks.add(task)
-        task.add_done_callback(self._finish_background_task)
-        if is_streaming_ai:
-            # 长连接不设总时长门：await 到生成器自然结束（客户端断开即取消）。
-            # 公平性帽：单 IP 在途流式连接上限——否则匿名客户端用少量连接
-            # 即可长期钉死全局 3 个 AI 槽（6/min 限流管不住占坑）。
-            inflight = self._streaming_ai_inflight[client]
-            if inflight >= self.streaming_ai_per_ip:
-                task.cancel()
-                await self._send_json(guarded_send, 429, '{"detail":"同一地址的解读连接太多了，请先关闭旧的。"}', [(b"retry-after", b"5")])
-                return
-            self._streaming_ai_inflight[client] = inflight + 1
-            try:
-                await task
-            except asyncio.CancelledError:
-                raise
-            finally:
-                remaining = self._streaming_ai_inflight[client] - 1
-                if remaining > 0:
-                    self._streaming_ai_inflight[client] = remaining
-                else:
-                    self._streaming_ai_inflight.pop(client, None)
-            return
+        # 槽位所有权收在请求线：finally 必跑、恰好归还一次，不依赖内嵌协程体
+        # 是否跑过——协程在首步之前被 cancel 时其 try/finally 从未开跑，流式
+        # 每 IP 帽的拒绝路径实测几轮拒绝即可把 3 个 AI 槽永久抽干到重启
+        # （run-3 guard.ai-slot-leak-stream-cap-reject）。
         try:
-            timeout_seconds = self.ai_timeout_seconds if is_ai else self.calculation_timeout_seconds
-            await asyncio.wait_for(asyncio.shield(task), timeout=timeout_seconds)
-        except TimeoutError:
-            if task.done():
-                await task
+            task = asyncio.create_task(run_calculation())
+            self._background_tasks.add(task)
+            task.add_done_callback(self._finish_background_task)
+            if is_streaming_ai:
+                # 长连接不设总时长门：await 到生成器自然结束（客户端断开即取消）。
+                # 公平性帽：单 IP 在途流式连接上限——否则匿名客户端用少量连接
+                # 即可长期钉死全局 3 个 AI 槽（6/min 限流管不住占坑）。
+                inflight = self._streaming_ai_inflight[client]
+                if inflight >= self.streaming_ai_per_ip:
+                    task.cancel()
+                    await self._send_json(guarded_send, 429, '{"detail":"同一地址的解读连接太多了，请先关闭旧的。"}', [(b"retry-after", b"5")])
+                    return
+                self._streaming_ai_inflight[client] = inflight + 1
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    raise
+                finally:
+                    remaining = self._streaming_ai_inflight[client] - 1
+                    if remaining > 0:
+                        self._streaming_ai_inflight[client] = remaining
+                    else:
+                        self._streaming_ai_inflight.pop(client, None)
                 return
-            response_expired = True
-            task.cancel()
             try:
-                await task
-            except asyncio.CancelledError:
-                pass
-            await self._send_json(guarded_send, 504, '{"detail":"这次计算没能在时限内完成，请重试。"}', [(b"retry-after", b"2")])
+                timeout_seconds = self.ai_timeout_seconds if is_ai else self.calculation_timeout_seconds
+                await asyncio.wait_for(asyncio.shield(task), timeout=timeout_seconds)
+            except TimeoutError:
+                if task.done():
+                    await task
+                    return
+                response_expired = True
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                await self._send_json(guarded_send, 504, '{"detail":"这次计算没能在时限内完成，请重试。"}', [(b"retry-after", b"2")])
+        finally:
+            work_slots.release()
 
     def _finish_background_task(self, task: asyncio.Task[None]) -> None:
         self._background_tasks.discard(task)

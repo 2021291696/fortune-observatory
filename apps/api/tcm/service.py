@@ -4,6 +4,7 @@ import asyncio
 import logging
 import re
 import time
+import unicodedata
 from collections.abc import AsyncIterator
 
 import httpx
@@ -28,24 +29,44 @@ logger = logging.getLogger("fortune.tcm")
 # 域专用内容红线：解梦/奇门共用 ai_explainer.safety_violation，其 medical 正则
 # （服用/剂量类）会拦掉倪师口径的核心产出（方剂剂量煎服法）。中医域改用本表：
 # 保留确定性断语与投资红线，另设西药指令红线——经方库不会推荐现代药物，命中
-# 说明答案跑偏；中药剂量语言（两/钱/枚）不匹配阿拉伯数字单位，正常放行。
+# 说明答案跑偏；中药剂量语言（两/钱/枚）不匹配数字+片/粒/毫克单位，正常放行。
+# 词表按「词族/口语同义族」收，不点名单词——点名单词每漏一个口语面就漏一道闸
+# （run-3 实测：阿莫西林/头孢/两粒/根治/定投 当时全部零触发）。
 _TCM_SAFETY_PATTERNS: tuple[tuple[str, str], ...] = (
-    ("deterministic", r"(?:注定|必然|百分之百|保证你|一定会)"),
+    (
+        "deterministic",
+        r"(?:注定|必然|百分之百|保证你|一定会|一定能|绝对能|根治|断根|包你|药到病除)",
+    ),
     (
         "western_med",
-        r"(?:阿司匹林|布洛芬|抗生素|处方药|注射|输液|手术治疗|\d+\s*(?:mg|毫克|片|粒|ml|毫升))",
+        # 药名按类收（*西林/*头孢/*霉素 覆盖整类译名药）；数量词含中文数字
+        # （两粒/半片）。单位只列片/粒/mg/毫克/ml/毫升——中药剂量的两/钱/枚/升
+        # 不入列；片/粒 计数按既有产品立场一律按西药剂量语言处理
+        # （test_western_med_blocked 钉死「每天3片」）。
+        r"(?:阿司匹林|布洛芬|对乙酰氨基酚|扑热息痛|止疼药|止痛药|退烧药|退热药"
+        r"|抗生素|处方药|注射|输液|手术治疗"
+        r"|(?:[0-9]+|[一两二三四五六七八九十百千几半]+)\s*"
+        r"(?:mg|毫克|片|粒|ml|毫升)"
+        r"|西林|头孢|霉素)",
     ),
     (
         "investment",
         r"(?:购买|买入|卖出|加仓|减仓|满仓|抄底|做多|做空|上杠杆|借贷投资|"
-        r"股票|基金|债券|期货|期权|虚拟币|加密货币)",
+        r"股票|基金|债券|期货|期权|虚拟币|加密货币|买点|建仓|定投|炒币)",
     ),
 )
 
 # 急性危重信号：命中即确定性转介（不打 LLM、不出方），对齐解梦自伤转介的产品口径。
+# 同义词族收全口语面（run-3 实测：心肌梗塞/脑梗/脑卒中/吐血/抽搐/喘不上气 全漏）；
+# 匹配前先规范化（is_emergency），防拆字/零宽/全角绕闸。
 _EMERGENCY_PATTERNS = (
-    "心梗", "心肌梗死", "中风", "脑出血", "昏迷", "休克", "大出血", "呕血", "咯血",
-    "呼吸困难", "意识不清", "意识模糊", "抽搐不止", "剧烈胸痛", "胸口剧痛", "高热惊厥",
+    "心梗", "心肌梗死", "心肌梗塞", "心绞痛",
+    "中风", "脑梗", "脑梗死", "脑梗塞", "脑卒中", "脑出血", "脑溢血",
+    "昏迷", "昏厥", "晕厥", "休克",
+    "大出血", "呕血", "咯血", "吐血",
+    "呼吸困难", "喘不上气", "喘不过气",
+    "意识不清", "意识模糊", "抽搐", "高热惊厥", "高烧惊厥",
+    "剧烈胸痛", "胸口剧痛",
 )
 
 # 免责框固定文案（与 skill 口径一致），流式/非流式收尾强校验缺失即补齐。
@@ -71,8 +92,20 @@ def safety_violation_tcm(text: str) -> str | None:
     return None
 
 
+# 零宽字符（ZWSP/ZWNJ/ZWJ/WJ/BOM）显式按码点构造：源码保持纯 ASCII，
+# 防格式化器把字面量零宽字符剥掉后正则悄悄失效。
+_INVISIBLE_CHARS = re.compile(r"[\s" + "".join(map(chr, (0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF))) + "]+")
+
+
+def _normalize_signal_text(text: str) -> str:
+    """信号匹配前规范化：NFKC 折叠全角/兼容字符，剥掉空白与零宽字符，
+    否则「心肌 梗塞」「脑<零宽>梗」这类拆字写法能绕开子串匹配。"""
+    return _INVISIBLE_CHARS.sub("", unicodedata.normalize("NFKC", text))
+
+
 def is_emergency(question: str) -> bool:
-    return any(pattern in question for pattern in _EMERGENCY_PATTERNS)
+    normalized = _normalize_signal_text(question)
+    return any(_normalize_signal_text(pattern) in normalized for pattern in _EMERGENCY_PATTERNS)
 
 
 def _emergency_result() -> ConsultResponse:
@@ -112,6 +145,18 @@ def _enforce_disclaimer(essay: str) -> str:
     if DISCLAIMER in essay:
         return essay
     return f"{essay.rstrip()}\n\n{DISCLAIMER}"
+
+
+def _fit_essay(raw: str) -> str:
+    """先裁后补：正文裁进「_ESSAY_CAP − 免责框」的预算位，免责框强制落在结尾。
+
+    顺序是产品底线（保证用户永远看到免责）：此前 enforce 在 [:_ESSAY_CAP] 截断
+    之前跑，长文会把结尾的免责框切掉。模型自带的结尾免责先剥掉再补，避免双份。
+    """
+    body = raw.strip()
+    head = body[: -len(DISCLAIMER)].rstrip() if body.endswith(DISCLAIMER) else body.rstrip()
+    room = _ESSAY_CAP - len(DISCLAIMER) - 2
+    return f"{head[:room].rstrip()}\n\n{DISCLAIMER}"
 
 
 def _provider():
@@ -183,14 +228,15 @@ async def consult_request(request: ConsultRequest) -> ConsultResponse:
         raise
     except Exception as error:
         raise AiProviderError("tcm consult failed") from error
-    essay = _enforce_disclaimer(raw.strip())
-    if not essay:
+    if not raw.strip():
         raise AiProviderError("empty essay")
-    violation = safety_violation_tcm(essay)
+    # 红线过全文（与修复前同口径），截断只影响交付形态、不影响放行判定。
+    violation = safety_violation_tcm(raw.strip())
     if violation is not None:
         logger.warning("tcm consult safety violation kind=%s", violation)
         raise AiProviderError(f"tcm consult safety violation: {violation}")
-    return ConsultResponse(essay=essay[:_ESSAY_CAP], sources=extract_sources(essay))
+    essay = _fit_essay(raw)
+    return ConsultResponse(essay=essay, sources=extract_sources(essay))
 
 
 async def stream_consult_events(request: ConsultRequest) -> AsyncIterator[dict]:

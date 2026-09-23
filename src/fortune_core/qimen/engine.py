@@ -203,6 +203,21 @@ def rotate_to_start(seq: list[Any], start: Any) -> list[Any]:
     return seq[idx:] + seq[:idx]
 
 
+_YEAR_MIN = 1849
+_YEAR_MAX = 2150
+
+
+def assert_supported_year(year: int) -> None:
+    """起局年份域：与八字/行运的 1849-2150 对齐（src/fortune_core/models.py）。
+
+    年域校验必须打在解析后的年份上——按字符串前缀猜年份的守卫与引擎的规范化
+    分叉，带符号/短年/下划线/全角/本地化分隔符的输入都能绕过守卫，被引擎解析
+    出界外年份后静默出错盘（run-3 审计 qimen.year-guard-prefix-skip）。
+    """
+    if not _YEAR_MIN <= year <= _YEAR_MAX:
+        raise ValueError(f"起局年份 {year} 超出支持范围（{_YEAR_MIN}-{_YEAR_MAX}）")
+
+
 def parse_datetime_string(value: str) -> dict[str, int]:
     normalized = value.strip().replace("T", " ").replace("/", "-").replace("年", "-").replace("月", "-").replace("日", " ")
     normalized = normalized.replace("时", ":").replace("點", ":").replace("点", ":").replace("分", "").replace("秒", "")
@@ -213,6 +228,7 @@ def parse_datetime_string(value: str) -> dict[str, int]:
     date_bits = [int(bit) for bit in date_part.split("-") if bit]
     if len(date_bits) != 3:
         raise ValueError("日期格式需为 YYYY-MM-DD")
+    assert_supported_year(date_bits[0])
     time_bits = [0, 0, 0]
     if len(parts) > 1:
         raw_time = parts[1]
@@ -276,6 +292,8 @@ def normalize_input(payload: dict[str, Any]) -> NormalizedInput:
             }
         else:
             raw = parse_datetime_string(str(original_time_input))
+        # 统一在解析后年份上兜底年域（dict 直入不经 parse_datetime_string）
+        assert_supported_year(raw["year"])
         solar_dt = datetime(raw["year"], raw["month"], raw["day"], raw["hour"], raw["minute"], raw["second"], tzinfo=tz)
     elif calendar_type == "lunar":
         use_now = False
@@ -292,6 +310,8 @@ def normalize_input(payload: dict[str, Any]) -> NormalizedInput:
         else:
             raw = parse_datetime_string(str(original_time_input))
             raw["is_leap_month"] = bool(payload.get("is_leap_month", False))
+        # 统一在解析后年份上兜底年域（dict 直入不经 parse_datetime_string）
+        assert_supported_year(raw["year"])
         leap_month = bool(raw.get("is_leap_month", False))
         lunar_month = -raw["month"] if leap_month else raw["month"]
         lunar_obj = Lunar.fromYmdHms(raw["year"], lunar_month, raw["day"], raw["hour"], raw["minute"], raw["second"])

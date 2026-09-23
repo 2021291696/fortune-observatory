@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from fortune_core.qimen.engine import parse_datetime_string
+
 
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -36,13 +38,11 @@ class QimenChartRequest(StrictModel):
         if self.time_mode == "custom" and not self.time_input:
             raise ValueError("自定义起局时间不能为空")
         if self.time_mode == "custom" and self.time_input:
-            # 年份域守卫：与八字/行运的 1849-2150 对齐，拒绝明显越界的
-            # 日期（此前引擎按 1-9999 年静默出盘，边界只靠偶然报错）。
-            head = self.time_input.strip()[:4]
-            if head.isdigit():
-                year = int(head)
-                if not 1849 <= year <= 2150:
-                    raise ValueError(f"起局年份 {year} 超出支持范围（1849-2150）")
+            # 年份域守卫与引擎共用同一份解析+域校验（parse_datetime_string）：
+            # 此前用 strip()[:4].isdigit() 前缀猜年份，与引擎规范化分叉，
+            # 带符号/短年/下划线/全角/本地化分隔符的输入全都能绕过守卫、
+            # 又被引擎解析出界外年份的静默错盘（run-3 前缀绕过项）。
+            parse_datetime_string(self.time_input)
         return self
 
 
